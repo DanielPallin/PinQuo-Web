@@ -1,18 +1,28 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Camera, ArrowLeft, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react'
+import { Camera, ArrowLeft, ChevronLeft, ChevronRight, CheckCircle2, Loader2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
-const TEMPLATES = [
-  { id: 'clown', name: 'Clown', color: 'bg-orange-200' },
-  { id: 'comedian', name: 'Comedian', color: 'bg-yellow-200' },
-  { id: 'embarrassed', name: 'Embarrassed', color: 'bg-slate-300' },
-]
+// THIS IS THE FIX: We write the colors here as a simple string so Tailwind 
+// knows not to delete them when it compiles the app!
+const TAILWIND_SAFELIST = "bg-orange-200 bg-yellow-200 bg-slate-300 bg-slate-200 from-orange-200 to-red-200 from-yellow-200 to-amber-200 from-slate-300 to-slate-400"
+
+type Template = {
+  id: string
+  name: string
+  style_config: {
+    baseColor: string
+    gradient: string
+  }
+  is_pro_only: boolean
+}
 
 function WriteQuoteForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const supabase = createClient()
 
   const targetId = searchParams.get('targetId')
   const targetUsername = searchParams.get('targetUsername')
@@ -25,45 +35,86 @@ function WriteQuoteForm() {
   const [bgType, setBgType] = useState<'avatar' | 'template' | 'snap'>(
     isExistingUser ? 'avatar' : 'template'
   )
-  const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0].id)
+
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(true)
+
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      const { data, error } = await supabase
+        .from('templates')
+        .select('id, name, style_config, is_pro_only')
+        .eq('is_pro_only', false)
+        .order('created_at', { ascending: true })
+
+      if (data && data.length > 0) {
+        setTemplates(data)
+        setSelectedTemplate(data[0])
+      }
+      setIsLoadingTemplates(false)
+    }
+    fetchTemplates()
+  }, [supabase])
+
+  const handlePreview = () => {
+    if (!quoteText.trim()) return
+
+    const params = new URLSearchParams({ quote: quoteText, bgType: bgType })
+
+    if (targetId) params.append('targetId', targetId)
+    if (targetUsername) params.append('targetUsername', targetUsername)
+    if (inviteEmail) params.append('inviteEmail', inviteEmail)
+    
+    if (bgType === 'template' && selectedTemplate) {
+      params.append('templateId', selectedTemplate.id)
+      params.append('templateGradient', selectedTemplate.style_config.gradient)
+    }
+
+    router.push(`/create/preview?${params.toString()}`)
+  }
 
   return (
-    <div className="flex flex-col pt-10 px-6 w-full max-w-lg mx-auto min-h-[calc(100vh-120px)] pb-6">
+    <div className="flex flex-col pt-6 px-4 w-full max-w-lg mx-auto min-h-[calc(100vh-120px)] pb-6">
       
-      {/* Header - Super Sized */}
-      <div className="relative text-center mb-10 shrink-0">
+      {/* Header */}
+      <div className="relative text-center mb-6 shrink-0">
         <button 
           onClick={() => router.back()}
-          aria-label="Go back"
-          className="absolute left-0 top-1 p-3 hover:bg-slate-100 rounded-full transition"
+          title="Go Back"
+          className="absolute left-0 top-0 p-2 hover:bg-slate-100 rounded-full transition"
         >
-          <ArrowLeft className="w-10 h-10 text-black" />
+          <ArrowLeft className="w-8 h-8 text-black" />
         </button>
-        <h1 className="text-4xl font-black text-black">PinQuo</h1>
-        <p className="text-slate-500 font-bold text-lg mt-2">Quoting {displayTarget}</p>
+        <h1 className="text-3xl font-black text-black leading-tight">PinQuo</h1>
+        <p className="text-slate-500 font-bold text-sm mt-1">Quoting {displayTarget}</p>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-start gap-8">
+      <div className="flex-1 flex flex-col items-center justify-start gap-4 w-full">
         
-        {/* SNAP PRO - Now a massive, clear button */}
-        <div className="flex flex-col items-center shrink-0 w-full">
-          <Camera className="w-20 h-20 text-black mb-4" strokeWidth={2} />
+        {/* SNAP PRO */}
+        <div className="flex flex-col items-center w-full opacity-50 shrink-0">
           <button 
-            type="button"
-            className="w-full max-w-[360px] bg-slate-200 text-slate-800 font-black py-5 px-10 rounded-[28px] text-xl hover:bg-slate-300 transition shadow-sm"
+            type="button" disabled
+            className="w-full flex flex-col items-center justify-center gap-1 bg-slate-50 text-slate-400 font-black py-4 px-4 rounded-[28px] text-base border-2 border-dashed border-slate-200 cursor-not-allowed shadow-sm"
           >
-            Snap Live-Photo (PRO)
+            <div className="flex items-center gap-3">
+              <Camera className="w-6 h-6" strokeWidth={2.5} />
+              <span>Snap Live-Photo (PRO)</span>
+            </div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Coming in v2.0</span>
           </button>
         </div>
+
+        <div className="text-slate-400 font-black text-xs uppercase tracking-widest shrink-0 mt-1">Or</div>
 
         {/* AVATAR OPTION */}
         {isExistingUser && (
           <div className="w-full flex flex-col items-center shrink-0">
-            <div className="text-slate-400 font-black text-lg mb-4 uppercase tracking-widest">Or</div>
             <button
               type="button"
               onClick={() => setBgType('avatar')}
-              className={`w-full max-w-[360px] py-6 rounded-[28px] font-black text-xl transition-all ${
+              className={`w-full py-4 px-4 rounded-[28px] font-black text-base transition-all ${
                 bgType === 'avatar' 
                   ? 'bg-[#bbf7d0] text-emerald-950 shadow-md ring-4 ring-emerald-200' 
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -71,56 +122,66 @@ function WriteQuoteForm() {
             >
               Use Quoted Users Avatar
             </button>
+            <div className="text-slate-400 font-black text-xs uppercase tracking-widest shrink-0 mt-5">Or</div>
           </div>
         )}
 
-        <div className="text-slate-400 font-black text-lg uppercase tracking-widest shrink-0">Or</div>
-
-        {/* TEMPLATE CAROUSEL - Significantly larger thumbnails */}
-        <div className="w-full flex flex-col items-center shrink-0">
-          <p className="text-2xl font-black text-slate-800 mb-6">Choose template</p>
+        {/* TEMPLATE CAROUSEL */}
+        <div className="w-full flex flex-col items-center shrink-0 mt-2">
+          <p className="text-xl font-black text-slate-800 mb-4">Choose template</p>
           
-          <div className="flex items-center justify-center gap-6 w-full">
-            <ChevronLeft className="w-12 h-12 text-black cursor-pointer hover:scale-110 transition" />
-            
-            <div className="flex gap-6">
-              {TEMPLATES.map((template) => {
-                const isSelected = bgType === 'template' && selectedTemplate === template.id
-                return (
-                  <div key={template.id} onClick={() => { setBgType('template'); setSelectedTemplate(template.id) }} className="flex flex-col items-center gap-3 cursor-pointer group">
-                    <div className={`relative w-28 h-28 rounded-[32px] overflow-hidden ${template.color} border-4px transition-all ${isSelected ? 'border-emerald-400 scale-110 shadow-lg' : 'border-transparent group-hover:scale-105'}`}>
-                      {isSelected && (
-                        <div className="absolute inset-0 bg-white/30 flex items-center justify-center">
-                          <div className="bg-[#bbf7d0] rounded-full p-2 border-4 border-emerald-500"><CheckCircle2 className="w-10 h-10 text-emerald-800" strokeWidth={3} /></div>
-                        </div>
-                      )}
+          {isLoadingTemplates ? (
+            <Loader2 className="w-8 h-8 animate-spin text-slate-300 my-4" />
+          ) : templates.length > 0 ? (
+            <div className="flex items-center justify-center gap-2 w-full">
+              <ChevronLeft className="w-8 h-8 text-black cursor-pointer hover:scale-110 transition" />
+              
+              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 px-2 items-center justify-center">
+                {templates.map((template) => {
+                  const isSelected = bgType === 'template' && selectedTemplate?.id === template.id
+                  const baseColor = template.style_config?.baseColor || 'bg-slate-200'
+                  
+                  return (
+                    // FIX: Added shrink-0 here to stop Tailwind from squishing the boxes!
+                    <div key={template.id} onClick={() => { setBgType('template'); setSelectedTemplate(template) }} className="flex flex-col items-center gap-2 cursor-pointer group shrink-0">
+                      <div className={`relative w-20 h-20 rounded-[24px] overflow-hidden ${baseColor} border-4 transition-all ${isSelected ? 'border-emerald-400 scale-105 shadow-md' : 'border-transparent group-hover:scale-105'}`}>
+                        {isSelected && (
+                          <div className="absolute inset-0 bg-white/30 flex items-center justify-center">
+                            <div className="bg-[#bbf7d0] rounded-full p-1.5 border-[3px] border-emerald-500"><CheckCircle2 className="w-8 h-8 text-emerald-800" strokeWidth={3} /></div>
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-xs font-black text-slate-500 uppercase tracking-wide">{template.name}</span>
                     </div>
-                    <span className="text-sm font-black text-slate-500 uppercase">{template.name}</span>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
+
+              <ChevronRight className="w-8 h-8 text-black cursor-pointer hover:scale-110 transition" />
             </div>
-            <ChevronRight className="w-12 h-12 text-black cursor-pointer hover:scale-110 transition" />
-          </div>
+          ) : (
+            <p className="text-slate-400 font-bold text-sm">No templates found.</p>
+          )}
         </div>
 
-        {/* QUOTE INPUT SECTION - Massive and easy to touch */}
-        <div className="w-full mt-auto pt-8 shrink-0">
-          <p className="text-2xl font-black text-slate-800 mb-4 text-center">Quote:</p>
-          <div className="relative w-full bg-slate-100 rounded-[40px] p-8 pb-32 shadow-inner">
-            <span className="absolute top-8 left-8 text-7xl font-serif text-slate-400">&ldquo;</span>
+        {/* QUOTE INPUT SECTION */}
+        <div className="w-full mt-4 shrink-0">
+          <p className="text-xl font-black text-slate-800 mb-3 text-center">Quote:</p>
+          <div className="relative w-full bg-slate-100 rounded-[36px] p-6 pb-24 shadow-inner">
+            <span className="absolute top-5 left-6 text-5xl font-serif text-slate-300">&ldquo;</span>
             <textarea
               value={quoteText}
               onChange={(e) => setQuoteText(e.target.value)}
               placeholder="Type the quote here..."
-              className="w-full h-32 bg-transparent text-slate-900 text-2xl resize-none focus:outline-none placeholder:text-slate-400 pl-16 pr-10 pt-4 leading-normal font-medium"
+              className="w-full h-20 bg-transparent text-slate-900 text-xl resize-none focus:outline-none placeholder:text-slate-400 pl-12 pr-8 pt-2 leading-relaxed font-semibold"
             />
-            <span className="absolute bottom-[130px] right-8 text-7xl font-serif text-slate-400">&rdquo;</span>
+            <span className="absolute bottom-[85px] right-6 text-5xl font-serif text-slate-300">&rdquo;</span>
 
-            <div className="absolute bottom-8 left-0 right-0 flex justify-center z-20">
+            <div className="absolute bottom-6 left-0 right-0 flex justify-center z-20">
               <button
-                disabled={quoteText.trim().length === 0}
-                className="bg-[#bbf7d0] text-emerald-950 font-black py-5 px-20 rounded-full disabled:opacity-50 transition hover:bg-[#a7f3d0] active:scale-95 shadow-md text-xl"
+                onClick={handlePreview}
+                disabled={quoteText.trim().length === 0 || (bgType === 'template' && !selectedTemplate)}
+                className="bg-[#bbf7d0] text-emerald-950 font-black py-4 px-16 rounded-full disabled:opacity-50 transition hover:bg-[#a7f3d0] active:scale-95 shadow-sm text-lg"
               >
                 Preview
               </button>
@@ -129,13 +190,16 @@ function WriteQuoteForm() {
         </div>
 
       </div>
+      
+      {/* Hide the safelist string safely from the DOM but keep it in the compiled code */}
+      <div className="hidden">{TAILWIND_SAFELIST}</div>
     </div>
   )
 }
 
 export default function WriteQuotePage() {
   return (
-    <Suspense fallback={<div className="p-10 text-center text-slate-500 text-xl">Loading editor...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-slate-500 text-lg font-bold">Loading editor...</div>}>
       <WriteQuoteForm />
     </Suspense>
   )

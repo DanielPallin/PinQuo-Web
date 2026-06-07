@@ -25,8 +25,8 @@ export default async function MainLayout({
     <div className="min-h-screen bg-slate-100 flex justify-center font-sans selection:bg-black selection:text-white">
       <div className="w-full max-w-2xl bg-white min-h-screen relative flex flex-col shadow-2xl">
         
-        {/* Increased bottom padding to 120px so content clears the taller navbar */}
-        <main className="flex-1 pb-[120px]">
+        {/* FIXED: Changed from pb-[120px] to pb-40 so the padding scales with the font size! */}
+        <main className="flex-1 pb-40">
           {children}
         </main>
 
@@ -36,7 +36,6 @@ export default async function MainLayout({
             href="/feed" 
             className="flex-1 flex items-center justify-center gap-3 bg-slate-50 border border-slate-200/50 shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:bg-white hover:shadow-[0_8px_20px_rgba(0,0,0,0.08)] hover:-translate-y-1 active:shadow-[inset_0_3px_6px_rgba(0,0,0,0.06)] active:translate-y-0 active:scale-95 mx-2 py-4 rounded-3xl transition-all duration-200"
           >
-            {/* Scaled icons from w-7 to w-9 */}
             <Home className="w-9 h-9 stroke-[2.5] text-black" />
             <span className="hidden md:block font-bold text-black text-base tracking-wide">
               Feed

@@ -1,138 +1,160 @@
-import { createClient } from '@/lib/supabase/server'
-import { Star, Bell } from 'lucide-react'
-import TemplateCard from '@/components/TemplateCard'
-import Link from 'next/link'
-import type { QuoteWithRelations, TemplateStyleRow } from '@/types/quote'
-import type { PostgrestError } from '@supabase/supabase-js'
+'use client'
 
-export const revalidate = 0 
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { Bell, Star, Loader2, User } from 'lucide-react'
 
-export default async function FeedPage() {
-  const supabase = await createClient()
+// Reuse our perfect text scaling logic!
+const getQuoteFontSize = (text: string) => {
+  const len = text.length
+  if (len < 40) return 'text-4xl md:text-5xl'
+  if (len < 80) return 'text-3xl md:text-4xl'
+  if (len < 140) return 'text-2xl md:text-3xl'
+  if (len < 200) return 'text-xl md:text-2xl'
+  return 'text-lg md:text-xl'
+}
 
-  // Strictly type both the returned data array and the Supabase PostgrestError object[cite: 3]
-  const { data: quotes, error } = (await supabase
-    .from('quotes')
-    .select(`
-      id,
-      content,
-      quoted_email,
-      live_photo_url,
-      created_at,
-      publisher:profiles!publisher_id (id, username, avatar_url, is_pro),
-      quoted_user:profiles!quoted_user_id (id, username, avatar_url, is_pro),
-      templates (id, name, style_config)
-    `)
-    .order('created_at', { ascending: false })) as { 
-      data: QuoteWithRelations[] | null
-      error: PostgrestError | null 
+// Define the shape of our joined database data
+type FeedQuote = {
+  id: string
+  content: string
+  created_at: string
+  quoted_email: string | null
+  publisher: { username: string } | null
+  quoted_user: { username: string } | null
+  template: { style_config: { gradient: string, baseColor: string } } | null
+}
+
+export default function FeedPage() {
+  const supabase = createClient()
+  const [quotes, setQuotes] = useState<FeedQuote[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchFeed = async () => {
+      // Fetch quotes and join the profiles and templates tables to get all the rich data
+      const { data, error } = await supabase
+        .from('quotes')
+        .select(`
+          id,
+          content,
+          created_at,
+          quoted_email,
+          publisher:profiles!quotes_publisher_id_fkey(username),
+          quoted_user:profiles!quotes_quoted_user_id_fkey(username),
+          template:templates(style_config)
+        `)
+        .order('created_at', { ascending: false })
+
+        if (data) {
+          // Cast to unknown first to override Supabase's array assumption
+          setQuotes(data as unknown as FeedQuote[])
+        } else if (error) {
+        console.error("Error fetching feed:", error)
+      }
+      setIsLoading(false)
     }
 
-  if (error) {
-    return (
-      <div className="p-4 bg-red-50 text-red-600 rounded-xl mt-6 font-medium text-sm">
-        Failed to fetch feed updates: {error.message}
-      </div>
-    )
-  }
+    fetchFeed()
+  }, [supabase])
 
   return (
-    <div className="space-y-4 max-w-md mx-auto">
+    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50/50 pb-24 pt-6 px-4">
       
-      {/* App Header Bar mimicking Wireframe Top Bar */}
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3 sticky top-0 bg-slate-50/90 backdrop-blur-md pt-4 z-40 px-2">
-        <div>
-          <span className="text-2xl font-black tracking-tight text-black">PinQuo</span>
-        </div>
-        
-        {/* Notification Bell with Badge Counter[cite: 2] */}
-        <Link href="/notifications" className="relative p-1.5 text-slate-800 hover:text-black transition">
-          <Bell className="w-6 h-6 stroke-[2.2]" />
-          <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-extrabold flex items-center justify-center">
-            2
-          </span>
-        </Link>
+      {/* Feed Header */}
+      <div className="flex justify-between items-center mb-8 px-2 shrink-0">
+        <h1 className="text-4xl font-black text-black">PinQuo</h1>
+        <button className="relative p-2 rounded-full hover:bg-slate-200 transition">
+          <Bell className="w-8 h-8 text-black" />
+          <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full"></span>
+        </button>
       </div>
 
-      {/* Main Stream Sequence[cite: 1, 2] */}
-      <div className="space-y-6 pb-24">
-        {quotes?.map((quote: QuoteWithRelations) => {
-          const styleConfig = quote.templates?.style_config as TemplateStyleRow | null
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center mt-20">
+          <Loader2 className="w-12 h-12 animate-spin text-slate-300" />
+        </div>
+      ) : quotes.length === 0 ? (
+        <div className="text-center mt-20">
+          <p className="text-slate-500 font-bold text-xl">No quotes found. Be the first!</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-10">
+          {quotes.map((quote) => {
+            // Safely extract the data
+            const publisherName = quote.publisher?.username || 'Unknown'
+            const targetName = quote.quoted_user?.username || quote.quoted_email || 'Unknown'
+            const displayHandle = `@${targetName.toLowerCase().replace(/[^a-z0-9]/g, '')}`
+            const bgGradient = quote.template?.style_config?.gradient || 'from-indigo-500 to-purple-600'
 
-          return (
-            <article key={quote.id} className="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
-              
-              {/* Attribution Line: "Published by username"[cite: 2] */}
-              <div className="p-3 px-4 flex items-center justify-between bg-white border-b border-slate-50">
-                <div className="flex items-center gap-2.5">
-                  <Link href={`/user/${quote.publisher?.username || ''}`} className="relative group">
-                    <img 
-                      src={quote.publisher?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'} 
-                      alt="" 
-                      className="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200"
-                    />
-                    {quote.publisher?.is_pro && (
-                      <span className="absolute -top-1 -right-1 text-[8px]" title="PRO Member">👑</span>
-                    )}
-                  </Link>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Published by{' '}
-                    <Link href={`/user/${quote.publisher?.username || ''}`} className="font-bold text-slate-900 hover:underline">
-                      {quote.publisher?.username || 'user'}
-                    </Link>
+            return (
+              <div key={quote.id} className="w-full flex flex-col bg-white rounded-[40px] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
+                
+                {/* Publisher Header */}
+                <div className="flex items-center gap-3 mb-5 px-2">
+                  <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden border border-slate-300">
+                    <User className="w-6 h-6 text-slate-400" />
+                  </div>
+                  <p className="text-slate-500 font-medium text-sm">
+                    Published by <span className="font-bold text-slate-800">{publisherName}</span>
                   </p>
                 </div>
-              </div>
 
-              {/* Central Box Card Visual Workspace[cite: 1, 2] */}
-              <TemplateCard 
-                content={quote.content}
-                quotedUser={quote.quoted_user}
-                quotedEmail={quote.quoted_email}
-                templateConfig={styleConfig}
-                useAvatarBg={!quote.templates} 
-                livePhotoUrl={quote.live_photo_url}
-              />
+                {/* THE MEME QUOTE CARD (Exact copy of the Preview Page) */}
+                <div className="w-full bg-white rounded-[32px] shadow-lg overflow-hidden flex flex-col border border-slate-100">
+                  <div className="relative w-full h-56 shrink-0">
+                    <div className={`absolute inset-0 bg-linear-to-br ${bgGradient}`}></div>
+                    
+                    {/* Fallback avatar tint if no template gradient exists */}
+                    {!quote.template && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 mix-blend-overlay"></div>
+                    )}
+                    
+                    <div className="absolute bottom-0 left-0 w-full h-32 bg-linear-to-t from-white via-white/80 to-transparent"></div>
+                  </div>
 
-              {/* Interaction Row Layout: Reactions & Favourite[cite: 2] */}
-              <div className="px-4 py-3 bg-white flex items-center justify-between border-t border-slate-50">
-                
-                {/* 3-slot Quick Reaction Dock Layout[cite: 2] */}
-                <div className="flex items-center gap-2">
-                  <button className="text-xl p-1.5 hover:scale-125 transition active:scale-95 bg-slate-50 rounded-full w-9 h-9 flex items-center justify-center" title="🔥 React">
-                    🔥
-                  </button>
-                  <button className="text-xl p-1.5 hover:scale-125 transition active:scale-95 bg-slate-50 rounded-full w-9 h-9 flex items-center justify-center" title="❤️ React">
-                    ❤️
-                  </button>
-                  <button className="text-xl p-1.5 hover:scale-125 transition active:scale-95 bg-slate-50 rounded-full w-9 h-9 flex items-center justify-center" title="💯 React">
-                    💯
+                  <div className="relative bg-white px-6 pb-8 pt-2 flex flex-col items-center text-center -mt-10 z-10">
+                    <div className="text-[70px] font-serif font-black text-black leading-none tracking-tighter mb-1 select-none">
+                      “ ”
+                    </div>
+                    
+                    <p className={`font-medium text-black leading-snug wrap-break-words whitespace-pre-wrap px-2 ${getQuoteFontSize(quote.content)}`}>
+                      {quote.content}
+                    </p>
+
+                    <div className="w-full mt-8 flex flex-col items-center relative">
+                      <div className="w-12 h-[2px] bg-black mb-3"></div>
+                      <p className="text-xl font-medium text-black tracking-wide">
+                        {targetName}
+                      </p>
+                      <p className="text-slate-400 font-medium text-base mt-0.5">
+                        {displayHandle}
+                      </p>
+                      
+                      <span className="absolute bottom-0 right-0 text-slate-300 font-medium text-[11px] translate-y-6">
+                        PinQuo
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Social Actions Footer */}
+                <div className="flex justify-between items-center mt-5 px-3">
+                  <div className="flex items-center gap-4 text-2xl select-none">
+                    <button className="hover:scale-110 transition-transform active:scale-95">🔥</button>
+                    <button className="hover:scale-110 transition-transform active:scale-95">💖</button>
+                    <button className="hover:scale-110 transition-transform active:scale-95">💯</button>
+                  </div>
+                  <button className="text-slate-400 hover:text-yellow-400 hover:scale-110 transition-all active:scale-95">
+                    <Star className="w-8 h-8" strokeWidth={2} />
                   </button>
                 </div>
 
-                {/* Save to Favourites Star Button[cite: 2] */}
-                <button 
-                  className="p-2 text-slate-400 hover:text-amber-500 transition-colors rounded-full hover:bg-amber-50/50 group" 
-                  title="Save to Favourites"
-                >
-                  <Star className="w-5 h-5 group-hover:scale-110 transition-transform stroke-[2.2]" />
-                </button>
               </div>
-
-            </article>
-          )
-        })}
-
-        {quotes?.length === 0 && (
-          <div className="text-center py-20 bg-white border border-dashed border-slate-200 rounded-3xl p-6">
-            <p className="text-slate-400 text-sm font-medium mb-3">No one has quoted anyone yet!</p>
-            <Link href="/create" className="text-xs bg-black text-white px-4 py-2 rounded-xl font-bold inline-block hover:opacity-90">
-              Create a Quote
-            </Link>
-          </div>
-        )}
-      </div>
-
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
