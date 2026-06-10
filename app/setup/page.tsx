@@ -16,16 +16,33 @@ export default function SetupPage() {
   const supabase = createClient()
 
   useEffect(() => {
+    // 1. Initial Check
     const checkUser = async () => {
-      // The invitation link automatically validates and signs them in!
       const { data: { user } } = await supabase.auth.getUser()
+      
       if (user) {
         setUserId(user.id)
       } else {
-        router.push('/')
+        // THE FIX: Do not kick the user out if Supabase is actively processing a magic link token in the URL!
+        const isProcessingAuth = window.location.hash.includes('access_token') || window.location.search.includes('code')
+        if (!isProcessingAuth) {
+          router.push('/')
+        }
       }
     }
+    
     checkUser()
+
+    // 2. The Listener: Catch the exact moment Supabase finishes processing the URL and logs them in
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        setUserId(session.user.id)
+      }
+    })
+
+    return () => {
+      authListener.subscription.unsubscribe()
+    }
   }, [router, supabase])
 
   async function handleCompleteOnboarding(e: React.FormEvent<HTMLFormElement>) {
@@ -67,7 +84,7 @@ export default function SetupPage() {
         return
       }
 
-      // 2. Commit the user's custom password to the secure auth session
+      // 2. Commit the user's custom password to their secure auth session
       const { error: passwordError } = await supabase.auth.updateUser({
         password: password
       })
