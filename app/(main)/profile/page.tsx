@@ -108,11 +108,11 @@ export default function ProfilePage() {
     const cleanUsername = editUsername.trim()
 
     if (cleanUsername.length < 3) {
-      setUsernameError('Minst 3 tecken')
+      setUsernameError('At least 3 characters')
       return
     }
     if (cleanUsername.length > 30) {
-      setUsernameError('Max 30 tecken tillåtna')
+      setUsernameError('Max 30 characters')
       return
     }
     if (cleanUsername === profile.username) {
@@ -122,7 +122,7 @@ export default function ProfilePage() {
 
     const { data: existing } = await supabase.from('profiles').select('id').eq('username', cleanUsername).neq('id', profile.id).maybeSingle()
     if (existing) {
-      setUsernameError('Användarnamnet är upptaget')
+      setUsernameError('Usarname already taken')
       return
     }
 
@@ -131,7 +131,7 @@ export default function ProfilePage() {
       setProfile({ ...profile, username: cleanUsername })
       setIsEditingUsername(false)
     } else {
-      setUsernameError('Fel vid sparande')
+      setUsernameError('Error updating username')
     }
   }
 
@@ -157,7 +157,7 @@ export default function ProfilePage() {
 
     if (uploadError) {
       console.error(uploadError)
-      alert("Fel vid uppladdning av bild.")
+      alert("Error uploading file.")
       setIsUploading(false)
       return
     }
@@ -190,10 +190,10 @@ export default function ProfilePage() {
       
       {/* Header */}
       <div className="flex justify-between items-center mb-8 shrink-0">
-        <button title="Tillbaka" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
+        <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
         <div className="flex flex-col items-center">
           <h1 className="text-3xl font-black text-black leading-none">PinQuo</h1>
-          <p className="text-slate-500 font-bold text-sm mt-1">Profil</p>
+          <p className="text-slate-500 font-bold text-sm mt-1">Profile</p>
         </div>
         <button title="Notiser" className="relative p-2 -mr-2 hover:bg-slate-100 rounded-full transition">
           <Bell className="w-7 h-7 text-black" />
@@ -216,16 +216,16 @@ export default function ProfilePage() {
                   autoFocus
                 />
                 <div className="flex justify-center gap-2 mt-1 w-full">
-                  <button title="Spara" onClick={handleUsernameSave} className="flex-1 py-1 bg-emerald-100 text-emerald-700 rounded-md hover:bg-emerald-200 flex justify-center"><Check className="w-4 h-4" /></button>
-                  <button title="Avbryt" onClick={() => { setIsEditingUsername(false); setEditUsername(profile?.username || '') }} className="flex-1 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 flex justify-center"><X className="w-4 h-4" /></button>
+                  <button title="Save" onClick={handleUsernameSave} className="flex-1 py-1 bg-emerald-100 text-emerald-700 rounded-md hover:bg-emerald-200 flex justify-center"><Check className="w-4 h-4" /></button>
+                  <button title="Cancel" onClick={() => { setIsEditingUsername(false); setEditUsername(profile?.username || '') }} className="flex-1 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 flex justify-center"><X className="w-4 h-4" /></button>
                 </div>
               </div>
             ) : (
               <div className="flex items-start justify-center gap-1 w-full px-1">
-                <span className="font-bold text-lg text-slate-800 break-words text-center leading-tight">
+                <span className="font-bold text-lg text-slate-800 wrap-break-words text-center leading-tight">
                   {profile?.username}
                 </span>
-                <button title="Ändra användarnamn" onClick={() => setIsEditingUsername(true)} className="text-slate-400 hover:text-black transition shrink-0 mt-1">
+                <button title="Change Username" onClick={() => setIsEditingUsername(true)} className="text-slate-400 hover:text-black transition shrink-0 mt-1">
                   <Edit3 className="w-4 h-4" />
                 </button>
               </div>
@@ -243,8 +243,8 @@ export default function ProfilePage() {
                 <User className="w-10 h-10 text-slate-400" />
               )}
             </div>
-            <input type="file" title="Ladda upp avatar" accept="image/*" ref={fileInputRef} onChange={handleAvatarUpload} className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} title="Ladda upp avatar" disabled={isUploading} className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-slate-100 hover:bg-slate-50 transition disabled:opacity-50">
+            <input type="file" title="Upload Avatar" accept="image/*" ref={fileInputRef} onChange={handleAvatarUpload} className="hidden" />
+            <button onClick={() => fileInputRef.current?.click()} title="Upload Avatar" disabled={isUploading} className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-slate-100 hover:bg-slate-50 transition disabled:opacity-50">
               <Camera className="w-4 h-4 text-black" />
             </button>
           </div>
@@ -254,7 +254,7 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between mb-3 px-2">
             <span className="font-black text-lg text-slate-800">Bio</span>
             {!isEditingBio && (
-              <button title="Ändra bio" onClick={() => setIsEditingBio(true)} className="text-slate-400 hover:text-black transition"><Edit3 className="w-4 h-4" /></button>
+              <button title="Change Bio" onClick={() => setIsEditingBio(true)} className="text-slate-400 hover:text-black transition"><Edit3 className="w-4 h-4" /></button>
             )}
           </div>
           <div className={`bg-slate-100 rounded-[28px] rounded-tl-sm p-5 flex-1 shadow-sm transition-all ${isEditingBio ? 'ring-2 ring-emerald-300' : ''}`}>
@@ -262,13 +262,13 @@ export default function ProfilePage() {
               <div className="flex flex-col h-full gap-2">
                 <textarea value={editBio} onChange={(e) => setEditBio(e.target.value)} className="w-full h-24 bg-transparent text-slate-700 font-medium leading-snug outline-none resize-none" placeholder="Berätta något om dig själv..." autoFocus />
                 <div className="flex justify-end gap-2 mt-auto">
-                  <button onClick={() => { setIsEditingBio(false); setEditBio(profile?.bio || '') }} className="text-sm font-bold text-slate-500 hover:text-slate-700">Avbryt</button>
-                  <button onClick={handleBioSave} className="text-sm font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full hover:bg-emerald-200">Spara</button>
+                  <button onClick={() => { setIsEditingBio(false); setEditBio(profile?.bio || '') }} className="text-sm font-bold text-slate-500 hover:text-slate-700">Cancel</button>
+                  <button onClick={handleBioSave} className="text-sm font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full hover:bg-emerald-200">Save</button>
                 </div>
               </div>
             ) : (
               <p className="text-slate-600 font-medium leading-snug wrap-break-words">
-                {profile?.bio || "Ingen bio ännu. Lägg till en!"}
+                {profile?.bio || "Type something here!"}
               </p>
             )}
           </div>
@@ -279,16 +279,16 @@ export default function ProfilePage() {
       <div className="flex gap-6 mb-10">
         <div className="flex-1 flex flex-col items-center gap-3">
           <div className="flex flex-col items-center gap-0.5">
-            <h3 className="font-black text-lg text-slate-800">Publicerade</h3>
-            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full">{publishedCount} Totalt</span>
+            <h3 className="font-black text-lg text-slate-800">Published</h3>
+            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full">{publishedCount} Total</span>
           </div>
           {renderMiniGrid(published, () => router.push(`/${profile?.username}/published`))}
         </div>
         
         <div className="flex-1 flex flex-col items-center gap-3">
           <div className="flex flex-col items-center gap-0.5">
-            <h3 className="font-black text-lg text-slate-800">Citerad i</h3>
-            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full">{quotedInCount} Totalt</span>
+            <h3 className="font-black text-lg text-slate-800">Quoted In</h3>
+            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full">{quotedInCount} Total</span>
           </div>
           {renderMiniGrid(quotedIn, () => router.push(`/${profile?.username}/quoted-in`))}
         </div>
@@ -298,20 +298,20 @@ export default function ProfilePage() {
       <div className="flex gap-6">
         <div className="w-1/3 flex flex-col gap-4 items-center shrink-0">
           <div className="flex flex-col items-center w-full">
-            <div className="bg-slate-100 py-2 px-6 rounded-full text-slate-500 font-bold text-sm w-full text-center">Följer</div>
+            <div className="bg-slate-100 py-2 px-6 rounded-full text-slate-500 font-bold text-sm w-full text-center">Following</div>
             <span className="font-black text-xl text-black mt-1">{following}</span>
           </div>
           <div className="flex flex-col items-center w-full">
-            <div className="bg-slate-100 py-2 px-6 rounded-full text-slate-500 font-bold text-sm w-full text-center">Följare</div>
+            <div className="bg-slate-100 py-2 px-6 rounded-full text-slate-500 font-bold text-sm w-full text-center">Followers</div>
             <span className="font-black text-xl text-black mt-1">{followers}</span>
           </div>
           
           {/* favourites */}
           <div className="flex flex-col items-center w-full mt-2">
-            <div className="bg-slate-100 py-2 px-6 rounded-full text-slate-500 font-bold text-sm w-full text-center mb-3">Favoriter</div>
+            <div className="bg-slate-100 py-2 px-6 rounded-full text-slate-500 font-bold text-sm w-full text-center mb-3">Favourites</div>
             <Link 
               href="/profile/favourites" 
-              title="Mina Favoriter" 
+              title="My Favourites" 
               className="hover:scale-110 active:scale-95 transition-transform cursor-pointer"
             >
               <Star className="w-10 h-10 fill-yellow-400 text-yellow-500 drop-shadow-sm" />
@@ -330,14 +330,14 @@ export default function ProfilePage() {
           <button className="flex items-center justify-between bg-white p-4 rounded-3xl hover:bg-slate-50 active:bg-slate-100 transition group border border-slate-100 shadow-sm cursor-pointer">
             <div className="flex items-center gap-4">
               <LayoutTemplate className="w-6 h-6 text-slate-400" />
-              <span className="font-bold text-slate-700 text-lg">Mallar</span>
+              <span className="font-bold text-slate-700 text-lg">Templates</span>
             </div>
             <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-black transition" />
           </button>
           <button className="flex items-center justify-between bg-white p-4 rounded-3xl hover:bg-slate-50 active:bg-slate-100 transition group border border-slate-100 shadow-sm cursor-pointer">
             <div className="flex items-center gap-4">
               <User className="w-6 h-6 text-slate-400" />
-              <span className="font-bold text-slate-700 text-lg">Kontoinställningar</span>
+              <span className="font-bold text-slate-700 text-lg">Settings</span>
             </div>
             <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-black transition" />
           </button>

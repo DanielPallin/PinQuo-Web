@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 📌 PinQuo 
 
-## Getting Started
+> **"The classic quote-meme engine for your social circle."**
 
-First, run the development server:
+PinQuo turns hilarious, out-of-context, or legendary things your friends say into beautiful, shareable meme cards. PinQuo styles, preserves, and elevates the best quotes natively.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ✨ Features
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+* **🎨 Dynamic Meme-Card Generator:** Automatically scales and adjusts text sizes so quotes *never* overflow or scroll.
+* **👤 Avatar Blend Mode:** Uses neutral backdrops combined with natural user profile pictures to create sleek, custom card backgrounds.
+* **📩 Viral Invite Flywheel:** Want to quote someone who isn't on the app yet? Tag their email. PinQuo automatically ships a beautiful HTML invitation via **Resend**.
+* **⚡ Auto-Claim Engine:** The second an invited user signs up, a secure Postgres Trigger retroactively claims all their quotes and upgrades "Pending Invite" cards to real profiles instantly.
+* **🔄 Scalable Core Feed:** Fully equipped with **Infinite Pagination** (loading batches of 5) and a **Debounced Realtime User Search Bar** to prevent server lag.
+* **❤️ Realtime Social Actions:** Smooth, optimistic UI updates for reactions (🔥, 💖, 💯) and a global **Favorites** system.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Im working on QoL updates and new features to keep the project alive.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 🛠️ The Tech Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+* **Framework:** Next.js (App Router, Route Handlers)
+* **Language:** TypeScript (Strictly typed schemas)
+* **Database & Auth:** Supabase (PostgreSQL with strict Row Level Security enabled)
+* **Styling:** Tailwind4
+* **Icons:** Lucide React
+* **Email Infrastructure:** Resend
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 📐 Database Schema Architecture
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+PinQuo utilizes a highly normalized PostgreSQL relational schema protected by a secure RLS (Row Level Security) firewall layer.
