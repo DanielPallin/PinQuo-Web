@@ -16,14 +16,6 @@ export default function AuthPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  useEffect(() => {
-    // If Supabase accidentally drops an authenticated onboarding user on the root login screen,
-    // catch the secure hash fragment and seamlessly bounce them to the setup portal.
-    if (window.location.hash.includes('access_token') || window.location.hash.includes('type=invite')) {
-      router.push('/setup')
-    }
-  }, [router])
-
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
