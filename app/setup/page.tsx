@@ -16,10 +16,12 @@ export default function SetupPage() {
 
   useEffect(() => {
     const checkUser = async () => {
+      // Fetch the verified session user data from the system cache
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUserId(user.id)
       } else {
+        // If no authenticated user is found in the current browser session, redirect to home
         router.push('/')
       }
     }
@@ -32,7 +34,6 @@ export default function SetupPage() {
 
     const sanitizedUsername = username.trim().toLowerCase()
 
-    // Explicit string validation rules
     if (sanitizedUsername.length < 3) {
       setErrorMsg('Username must be at least 3 characters.')
       return
@@ -45,34 +46,46 @@ export default function SetupPage() {
     setLoading(true)
     setErrorMsg('')
 
-    // Check if the username is already taken
-    const { data: existingUser } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('username', sanitizedUsername)
-      .maybeSingle()
+    try {
+      // Check if the requested username is already registered in public profiles
+      const { data: existingUser, error: checkError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', sanitizedUsername)
+        .maybeSingle()
 
-    if (existingUser) {
-      setErrorMsg('This username is already taken. Try another one.')
+      if (checkError) {
+        setErrorMsg('Error checking username availability. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      if (existingUser) {
+        setErrorMsg('This username is already taken. Try another one.')
+        setLoading(false)
+        return
+      }
+
+      // Perform a safe upsert to write the profile row matching the authenticated system user ID
+      const { error: upsertError } = await supabase
+        .from('profiles')
+        .upsert({ 
+          id: userId, 
+          username: sanitizedUsername 
+        })
+
+      if (upsertError) {
+        console.error('Upsert transaction error details:', upsertError)
+        setErrorMsg('Could not save your username. Please try again.')
+        setLoading(false)
+      } else {
+        // Success! Route the user straight into the core feed
+        router.push('/feed')
+      }
+    } catch (err) {
+      console.error('Unexpected setup failure:', err)
+      setErrorMsg('An unexpected error occurred.')
       setLoading(false)
-      return
-    }
-
-    // Use UPSERT instead of UPDATE
-    // This creates the row if it does not exist, or updates it if it does.
-    const { error: upsertError } = await supabase
-      .from('profiles')
-      .upsert({ 
-        id: userId, 
-        username: sanitizedUsername 
-      })
-
-    if (upsertError) {
-      setErrorMsg('Could not save username. Please try again.')
-      setLoading(false)
-    } else {
-      // Navigate straight to the primary timeline on success
-      router.push('/feed')
     }
   }
 
@@ -99,7 +112,7 @@ export default function SetupPage() {
             />
           </div>
           
-          {errorMsg && <p className="text-red-500 text-xs font-semibold mt-2">{errorMsg}</p>}
+          {errorMsg && <p className="text-red-500 text-xs font-semibold mt-2 text-left px-1">{errorMsg}</p>}
 
           <button
             type="submit"
