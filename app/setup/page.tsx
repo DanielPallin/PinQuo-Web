@@ -16,24 +16,16 @@ export default function SetupPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    // 1. Initial Check
-    const checkUser = async () => {
+    // 1. Initial check (doesn't kick the user out if it fails!)
+    const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      
       if (user) {
         setUserId(user.id)
-      } else {
-        // THE FIX: Do not kick the user out if Supabase is actively processing a magic link token in the URL!
-        const isProcessingAuth = window.location.hash.includes('access_token') || window.location.search.includes('code')
-        if (!isProcessingAuth) {
-          router.push('/')
-        }
       }
     }
-    
-    checkUser()
+    fetchUser()
 
-    // 2. The Listener: Catch the exact moment Supabase finishes processing the URL and logs them in
+    // 2. The Hydration Listener (Catches the user the millisecond the cookies or magic link finish processing)
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         setUserId(session.user.id)
@@ -43,7 +35,7 @@ export default function SetupPage() {
     return () => {
       authListener.subscription.unsubscribe()
     }
-  }, [router, supabase])
+  }, [supabase]) // Removed router from dependencies to stop re-render staggering
 
   async function handleCompleteOnboarding(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -65,7 +57,6 @@ export default function SetupPage() {
     setErrorMsg('')
 
     try {
-      // 1. Verify username availability
       const { data: existingUser, error: checkError } = await supabase
         .from('profiles')
         .select('id')
@@ -73,7 +64,7 @@ export default function SetupPage() {
         .maybeSingle()
 
       if (checkError) {
-        setErrorMsg('Error checking username availability. Please try again.')
+        setErrorMsg('Error checking username availability.')
         setLoading(false)
         return
       }
@@ -84,7 +75,6 @@ export default function SetupPage() {
         return
       }
 
-      // 2. Commit the user's custom password to their secure auth session
       const { error: passwordError } = await supabase.auth.updateUser({
         password: password
       })
@@ -95,16 +85,12 @@ export default function SetupPage() {
         return
       }
 
-      // 3. Save the profile record to the database
       const { error: upsertError } = await supabase
         .from('profiles')
-        .upsert({ 
-          id: userId, 
-          username: sanitizedUsername 
-        })
+        .upsert({ id: userId, username: sanitizedUsername })
 
       if (upsertError) {
-        setErrorMsg('Could not save your username. Please try again.')
+        setErrorMsg('Could not save your username.')
         setLoading(false)
       } else {
         router.push('/feed')
@@ -131,9 +117,9 @@ export default function SetupPage() {
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              disabled={loading}
-              className="w-full pl-10 pr-4 py-3 bg-slate-50 text-slate-900 rounded-xl border border-slate-200 focus:ring-2 focus:ring-black outline-none font-semibold text-left"
-              placeholder="username"
+              disabled={loading || !userId} 
+              className="w-full pl-10 pr-4 py-3 bg-slate-50 text-slate-900 rounded-xl border border-slate-200 focus:ring-2 focus:ring-black outline-none font-semibold text-left disabled:opacity-50"
+              placeholder={userId ? "username" : "Loading..."}
               maxLength={20}
             />
           </div>
@@ -143,17 +129,17 @@ export default function SetupPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            disabled={loading}
+            disabled={loading || !userId}
             placeholder="Choose a Secure Password"
             minLength={6}
-            className="w-full px-4 py-3 bg-slate-50 text-slate-900 rounded-xl border border-slate-200 focus:ring-2 focus:ring-black outline-none font-semibold text-left"
+            className="w-full px-4 py-3 bg-slate-50 text-slate-900 rounded-xl border border-slate-200 focus:ring-2 focus:ring-black outline-none font-semibold text-left disabled:opacity-50"
           />
           
           {errorMsg && <p className="text-red-500 text-xs font-semibold mt-2 text-left px-1">{errorMsg}</p>}
 
           <button
             type="submit"
-            disabled={loading || username.length < 3}
+            disabled={loading || username.length < 3 || !userId}
             className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3.5 px-4 rounded-xl flex items-center justify-center transition disabled:opacity-50 cursor-pointer mt-2"
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Complete Setup'}
