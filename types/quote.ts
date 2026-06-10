@@ -17,7 +17,6 @@ export interface ProfileRow {
     style_config: TemplateStyleRow | null
   }
   
-  // Exactly mirrors your relational join query response shape 
   export interface QuoteWithRelations {
     id: string
     content: string

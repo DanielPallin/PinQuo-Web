@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 @layer base {
-  /* Mobile: Standard 16px base (1rem = 16px) */
+  /* Mobile: Standard 16px */
   html {
     font-size: 16px;
   }
 
-  /* Tablet & Desktop: Scale up slightly to 18px (This gives you the exact 75% zoom look!) */
+  /* Tablet & Desktop: */
   @media (min-width: 768px) {
     html {
       font-size: 18px;

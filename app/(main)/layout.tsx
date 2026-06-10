@@ -25,7 +25,6 @@ export default async function MainLayout({
     <div className="min-h-screen bg-slate-100 flex justify-center font-sans selection:bg-black selection:text-white">
       <div className="w-full max-w-2xl bg-white min-h-screen relative flex flex-col shadow-2xl">
         
-        {/* FIXED: Changed from pb-[120px] to pb-40 so the padding scales with the font size! */}
         <main className="flex-1 pb-40">
           {children}
         </main>

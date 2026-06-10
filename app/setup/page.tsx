@@ -46,7 +46,7 @@ export default function SetupPage() {
     setLoading(true)
     setErrorMsg('')
 
-    // FIX 1: Use maybeSingle() instead of single() to prevent "No rows found" errors
+    // Use maybeSingle() to prevent "No rows found" errors
     const { data: existingUser, error: searchError } = await supabase
       .from('profiles')
       .select('id')
@@ -59,7 +59,7 @@ export default function SetupPage() {
       return
     }
 
-    // Check if the username is taken by someone else
+    // Check if the username is already taken
     if (existingUser && existingUser.id !== userId) {
       setErrorMsg('This username is already taken. Try another one.')
       setLoading(false)
@@ -76,7 +76,7 @@ export default function SetupPage() {
       setErrorMsg(updateError.message)
       setLoading(false)
     } else {
-      // FIX 2: Force a hard window navigation to break out of the Next.js cache loop
+      // FForce a hard window navigation
       window.location.href = '/feed'
     }
   }

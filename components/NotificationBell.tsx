@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Bell, UserPlus, Heart, User, CheckCircle2 } from 'lucide-react'
 import { type RealtimeChannel } from '@supabase/supabase-js'
+import Link from 'next/link'
 
 type Notification = {
   id: string
@@ -32,7 +33,6 @@ export default function NotificationBell() {
     let isMounted = true
     let subscription: RealtimeChannel
 
-    // 1. Defined neatly inside the effect
     const loadNotifications = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -47,7 +47,6 @@ export default function NotificationBell() {
         .order('created_at', { ascending: false })
         .limit(5)
 
-      // 2. Added isMounted check to prevent state updates on unmounted components
       if (data && isMounted) {
         const parsedData = data as unknown as Notification[]
         setNotifications(parsedData)
@@ -59,6 +58,7 @@ export default function NotificationBell() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      // Includes our unique Date.now() bypass from the earlier Strict Mode fix!
       subscription = supabase
         .channel(`realtime-notifications-${Date.now()}`)
         .on('postgres_changes', { 
@@ -67,13 +67,11 @@ export default function NotificationBell() {
           table: 'notifications',
           filter: `receiver_id=eq.${user.id}`
         }, () => {
-          // Re-fetch when a new notification drops in
           loadNotifications().catch(console.error)
         })
         .subscribe()
     }
 
-    // 3. Fire the functions safely
     loadNotifications().catch(console.error)
     setupRealtime().catch(console.error)
 
@@ -92,7 +90,7 @@ export default function NotificationBell() {
       }
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [supabase]) // Only supabase needed in dependency array now!
+  }, [supabase])
 
   const markAllAsRead = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -130,22 +128,36 @@ export default function NotificationBell() {
 
           <div className="flex flex-col max-h-[400px] overflow-y-auto no-scrollbar">
             {notifications.length === 0 ? (
-              <div className="py-10 text-center text-slate-400 font-bold">You have read all notifications!</div>
+              <div className="py-10 text-center text-slate-400 font-bold">Up to date!</div>
             ) : (
               notifications.map((notif) => (
                 <div key={notif.id} className={`flex items-start gap-4 p-4 transition hover:bg-slate-50 border-b border-slate-50 last:border-0 ${!notif.is_read ? 'bg-emerald-50/30' : ''}`}>
                   
-                  <div className="w-12 h-12 rounded-full bg-slate-200 shrink-0 flex items-center justify-center overflow-hidden border border-slate-200">
+                  {/* Clickable Avatar Link */}
+                  <Link 
+                    href={`/${notif.actor.username}`}
+                    onClick={() => setIsOpen(false)}
+                    className="w-12 h-12 rounded-full bg-slate-200 shrink-0 flex items-center justify-center overflow-hidden border border-slate-200 hover:ring-2 hover:ring-slate-200 transition-all"
+                  >
                     {notif.actor.avatar_url ? (
                       <img src={notif.actor.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                     ) : (
                       <User className="w-6 h-6 text-slate-400" />
                     )}
-                  </div>
+                  </Link>
 
                   <div className="flex-1 flex flex-col justify-center pt-1">
                     <p className="text-sm text-slate-700 leading-snug">
-                      <span className="font-bold text-black">{notif.actor.username}</span>
+                      {/* Clickable Username Link */}
+                      <Link 
+                        href={`/${notif.actor.username}`}
+                        onClick={() => setIsOpen(false)}
+                        className="font-bold text-black hover:underline"
+                      >
+                        {notif.actor.username}
+                      </Link>
+                      
+                      {/* Dynamic Text */}
                       {notif.type === 'follow' && ' started following you.'}
                       {notif.type === 'reaction' && ' reacted to your quote.'}
                     </p>

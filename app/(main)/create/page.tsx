@@ -52,7 +52,7 @@ export default function CreateQuotePage() {
     return () => clearTimeout(delayDebounceFn)
   }, [searchTerm, supabase])
 
-  // Routing to Step 2 (Write Page)
+  // (Write Page)
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -92,7 +92,7 @@ export default function CreateQuotePage() {
               setInviteEmail('')
             }}
             placeholder="Search..."
-            className="w-full py-4 px-6 bg-slate-100 text-slate-900 text-center text-xl rounded-full focus:outline-none focus:ring-[4px] focus:ring-slate-200 transition font-bold"
+            className="w-full py-4 px-6 bg-slate-100 text-slate-900 text-center text-xl rounded-full focus:outline-none focus:ring-4 focus:ring-slate-200 transition font-bold"
           />
         </div>
 
@@ -100,7 +100,7 @@ export default function CreateQuotePage() {
         <div className="flex flex-col items-center w-full max-w-[320px] min-h-[140px] justify-start">
           {searchTerm.length >= 2 && !selectedUser && (
             <>
-              <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] border-t-black mt-2 mb-2" />
+              <div className="w-0 h-0 border-l-10 border-l-transparent border-r-10 border-r-transparent border-t-10 border-t-black mt-2 mb-2" />
               {isSearching ? (
                 <Loader2 className="w-8 h-8 animate-spin text-slate-400 my-4" />
               ) : results.length > 0 ? (
@@ -126,8 +126,8 @@ export default function CreateQuotePage() {
 
           {selectedUser && (
              <>
-               <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] border-t-black mt-2 mb-2" />
-               <div className="w-full py-3 px-6 rounded-full text-lg font-black bg-[#bbf7d0] text-emerald-950 text-center shadow-md ring-[4px] ring-emerald-200">
+               <div className="w-0 h-0 border-l-10px border-l-transparent border-r-10 border-r-transparent border-t-10 border-t-black mt-2 mb-2" />
+               <div className="w-full py-3 px-6 rounded-full text-lg font-black bg-[#bbf7d0] text-emerald-950 text-center shadow-md ring-4 ring-emerald-200">
                  {selectedUser.username}
                </div>
              </>
@@ -151,14 +151,14 @@ export default function CreateQuotePage() {
               setSelectedUser(null)
             }}
             placeholder="example@example.com"
-            className="w-full py-4 px-6 bg-slate-100 text-slate-900 text-center text-lg rounded-full focus:outline-none focus:ring-[4px] focus:ring-slate-200 transition font-bold mb-6"
+            className="w-full py-4 px-6 bg-slate-100 text-slate-900 text-center text-lg rounded-full focus:outline-none focus:ring-4 focus:ring-slate-200 transition font-bold mb-6"
           />
         </div>
 
         <button
           type="submit"
           disabled={loading || (!selectedUser && !inviteEmail)}
-          className="w-full max-w-[400px] bg-[#bbf7d0] text-emerald-950 hover:bg-[#86efac] active:scale-95 disabled:opacity-50 disabled:hover:bg-[#bbf7d0] disabled:active:scale-100 font-black text-2xl py-5 px-14 rounded-[32px] transition-all duration-200 shadow-lg border-[4px] border-emerald-200"
+          className="w-full max-w-[400px] bg-[#bbf7d0] text-emerald-950 hover:bg-[#86efac] active:scale-95 disabled:opacity-50 disabled:hover:bg-[#bbf7d0] disabled:active:scale-100 font-black text-2xl py-5 px-14 rounded-[32px] transition-all duration-200 shadow-lg border-4 border-emerald-200"
         >
           {loading ? <Loader2 className="w-8 h-8 animate-spin mx-auto" /> : 'Continue'}
         </button>

@@ -30,7 +30,7 @@ export default function TemplateCard({
   livePhotoUrl
 }: TemplateCardProps) {
   
-  // 1. PRO Feature: Live-Photo Snapshot Background
+  // PRO Feature: Live-Photo Snapshot Background
   if (livePhotoUrl) {
     return (
       <div className="aspect-square w-full relative bg-black flex flex-col items-center justify-center p-8 text-center overflow-hidden">
@@ -52,11 +52,11 @@ export default function TemplateCard({
     )
   }
 
-  // 2. STANDARD Feature: The Profile Pic Avatar Card (Wireframe Circle Style)
+  // STANDARD Feature: The Profile Pic Avatar Card
   if (useAvatarBg && quotedUser?.avatar_url) {
     return (
       <div className="aspect-square w-full bg-[#958ce4] flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
-        {/* The clean centered circle layout directly matching the wireframe design */}
+        {/* clean centered circle layout */}
         <div className="w-64 h-64 md:w-72 md:h-72 rounded-full overflow-hidden bg-cover bg-center border-4 border-white/40 shadow-inner flex flex-col items-center justify-center p-6 relative">
           <img 
             src={quoteUserAvatar(quotedUser.avatar_url)} 
@@ -81,13 +81,13 @@ export default function TemplateCard({
     )
   }
 
-  // 3. Preset / AI Text Templates Layout
+  // Preset / AI Text Templates Layout
   const bgStyle = templateConfig?.bgGradient || 'from-indigo-900 to-slate-900'
   const textStyle = templateConfig?.textColor || 'text-white'
   const fontStyle = templateConfig?.fontFamily || 'font-serif'
 
   return (
-    <div className={`aspect-square w-full bg-gradient-to-br ${bgStyle} flex flex-col items-center justify-center p-10 text-center relative`}>
+    <div className={`aspect-square w-full bg-linear-to-br ${bgStyle} flex flex-col items-center justify-center p-10 text-center relative`}>
       <div className="max-w-md space-y-4">
         <p className={`text-xl md:text-2xl font-medium leading-relaxed ${textStyle} ${fontStyle}`}>
           “{content}”

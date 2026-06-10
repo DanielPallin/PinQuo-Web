@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Camera, ArrowLeft, ChevronLeft, ChevronRight, CheckCircle2, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
-// THIS IS THE FIX: We write the colors here as a simple string so Tailwind 
 // knows not to delete them when it compiles the app!
 const TAILWIND_SAFELIST = "bg-orange-200 bg-yellow-200 bg-slate-300 bg-slate-200 from-orange-200 to-red-200 from-yellow-200 to-amber-200 from-slate-300 to-slate-400"
 
@@ -142,7 +141,6 @@ function WriteQuoteForm() {
                   const baseColor = template.style_config?.baseColor || 'bg-slate-200'
                   
                   return (
-                    // FIX: Added shrink-0 here to stop Tailwind from squishing the boxes!
                     <div key={template.id} onClick={() => { setBgType('template'); setSelectedTemplate(template) }} className="flex flex-col items-center gap-2 cursor-pointer group shrink-0">
                       <div className={`relative w-20 h-20 rounded-[24px] overflow-hidden ${baseColor} border-4 transition-all ${isSelected ? 'border-emerald-400 scale-105 shadow-md' : 'border-transparent group-hover:scale-105'}`}>
                         {isSelected && (
@@ -191,7 +189,7 @@ function WriteQuoteForm() {
 
       </div>
       
-      {/* Hide the safelist string safely from the DOM but keep it in the compiled code */}
+      {/* Hide safelist from DOM but keep it compiled */}
       <div className="hidden">{TAILWIND_SAFELIST}</div>
     </div>
   )
