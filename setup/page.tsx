@@ -11,20 +11,33 @@ export default function SetupPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
   
+  // This state prevents the white screen by showing a spinner while Supabase checks the session
+  const [isChecking, setIsChecking] = useState(true) 
+  
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser()
+        
+        // If no user is found, kick them to the login page safely
+        if (error || !user) {
+          router.replace('/')
+          return
+        }
+        
         setUserId(user.id)
-      } else {
-        router.push('/')
+      } catch (err) {
+        router.replace('/')
+      } finally {
+        setIsChecking(false)
       }
     }
+
     checkUser()
-  }, [router, supabase])
+  }, []) // <-- EMPTY DEPENDENCY ARRAY: This explicitly prevents the infinite loop crash!
 
   async function handleSaveUsername(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -41,6 +54,7 @@ export default function SetupPage() {
     setErrorMsg('')
 
     try {
+      // 1. Check availability
       const { data: existingUser, error: checkError } = await supabase
         .from('profiles')
         .select('id')
@@ -59,6 +73,7 @@ export default function SetupPage() {
         return
       }
 
+      // 2. Save the username
       const { error: upsertError } = await supabase
         .from('profiles')
         .upsert({ id: userId, username: sanitizedUsername })
@@ -67,12 +82,22 @@ export default function SetupPage() {
         setErrorMsg('Could not save your username. Please try again.')
         setLoading(false)
       } else {
+        // 3. Enter the app!
         router.push('/feed')
       }
     } catch (err) {
       setErrorMsg('An unexpected error occurred.')
       setLoading(false)
     }
+  }
+
+  // Show a clean loading spinner while checking auth, avoiding blank screens
+  if (isChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="w-10 h-10 animate-spin text-slate-400" />
+      </div>
+    )
   }
 
   return (
@@ -92,7 +117,7 @@ export default function SetupPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading}
-              className="w-full pl-10 pr-4 py-3 bg-slate-50 text-slate-900 rounded-xl border border-slate-200 focus:ring-2 focus:ring-black focus:border-black outline-none transition disabled:opacity-50 font-semibold"
+              className="w-full pl-10 pr-4 py-3 bg-slate-50 text-slate-900 rounded-xl border border-slate-200 focus:ring-2 focus:ring-black outline-none transition disabled:opacity-50 font-semibold"
               placeholder="username"
               maxLength={20}
             />
