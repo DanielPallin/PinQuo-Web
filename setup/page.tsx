@@ -10,32 +10,46 @@ export default function SetupPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  
   const [userId, setUserId] = useState<string | null>(null)
+  const [authFailed, setAuthFailed] = useState(false)
   
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    // 1. Initial check (doesn't kick the user out if it fails!)
-    const fetchUser = async () => {
+    let isMounted = true
+
+    const initializeAuth = async () => {
+      // 1. Give Supabase exactly 1.5 seconds to parse the URL token in the background
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      // 2. Ask the server for the guaranteed truth
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
+      
+      if (user && isMounted) {
         setUserId(user.id)
+      } else if (isMounted) {
+        // 3. If no user is found after the grace period, the token is dead
+        setAuthFailed(true)
       }
     }
-    fetchUser()
 
-    // 2. The Hydration Listener (Catches the user the millisecond the cookies or magic link finish processing)
+    initializeAuth()
+
+    // Listen for the background token exchange success event
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
+      if (session?.user && isMounted) {
         setUserId(session.user.id)
+        setAuthFailed(false)
       }
     })
 
     return () => {
+      isMounted = false
       authListener.subscription.unsubscribe()
     }
-  }, [supabase]) // Removed router from dependencies to stop re-render staggering
+  }, [supabase])
 
   async function handleCompleteOnboarding(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -64,7 +78,7 @@ export default function SetupPage() {
         .maybeSingle()
 
       if (checkError) {
-        setErrorMsg('Error checking username availability.')
+        setErrorMsg('Error checking username availability. Please try again.')
         setLoading(false)
         return
       }
@@ -90,7 +104,7 @@ export default function SetupPage() {
         .upsert({ id: userId, username: sanitizedUsername })
 
       if (upsertError) {
-        setErrorMsg('Could not save your username.')
+        setErrorMsg('Could not save your username. Please try again.')
         setLoading(false)
       } else {
         router.push('/feed')
@@ -99,6 +113,23 @@ export default function SetupPage() {
       setErrorMsg('An unexpected error occurred.')
       setLoading(false)
     }
+  }
+
+  // If the token died or was already used, show a clear message instead of a frozen screen
+  if (authFailed && !userId) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-100 p-8 text-center">
+          <h1 className="text-2xl font-black text-slate-900 mb-2">Link Expired</h1>
+          <p className="text-slate-500 text-sm mb-6">
+            This security token has already been used or has expired. Please request a new invitation.
+          </p>
+          <button onClick={() => router.push('/')} className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3.5 px-4 rounded-xl transition">
+            Go to Homepage
+          </button>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -117,7 +148,7 @@ export default function SetupPage() {
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              disabled={loading || !userId} 
+              disabled={loading || !userId}
               className="w-full pl-10 pr-4 py-3 bg-slate-50 text-slate-900 rounded-xl border border-slate-200 focus:ring-2 focus:ring-black outline-none font-semibold text-left disabled:opacity-50"
               placeholder={userId ? "username" : "Loading..."}
               maxLength={20}
