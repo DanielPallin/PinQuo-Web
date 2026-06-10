@@ -48,7 +48,7 @@ export async function POST(request: Request) {
               “ ${quoteContent} ”
             </div>
             
-            <a href="https://pinquo.app/setup" style="display: inline-block; background-color: #000; color: #fff; text-decoration: none; font-weight: bold; padding: 14px 28px; border-radius: 9999px; font-size: 15px;">
+            <a href="https://pin-quo-web.vercel.app/setup" style="display: inline-block; background-color: #000; color: #fff; text-decoration: none; font-weight: bold; padding: 14px 28px; border-radius: 9999px; font-size: 15px;">
               Join PinQuo!
             </a>
           </div>
