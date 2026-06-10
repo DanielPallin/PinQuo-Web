@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { 
   ArrowLeft, Bell, Edit3, Camera, Star, 
-  Crown, LayoutTemplate, Settings, ChevronRight, User, Loader2, Check, X
+  Crown, LayoutTemplate, User, Loader2, Check, X, ChevronRight
 } from 'lucide-react'
 
 type Profile = {
@@ -28,22 +28,28 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
   
+  // Tracking States
   const [followers, setFollowers] = useState(0)
   const [following, setFollowing] = useState(0)
+  
   const [published, setPublished] = useState<MiniQuote[]>([])
+  const [publishedCount, setPublishedCount] = useState(0)
+  
   const [quotedIn, setQuotedIn] = useState<MiniQuote[]>([])
+  const [quotedInCount, setQuotedInCount] = useState(0)
 
-  // --- EDITING STATE ---
+  // Editing States
   const [isEditingUsername, setIsEditingUsername] = useState(false)
   const [editUsername, setEditUsername] = useState('')
   const [usernameError, setUsernameError] = useState('')
 
   const [isEditingBio, setIsEditingBio] = useState(false)
   const [editBio, setEditBio] = useState('')
-
   const [isUploading, setIsUploading] = useState(false)
 
   useEffect(() => {
+    let isMounted = true
+
     const fetchProfileData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -51,32 +57,55 @@ export default function ProfilePage() {
         return
       }
 
+      // Fetch Profile
       const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-      if (profileData) {
+      if (profileData && isMounted) {
         setProfile(profileData)
         setEditUsername(profileData.username)
         setEditBio(profileData.bio || '')
       }
 
+      // Fetch Follow Stats
       const { count: followerCount } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', user.id)
       const { count: followingCount } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id)
-      setFollowers(followerCount || 0)
-      setFollowing(followingCount || 0)
+      
+      if (isMounted) {
+        setFollowers(followerCount || 0)
+        setFollowing(followingCount || 0)
+      }
 
-      const { data: pubData } = await supabase.from('quotes').select('id, template:templates(style_config)').eq('publisher_id', user.id).order('created_at', { ascending: false }).limit(4)
-      if (pubData) setPublished(pubData as unknown as MiniQuote[])
+      // Fetch Published Quotes
+      const { data: pubData, count: pubCount } = await supabase
+        .from('quotes')
+        .select('id, template:templates(style_config)', { count: 'exact' })
+        .eq('publisher_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(4)
+      
+      if (isMounted) {
+        setPublished((pubData as unknown as MiniQuote[]) || [])
+        setPublishedCount(pubCount || 0)
+      }
 
-      const { data: quotedData } = await supabase.from('quotes').select('id, template:templates(style_config)').eq('quoted_user_id', user.id).order('created_at', { ascending: false }).limit(4)
-      if (quotedData) setQuotedIn(quotedData as unknown as MiniQuote[])
-
-      setIsLoading(false)
+      // 4. Fetch Quoted In
+      const { data: quotedData, count: quotedCount } = await supabase
+        .from('quotes')
+        .select('id, template:templates(style_config)', { count: 'exact' })
+        .eq('quoted_user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(4)
+      
+      if (isMounted) {
+        setQuotedIn((quotedData as unknown as MiniQuote[]) || [])
+        setQuotedInCount(quotedCount || 0)
+        setIsLoading(false)
+      }
     }
 
-    fetchProfileData()
+    void fetchProfileData()
+
+    return () => { isMounted = false }
   }, [supabase, router])
-
-
-  // --- UPDATE ACTIONS ---
 
   const handleUsernameSave = async () => {
     if (!profile) return
@@ -87,31 +116,27 @@ export default function ProfilePage() {
       setUsernameError('Must be at least 3 characters')
       return
     }
-
     if (cleanUsername.length > 30) {
       setUsernameError('Max 30 characters allowed')
       return
     }
-
     if (cleanUsername === profile.username) {
       setIsEditingUsername(false)
       return
     }
 
-    // Check if username is already taken by someone else
     const { data: existing } = await supabase.from('profiles').select('id').eq('username', cleanUsername).neq('id', profile.id).maybeSingle()
     if (existing) {
-      setUsernameError('Username already taken')
+      setUsernameError('Username taken')
       return
     }
 
-    // Update DB
     const { error } = await supabase.from('profiles').update({ username: cleanUsername }).eq('id', profile.id)
     if (!error) {
       setProfile({ ...profile, username: cleanUsername })
       setIsEditingUsername(false)
     } else {
-      setUsernameError('Error saving username')
+      setUsernameError('Error saving')
     }
   }
 
@@ -131,9 +156,8 @@ export default function ProfilePage() {
     setIsUploading(true)
     const file = e.target.files[0]
     const fileExt = file.name.split('.').pop()
-    const filePath = `${profile.id}-${Date.now()}.${fileExt}` // Unique filename to prevent caching issues
+    const filePath = `${profile.id}-${Date.now()}.${fileExt}`
 
-    // Upload to our new 'avatars' bucket
     const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file)
 
     if (uploadError) {
@@ -143,20 +167,16 @@ export default function ProfilePage() {
       return
     }
 
-    // Get the public URL for the newly uploaded image
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath)
-
-    // Update the profile row with the new URL
     const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id)
 
     if (!updateError) {
       setProfile({ ...profile, avatar_url: publicUrl })
     }
-    
     setIsUploading(false)
   }
 
-  // Helper for the Grids
+  // Visual helper to render the accurate 2x2 grids
   const renderMiniGrid = (quotes: MiniQuote[], onClick: () => void) => {
     const slots = [...quotes, ...Array(Math.max(0, 4 - quotes.length)).fill(null)].slice(0, 4)
     return (
@@ -176,45 +196,44 @@ export default function ProfilePage() {
       
       {/* Header */}
       <div className="flex justify-between items-center mb-8 shrink-0">
-        <button onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
+        <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
         <div className="flex flex-col items-center">
           <h1 className="text-3xl font-black text-black leading-none">PinQuo</h1>
           <p className="text-slate-500 font-bold text-sm mt-1">Profile</p>
         </div>
-        <button className="relative p-2 -mr-2 hover:bg-slate-100 rounded-full transition">
+        <button title="Notifications" className="relative p-2 -mr-2 hover:bg-slate-100 rounded-full transition">
           <Bell className="w-7 h-7 text-black" />
         </button>
       </div>
 
-      {/* Top Section: User Info & Bio */}
+      {/* User Info & Bio */}
       <div className="flex gap-6 mb-10 w-full items-start">
         
-        {/* Left: Avatar & Username */}
+        {/* Avatar & Username */}
         <div className="flex flex-col items-center gap-3 w-1/3 shrink-0 pt-1">
-          
-          {/* Editable Username */}
           <div className="flex flex-col items-center w-full">
             {isEditingUsername ? (
-              <div className="flex items-center gap-1 w-full bg-slate-100 rounded-lg p-1 border border-slate-300">
+              <div className="flex flex-col items-center gap-1 w-full bg-slate-100 rounded-lg p-1.5 border border-slate-300">
                 <input 
                   type="text" 
                   title="Edit Username"
                   maxLength={30}
                   value={editUsername} 
                   onChange={(e) => setEditUsername(e.target.value)} 
-                  className="w-full bg-transparent text-sm font-bold text-slate-800 outline-none px-1"
+                  className="w-full bg-transparent text-sm font-bold text-slate-800 text-center outline-none px-1"
                   autoFocus
                 />
-                <button onClick={handleUsernameSave} className="p-1 bg-emerald-100 text-emerald-700 rounded-md hover:bg-emerald-200"><Check className="w-4 h-4" /></button>
-                <button onClick={() => { setIsEditingUsername(false); setEditUsername(profile?.username || '') }} className="p-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200"><X className="w-4 h-4" /></button>
+                <div className="flex justify-center gap-2 mt-1 w-full">
+                  <button title="Save" onClick={handleUsernameSave} className="flex-1 py-1 bg-emerald-100 text-emerald-700 rounded-md hover:bg-emerald-200 flex justify-center"><Check className="w-4 h-4" /></button>
+                  <button title="Cancel" onClick={() => { setIsEditingUsername(false); setEditUsername(profile?.username || '') }} className="flex-1 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 flex justify-center"><X className="w-4 h-4" /></button>
+                </div>
               </div>
             ) : (
-              // FIXED: Removed 'truncate' and 'max-w-[100px]', added 'break-words' and 'text-center'
               <div className="flex items-start justify-center gap-1 w-full px-1">
-                <span className="font-bold text-lg text-slate-800 break-words text-center leading-tight">
+                <span className="font-bold text-lg text-slate-800 wrap-break-words text-center leading-tight">
                   {profile?.username}
                 </span>
-                <button onClick={() => setIsEditingUsername(true)} className="text-slate-400 hover:text-black transition shrink-0 mt-1">
+                <button title="Edit Username" onClick={() => setIsEditingUsername(true)} className="text-slate-400 hover:text-black transition shrink-0 mt-1">
                   <Edit3 className="w-4 h-4" />
                 </button>
               </div>
@@ -222,9 +241,8 @@ export default function ProfilePage() {
             {usernameError && <span className="text-xs text-red-500 font-bold mt-1 text-center leading-tight">{usernameError}</span>}
           </div>
 
-          {/* Editable Avatar */}
           <div className="relative">
-            <div className="w-24 h-24 rounded-full bg-slate-200 border-[4px] border-slate-100 shadow-md flex items-center justify-center overflow-hidden">
+            <div className="w-24 h-24 rounded-full bg-slate-200 border-4 border-slate-100 shadow-md flex items-center justify-center overflow-hidden">
               {isUploading ? (
                 <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
               ) : profile?.avatar_url ? (
@@ -234,7 +252,6 @@ export default function ProfilePage() {
               )}
             </div>
             
-            {/* Hidden File Input */}
             <input 
               type="file" 
               title="Upload Avatar"
@@ -246,6 +263,7 @@ export default function ProfilePage() {
             
             <button 
               onClick={() => fileInputRef.current?.click()} 
+              title="Upload Avatar"
               disabled={isUploading}
               className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-slate-100 hover:bg-slate-50 transition disabled:opacity-50"
             >
@@ -254,12 +272,12 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Right: Editable Bio */}
+        {/* Editable Bio */}
         <div className="flex flex-col flex-1">
           <div className="flex items-center justify-between mb-3 px-2">
             <span className="font-black text-lg text-slate-800">Bio</span>
             {!isEditingBio && (
-              <button onClick={() => setIsEditingBio(true)} className="text-slate-400 hover:text-black transition"><Edit3 className="w-4 h-4" /></button>
+              <button title="Edit Bio" onClick={() => setIsEditingBio(true)} className="text-slate-400 hover:text-black transition"><Edit3 className="w-4 h-4" /></button>
             )}
           </div>
           
@@ -279,7 +297,7 @@ export default function ProfilePage() {
                 </div>
               </div>
             ) : (
-              <p className="text-slate-600 font-medium leading-snug break-words">
+              <p className="text-slate-600 font-medium leading-snug wrap-break-words">
                 {profile?.bio || "No bio yet. Add one!"}
               </p>
             )}
@@ -287,20 +305,26 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Middle Section: The Grid Click Zones */}
+      {/* The Accurate Grid Click Zones */}
       <div className="flex gap-6 mb-10">
         <div className="flex-1 flex flex-col items-center gap-3">
-          <h3 className="font-black text-lg text-slate-800">Published Quotes</h3>
+          <div className="flex flex-col items-center gap-0.5">
+            <h3 className="font-black text-lg text-slate-800">Published</h3>
+            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full">{publishedCount} Total</span>
+          </div>
           {renderMiniGrid(published, () => console.log('Go to Published Grid'))}
         </div>
         
         <div className="flex-1 flex flex-col items-center gap-3">
-          <h3 className="font-black text-lg text-slate-800">Quoted In</h3>
+          <div className="flex flex-col items-center gap-0.5">
+            <h3 className="font-black text-lg text-slate-800">Quoted In</h3>
+            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full">{quotedInCount} Total</span>
+          </div>
           {renderMiniGrid(quotedIn, () => console.log('Go to Quoted In Grid'))}
         </div>
       </div>
 
-      {/* Bottom Section: Stats & Menus */}
+      {/* Bottom Section: Actual Stats & Menus */}
       <div className="flex gap-6">
         <div className="w-1/3 flex flex-col gap-4 items-center shrink-0">
           <div className="flex flex-col items-center w-full">
@@ -313,7 +337,7 @@ export default function ProfilePage() {
           </div>
           <div className="flex flex-col items-center w-full mt-2">
             <div className="bg-slate-100 py-2 px-6 rounded-full text-slate-500 font-bold text-sm w-full text-center mb-3">Favourites</div>
-            <button className="hover:scale-110 active:scale-95 transition-transform">
+            <button title="Favourites" className="hover:scale-110 active:scale-95 transition-transform">
               <Star className="w-10 h-10 fill-yellow-400 text-yellow-500 drop-shadow-sm" />
             </button>
           </div>
