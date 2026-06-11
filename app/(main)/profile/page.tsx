@@ -9,6 +9,7 @@ import {
   Crown, LayoutTemplate, User, Loader2, Check, X, ChevronRight
 } from 'lucide-react'
 import Image from 'next/image'
+import NotificationBell from '@/components/NotificationBell'
 
 type Profile = {
   id: string
@@ -189,25 +190,18 @@ export default function ProfilePage() {
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white pb-24 pt-6 px-6">
       
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8 shrink-0">
-        <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
-        <div className="flex flex-col items-center">
-        <Image
-          src="/PinQuo_logo.png" 
-          alt="PinQuo Logo"
-          width={130}
-          height={40}
-          priority
-          className="h-9 w-auto object-contain" 
-        />
-          <p className="text-slate-500 font-bold text-sm mt-1">Profile</p>
-        </div>
-        <button title="Notiser" className="relative p-2 -mr-2 hover:bg-slate-100 rounded-full transition">
-          <Bell className="w-7 h-7 text-black" />
-        </button>
+      <div className="sticky top-0 z-40 bg-slate-50/95 backdrop-blur-md pt-6 pb-4 px-6 flex justify-between items-center shrink-0 border-b border-slate-200/50 shadow-sm">
+      <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
+<Image
+  src="/PinQuo_logo.png" 
+  alt="PinQuo Logo"
+  width={130}
+  height={40}
+  priority
+  className="h-9 w-auto object-contain" 
+/>
+        <NotificationBell />
       </div>
-
       {/* Profilinfo */}
       <div className="flex gap-6 mb-10 w-full items-start">
         <div className="flex flex-col items-center gap-3 w-1/3 shrink-0 pt-1">

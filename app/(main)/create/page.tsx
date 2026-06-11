@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 
 type Profile = {
   id: string
@@ -70,8 +71,15 @@ export default function CreateQuotePage() {
   return (
     <div className="flex flex-col items-center pt-8 px-6 w-full max-w-2xl mx-auto pb-6">
       
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-black text-black leading-none">PinQuo</h1>
+      <div className="relative text-center mb-6 shrink-0">
+        <button 
+          onClick={() => router.back()}
+          title="Go Back"
+          className="absolute right-60 -translate-x-1/2top-0 p-2 hover:bg-slate-100 rounded-full transition"
+        >
+          <ArrowLeft className="w-8 h-8 text-black" />
+        </button>
+        <h1 className="text-3xl font-black text-black leading-tight">PinQuo</h1>
         <p className="text-slate-500 font-bold text-xl mt-2">Create a Quote</p>
       </div>
 
