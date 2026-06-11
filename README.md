@@ -30,6 +30,6 @@ Im working on QoL updates and new features to keep the project alive.
 
 ---
 
-## 📐 Database Schema Architecture 
+## 📐 Database Schema Architecture  
 
 PinQuo utilizes a highly normalized PostgreSQL relational schema protected by a secure RLS (Row Level Security) firewall layer.
