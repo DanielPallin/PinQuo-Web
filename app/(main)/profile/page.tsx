@@ -8,6 +8,7 @@ import {
   ArrowLeft, Bell, Edit3, Camera, Star, 
   Crown, LayoutTemplate, User, Loader2, Check, X, ChevronRight
 } from 'lucide-react'
+import Image from 'next/image'
 
 type Profile = {
   id: string
@@ -192,7 +193,14 @@ export default function ProfilePage() {
       <div className="flex justify-between items-center mb-8 shrink-0">
         <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
         <div className="flex flex-col items-center">
-          <h1 className="text-3xl font-black text-black leading-none">PinQuo</h1>
+        <Image
+          src="/PinQuo_logo.png" 
+          alt="PinQuo Logo"
+          width={130}
+          height={40}
+          priority
+          className="h-9 w-auto object-contain" 
+        />
           <p className="text-slate-500 font-bold text-sm mt-1">Profile</p>
         </div>
         <button title="Notiser" className="relative p-2 -mr-2 hover:bg-slate-100 rounded-full transition">
@@ -208,7 +216,7 @@ export default function ProfilePage() {
               <div className="flex flex-col items-center gap-1 w-full bg-slate-100 rounded-lg p-1.5 border border-slate-300">
                 <input 
                   type="text" 
-                  title="Ändra användarnamn"
+                  title="Change Username"
                   maxLength={30}
                   value={editUsername} 
                   onChange={(e) => setEditUsername(e.target.value)} 

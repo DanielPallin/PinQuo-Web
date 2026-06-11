@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Star, Loader2, User, X, Search, Share2, Check } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import Link from 'next/link'
+import Image from 'next/image'
 
 const ITEMS_PER_PAGE = 5
 
@@ -328,7 +329,15 @@ export default function FeedPage() {
       
       {/* Sticky Header Layer */}
       <div className="sticky top-0 z-40 bg-slate-50/95 backdrop-blur-md pt-6 pb-4 px-6 flex justify-between items-center shrink-0 border-b border-slate-200/50 shadow-sm">
-        <h1 className="text-4xl font-black text-black tracking-tight">PinQuo</h1>
+        {/* Replace the text with this Image component */}
+<Image
+  src="/PinQuo_logo.png" 
+  alt="PinQuo Logo"
+  width={130}
+  height={40}
+  priority
+  className="h-9 w-auto object-contain" 
+/>
         <NotificationBell />
       </div>
 

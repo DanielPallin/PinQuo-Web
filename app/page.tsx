@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
+import Image from 'next/image'
 
 export default function AuthPage() {
   const [email, setEmail] = useState('')
@@ -42,8 +43,7 @@ export default function AuthPage() {
       isMounted = false
       subscription.unsubscribe()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // <-- FORCED EMPTY: Prevents the React infinite render crash!
+  }, [router, supabase.auth])
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault()
@@ -80,9 +80,17 @@ export default function AuthPage() {
     <main className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
         
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
-            {isLogin ? 'Welcome back to PinQuo' : 'Join PinQuo'}
+        <div className="flex flex-col items-center text-center mb-8">
+            <Image
+              src="/PinQuo_logo.png" 
+              alt="PinQuo Logo"
+              width={130}
+              height={40}
+              priority
+              className="h-9 w-auto object-contain" 
+            />
+          <h1 className="text-2xl font-extrabold text-gray-900 mb-2">
+            {isLogin ? 'Welcome back' : 'Join the conversation'}
           </h1>
           <p className="text-gray-500 text-sm">
             The social network for memorable quotes.
