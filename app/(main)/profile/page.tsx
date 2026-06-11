@@ -8,6 +8,8 @@ import {
   ArrowLeft, Bell, Edit3, Camera, Star, 
   Crown, LayoutTemplate, User, Loader2, Check, X, ChevronRight
 } from 'lucide-react'
+import Image from 'next/image'
+import NotificationBell from '@/components/NotificationBell'
 
 type Profile = {
   id: string
@@ -188,18 +190,18 @@ export default function ProfilePage() {
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white pb-24 pt-6 px-6">
       
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8 shrink-0">
-        <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
-        <div className="flex flex-col items-center">
-          <h1 className="text-3xl font-black text-black leading-none">PinQuo</h1>
-          <p className="text-slate-500 font-bold text-sm mt-1">Profile</p>
-        </div>
-        <button title="Notiser" className="relative p-2 -mr-2 hover:bg-slate-100 rounded-full transition">
-          <Bell className="w-7 h-7 text-black" />
-        </button>
+      <div className="sticky top-0 z-40 bg-slate-50/95 backdrop-blur-md pt-6 pb-4 px-6 flex justify-between items-center shrink-0 border-b border-slate-200/50 shadow-sm">
+      <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
+<Image
+  src="/PinQuo_logo.png" 
+  alt="PinQuo Logo"
+  width={130}
+  height={40}
+  priority
+  className="h-9 w-auto object-contain" 
+/>
+        <NotificationBell />
       </div>
-
       {/* Profilinfo */}
       <div className="flex gap-6 mb-10 w-full items-start">
         <div className="flex flex-col items-center gap-3 w-1/3 shrink-0 pt-1">
@@ -208,7 +210,7 @@ export default function ProfilePage() {
               <div className="flex flex-col items-center gap-1 w-full bg-slate-100 rounded-lg p-1.5 border border-slate-300">
                 <input 
                   type="text" 
-                  title="Ändra användarnamn"
+                  title="Change Username"
                   maxLength={30}
                   value={editUsername} 
                   onChange={(e) => setEditUsername(e.target.value)} 
@@ -323,21 +325,21 @@ export default function ProfilePage() {
           <button className="flex items-center justify-between bg-white p-4 rounded-3xl hover:bg-slate-50 active:bg-slate-100 transition group border border-slate-100 shadow-sm cursor-pointer">
             <div className="flex items-center gap-4">
               <Crown className="w-6 h-6 text-yellow-500 fill-yellow-500/20" />
-              <span className="font-bold text-slate-700 text-lg">PinQuo Pro</span>
+              <span className="font-bold text-slate-700 text-lg">PinQuo Pro(soon)</span>
             </div>
             <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-black transition" />
           </button>
           <button className="flex items-center justify-between bg-white p-4 rounded-3xl hover:bg-slate-50 active:bg-slate-100 transition group border border-slate-100 shadow-sm cursor-pointer">
             <div className="flex items-center gap-4">
               <LayoutTemplate className="w-6 h-6 text-slate-400" />
-              <span className="font-bold text-slate-700 text-lg">Templates</span>
+              <span className="font-bold text-slate-700 text-lg">Templates(soon)</span>
             </div>
             <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-black transition" />
           </button>
           <button className="flex items-center justify-between bg-white p-4 rounded-3xl hover:bg-slate-50 active:bg-slate-100 transition group border border-slate-100 shadow-sm cursor-pointer">
             <div className="flex items-center gap-4">
               <User className="w-6 h-6 text-slate-400" />
-              <span className="font-bold text-slate-700 text-lg">Settings</span>
+              <span className="font-bold text-slate-700 text-lg">Settings(soon)</span>
             </div>
             <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-black transition" />
           </button>
