@@ -11,33 +11,48 @@ export default function SetupPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
   
-  // This state prevents the white screen by showing a spinner while Supabase checks the session
   const [isChecking, setIsChecking] = useState(true) 
   
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser()
-        
-        // If no user is found, kick them to the login page safely
-        if (error || !user) {
-          router.replace('/')
-          return
-        }
-        
-        setUserId(user.id)
-      } catch (err) {
-        router.replace('/')
-      } finally {
+    let isMounted = true
+
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session && isMounted) {
+        setTimeout(async () => {
+          const { data: { session: retrySession } } = await supabase.auth.getSession()
+          if (!retrySession && isMounted) {
+            router.replace('/')
+          } else if (retrySession && isMounted) {
+            setUserId(retrySession.user.id)
+            setIsChecking(false)
+          }
+        }, 500)
+      } else if (session && isMounted) {
+        setUserId(session.user.id)
         setIsChecking(false)
       }
     }
 
-    checkUser()
-  }, []) // <-- EMPTY DEPENDENCY ARRAY: This explicitly prevents the infinite loop crash!
+    initializeAuth()
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && isMounted) {
+        setUserId(session.user.id)
+        setIsChecking(false)
+      }
+    })
+
+    return () => {
+      isMounted = false
+      authListener.subscription.unsubscribe()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // <-- FORCED EMPTY: Prevents the React infinite render crash!
 
   async function handleSaveUsername(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -54,7 +69,6 @@ export default function SetupPage() {
     setErrorMsg('')
 
     try {
-      // 1. Check availability
       const { data: existingUser, error: checkError } = await supabase
         .from('profiles')
         .select('id')
@@ -73,7 +87,6 @@ export default function SetupPage() {
         return
       }
 
-      // 2. Save the username
       const { error: upsertError } = await supabase
         .from('profiles')
         .upsert({ id: userId, username: sanitizedUsername })
@@ -82,7 +95,6 @@ export default function SetupPage() {
         setErrorMsg('Could not save your username. Please try again.')
         setLoading(false)
       } else {
-        // 3. Enter the app!
         router.push('/feed')
       }
     } catch (err) {
@@ -91,7 +103,6 @@ export default function SetupPage() {
     }
   }
 
-  // Show a clean loading spinner while checking auth, avoiding blank screens
   if (isChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
