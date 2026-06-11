@@ -99,7 +99,7 @@ function PreviewQuoteForm() {
         return
       }
   
-      // If an off-platform email was tagged, fire the API pipeline
+      // If an off-platform email was tagged, fire the Invite API
       if (inviteEmail) {
         try {
           const inviteResponse = await fetch('/api/invite', {
@@ -119,8 +119,23 @@ function PreviewQuoteForm() {
           console.error('Failed to communicate with proxy background workers:', err)
         }
       }
+
+      // If an existing user was tagged, fire the Notify API in the background
+      if (targetUsername) {
+        fetch('/api/notify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            quoterUsername: currentUsername, 
+            quotedUsername: targetUsername, 
+            quoteContent: quoteText
+          }),
+        }).catch(err => console.error('Failed to dispatch background notification:', err))
+      }
   
-      // Redirect to the main feed area
+      // Redirect to the main feed
       router.push('/feed')
     }
 
