@@ -325,21 +325,21 @@ export default function ProfilePage() {
           <button className="flex items-center justify-between bg-white p-4 rounded-3xl hover:bg-slate-50 active:bg-slate-100 transition group border border-slate-100 shadow-sm cursor-pointer">
             <div className="flex items-center gap-4">
               <Crown className="w-6 h-6 text-yellow-500 fill-yellow-500/20" />
-              <span className="font-bold text-slate-700 text-lg">PinQuo Pro</span>
+              <span className="font-bold text-slate-700 text-lg">PinQuo Pro(soon)</span>
             </div>
             <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-black transition" />
           </button>
           <button className="flex items-center justify-between bg-white p-4 rounded-3xl hover:bg-slate-50 active:bg-slate-100 transition group border border-slate-100 shadow-sm cursor-pointer">
             <div className="flex items-center gap-4">
               <LayoutTemplate className="w-6 h-6 text-slate-400" />
-              <span className="font-bold text-slate-700 text-lg">Templates</span>
+              <span className="font-bold text-slate-700 text-lg">Templates(soon)</span>
             </div>
             <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-black transition" />
           </button>
           <button className="flex items-center justify-between bg-white p-4 rounded-3xl hover:bg-slate-50 active:bg-slate-100 transition group border border-slate-100 shadow-sm cursor-pointer">
             <div className="flex items-center gap-4">
               <User className="w-6 h-6 text-slate-400" />
-              <span className="font-bold text-slate-700 text-lg">Settings</span>
+              <span className="font-bold text-slate-700 text-lg">Settings(soon)</span>
             </div>
             <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-black transition" />
           </button>
