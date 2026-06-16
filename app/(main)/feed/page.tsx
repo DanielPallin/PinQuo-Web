@@ -326,7 +326,7 @@ export default function FeedPage() {
     }
 
     // Only show a handle (@) if it's a registered user
-    const displayHandle = isRegisteredUser ? `@${targetName.toLowerCase().replace(/[^a-z0-9]/g, '')}` : null
+    const displayHandle = quote.quoted_user?.username ? "@" + quote.quoted_user.username.toLowerCase().replace(/[^a-z0-9]/g, "") : null
     
     const bgGradient = !quote.template ? 'from-slate-800 to-slate-900' : quote.template.style_config.gradient
     const targetAvatarUrl = quote.quoted_user?.avatar_url
