@@ -152,10 +152,13 @@ export default function PublishedPage() {
     const emoji = emojiObj.emoji
     if (type === 'comment') setActiveCommentEmojiPicker(null)
 
-    let isRemoving = false
+       let isRemoving = false
     if (type === 'quote') {
        const quote = quotes.find(q => q.id === targetId)
        isRemoving = quote?.groupedReactions.find(r => r.emoji === emoji)?.hasReacted || false
+    } else if (type === 'comment') {
+       const comment = comments.find(c => c.id === targetId)
+       isRemoving = comment?.reactions.some(r => r.reaction_type === emoji && r.user_id === currentUserId) || false
     }
 
     if (type === 'quote') {

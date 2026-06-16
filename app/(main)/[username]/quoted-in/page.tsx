@@ -152,7 +152,7 @@ export default function QuotedInPage() {
     const emoji = emojiObj.emoji
     if (type === 'comment') setActiveCommentEmojiPicker(null)
 
-    let isRemoving = false
+       let isRemoving = false
     if (type === 'quote') {
        const quote = quotes.find(q => q.id === targetId)
        isRemoving = quote?.groupedReactions.find(r => r.emoji === emoji)?.hasReacted || false
