@@ -9,7 +9,7 @@
   /* Tablet & Desktop: */
   @media (min-width: 768px) {
     html {
-      font-size: 18px;
+      font-size: 17px; 
     }
   }
 }
