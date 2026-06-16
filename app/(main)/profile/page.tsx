@@ -179,13 +179,13 @@ export default function ProfilePage() {
   // ADDED: Secure Logout Handler
   const handleLogout = async () => {
     setIsLoggingOut(true)
-    try {
-      await supabase.auth.signOut()
-      router.push('/')
-      router.refresh() // Force a hard refresh so Next.js clears cached user state
-    } catch (error) {
+    const { error } = await supabase.auth.signOut()
+    if (error) {
       console.error('Error logging out:', error)
       setIsLoggingOut(false)
+    } else {
+      router.push('/')
+      router.refresh()
     }
   }
 
