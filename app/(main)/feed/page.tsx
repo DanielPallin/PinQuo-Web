@@ -36,6 +36,7 @@ type RawQuoteData = {
   content: string
   created_at: string
   quoted_email: string | null
+  custom_author_name: string | null // ADDED: Pull custom_author_name
   publisher: { id: string, username: string } | null
   quoted_user: { username: string, avatar_url: string | null } | null
   template: { style_config: { gradient: string, baseColor: string } } | null
@@ -103,7 +104,7 @@ export default function FeedPage() {
       const { data, error } = await supabase
         .from('quotes')
         .select(`
-          id, content, created_at, quoted_email,
+          id, content, created_at, quoted_email, custom_author_name,
           publisher:profiles!quotes_publisher_id_fkey(id, username),
           quoted_user:profiles!quotes_quoted_user_id_fkey(username, avatar_url),
           template:templates(style_config),
@@ -313,8 +314,19 @@ export default function FeedPage() {
   const renderCard = (quote: FeedQuote, isExpanded: boolean = false) => {
     const publisherName = quote.publisher?.username || 'Unknown'
     const isRegisteredUser = !!quote.quoted_user?.username
-    const targetName = isRegisteredUser ? (quote.quoted_user?.username ?? 'Unknown') : (quote.quoted_email ? 'Pending Invite' : 'Unknown')
-    const displayHandle = isRegisteredUser ? `@${targetName.toLowerCase().replace(/[^a-z0-9]/g, '')}` : null
+    
+    // EXPLICIT TARGET NAME LOGIC
+    let targetName = 'Unknown';
+    if (quote.custom_author_name && quote.custom_author_name.trim() !== '') {
+      targetName = quote.custom_author_name;
+    } else if (isRegisteredUser && quote.quoted_user?.username) {
+      targetName = quote.quoted_user.username;
+    } else if (quote.quoted_email && quote.quoted_email.trim() !== '') {
+      targetName = 'Pending Invite';
+    }
+
+    // Only show a handle (@) if it's a registered user
+    const displayHandle = quote.quoted_user?.username ? "@" + quote.quoted_user.username.toLowerCase().replace(/[^a-z0-9]/g, "") : null
     
     const bgGradient = !quote.template ? 'from-slate-800 to-slate-900' : quote.template.style_config.gradient
     const targetAvatarUrl = quote.quoted_user?.avatar_url
@@ -349,7 +361,8 @@ export default function FeedPage() {
             <p className={`font-medium text-black leading-snug whitespace-pre-wrap px-2 ${getQuoteFontSize(quote.content)}`}>{quote.content}</p>
             <div className="w-full mt-6 flex flex-col items-center">
               <div className="w-12 h-[2px] bg-black mb-3"></div>
-              <p className={`text-xl font-medium tracking-wide ${!isRegisteredUser ? 'text-slate-400 italic' : 'text-black'}`}>{targetName}</p>
+              {/* UPDATED: Dynamic styling based on whether it's a registered user or a custom name */}
+               <p className={`text-xl font-medium tracking-wide ${(!isRegisteredUser && !quote.custom_author_name) ? 'text-slate-400 italic' : 'text-black'}`}>{targetName}</p>
               {displayHandle && <p className="text-slate-400 font-medium text-sm mt-0.5">{displayHandle}</p>}
             </div>
           </div>
