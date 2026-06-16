@@ -104,7 +104,7 @@ export default function FeedPage() {
       const { data, error } = await supabase
         .from('quotes')
         .select(`
-          id, content, created_at, quoted_email, custom_author_name, /* ADDED to DB query */
+          id, content, created_at, quoted_email, custom_author_name,
           publisher:profiles!quotes_publisher_id_fkey(id, username),
           quoted_user:profiles!quotes_quoted_user_id_fkey(username, avatar_url),
           template:templates(style_config),
