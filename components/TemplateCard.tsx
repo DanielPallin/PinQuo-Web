@@ -48,7 +48,7 @@ export default function TemplateCard({
           </p>
           {/* 3. UPDATE FALLBACK CHAIN */}
           <span className="text-xs tracking-widest text-slate-200 font-bold uppercase block">
-            — {quotedUser?.username ? `@${quotedUser.username}` : (customAuthorName || quotedEmail || 'Anonymous')}
+            — {quotedUser?.username ? "@" + quotedUser.username : (customAuthorName || quotedEmail || "Unknown")}
           </span>
         </div>
       </div>
