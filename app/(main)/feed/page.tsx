@@ -444,15 +444,18 @@ export default function FeedPage() {
 
       {/* Fullscreen Theater View Modal Window Backdrop */}
       {expandedQuote && (
-        <div className="fixed inset-0 z-100 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200">
-          <button 
-            onClick={() => setExpandedQuote(null)}
-            title="Close"
-            className="absolute top-6 left-6 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-10 cursor-pointer"
+        <div 
+          onClick={() => setExpandedQuote(null)}
+          className="fixed inset-0 z-100 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200 cursor-pointer"
+        >
+          <div className="absolute top-6 left-6 text-white/50 text-sm font-bold tracking-widest uppercase pointer-events-none">
+            Tap anywhere to close
+          </div>
+
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            className="w-full max-w-550px scale-100 sm:scale-105 transition-transform overflow-y-auto no-scrollbar max-h-[90vh] cursor-default"
           >
-            <X className="w-8 h-8 text-white" />
-          </button>
-          <div className="w-full max-w-[550px] scale-100 sm:scale-105 transition-transform overflow-y-auto no-scrollbar max-h-[90vh]">
             {renderCard(expandedQuote!, true)}
           </div>
         </div>

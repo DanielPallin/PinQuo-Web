@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2 } from 'lucide-react'
-import { ArrowLeft } from 'lucide-react'
+import { Loader2, ArrowLeft } from 'lucide-react'
 
 type Profile = {
   id: string
@@ -53,11 +52,10 @@ export default function CreateQuotePage() {
     return () => clearTimeout(delayDebounceFn)
   }, [searchTerm, supabase])
 
-  // (Write Page)
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!selectedUser && !inviteEmail) return
+    if (!selectedUser && !inviteEmail && searchTerm.trim().length === 0) return
     
     setLoading(true)
 
@@ -65,6 +63,10 @@ export default function CreateQuotePage() {
       router.push(`/create/write?targetId=${selectedUser.id}&targetUsername=${selectedUser.username}`)
     } else if (inviteEmail) {
       router.push(`/create/write?inviteEmail=${encodeURIComponent(inviteEmail)}`)
+    } else if (searchTerm.trim().length > 0) {
+      router.push(`/create/write?customName=${encodeURIComponent(searchTerm.trim())}`)
+    } else {
+      setLoading(false)
     }
   }
 
@@ -75,7 +77,7 @@ export default function CreateQuotePage() {
         <button 
           onClick={() => router.back()}
           title="Go Back"
-          className="absolute right-60 -translate-x-1/2top-0 p-2 hover:bg-slate-100 rounded-full transition"
+          className="absolute right-60 -translate-x-1/2 top-0 p-2 hover:bg-slate-100 rounded-full transition"
         >
           <ArrowLeft className="w-8 h-8 text-black" />
         </button>
@@ -90,7 +92,7 @@ export default function CreateQuotePage() {
         </h2>
 
         <div className="w-full mb-2">
-          <p className="text-center text-slate-500 mb-2 font-bold text-base">Username</p>
+          <p className="text-center text-slate-500 mb-2 font-bold text-base">Username or Custom Name</p>
           <input
             type="text"
             value={searchTerm}
@@ -99,13 +101,12 @@ export default function CreateQuotePage() {
               setSelectedUser(null)
               setInviteEmail('')
             }}
-            placeholder="Search..."
+            placeholder="Search or type a name..."
             className="w-full py-4 px-6 bg-slate-100 text-slate-900 text-center text-xl rounded-full focus:outline-none focus:ring-4 focus:ring-slate-200 transition font-bold"
           />
         </div>
 
-        {/* Dynamic Search Results / Spacing */}
-        <div className="flex flex-col items-center w-full max-w-[320px] min-h-[140px] justify-start">
+        <div className="flex flex-col items-center w-full max-w-[320px] min-h-140px justify-start">
           {searchTerm.length >= 2 && !selectedUser && (
             <>
               <div className="w-0 h-0 border-l-10 border-l-transparent border-r-10 border-r-transparent border-t-10 border-t-black mt-2 mb-2" />
@@ -127,7 +128,7 @@ export default function CreateQuotePage() {
                   </button>
                 ))
               ) : (
-                <p className="text-sm text-slate-400 font-bold my-4 uppercase tracking-wider">No users found</p>
+                <p className="text-sm text-slate-400 font-bold my-4 uppercase tracking-wider">Tap continue to use custom name</p>
               )}
             </>
           )}
@@ -165,8 +166,8 @@ export default function CreateQuotePage() {
 
         <button
           type="submit"
-          disabled={loading || (!selectedUser && !inviteEmail)}
-          className="w-full max-w-[400px] bg-[#bbf7d0] text-emerald-950 hover:bg-[#86efac] active:scale-95 disabled:opacity-50 disabled:hover:bg-[#bbf7d0] disabled:active:scale-100 font-black text-2xl py-5 px-14 rounded-[32px] transition-all duration-200 shadow-lg border-4 border-emerald-200"
+          disabled={loading || (!selectedUser && !inviteEmail && searchTerm.trim().length === 0)}
+          className="w-full max-w-400px bg-[#bbf7d0] text-emerald-950 hover:bg-[#86efac] active:scale-95 disabled:opacity-50 disabled:hover:bg-[#bbf7d0] disabled:active:scale-100 font-black text-2xl py-5 px-14 rounded-[32px] transition-all duration-200 shadow-lg border-4 border-emerald-200"
         >
           {loading ? <Loader2 className="w-8 h-8 animate-spin mx-auto" /> : 'Continue'}
         </button>
