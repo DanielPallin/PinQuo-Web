@@ -60,53 +60,68 @@ function PreviewQuoteForm() {
   }, [supabase, targetId])
 
   const handlePublish = async () => {
-    setIsPublishing(true)
-    setErrorMsg('')
+  setIsPublishing(true);
+  setErrorMsg('');
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setErrorMsg("You must be logged in to post a quote.")
-      setIsPublishing(false)
-      return
-    }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    setErrorMsg("You must be logged in to post a quote.");
+    setIsPublishing(false);
+    return;
+  }
 
-    // Insert to DB
-    const { error: dbError } = await supabase.from('quotes').insert({
-      publisher_id: user.id,
-      content: quoteText,
-      template_id: bgType === 'template' ? (templateId || null) : null,
-      live_photo_url: null,
-      quoted_user_id: targetId && targetId.trim() !== "" ? targetId : null,
-      quoted_email: inviteEmail && inviteEmail.trim() !== "" ? inviteEmail : null,
-      custom_author_name: customName && customName.trim() !== "" ? customName : null
-    })
+  // 1. Prepare target variables explicitly to ensure we don't send "" or undefined
+  const targetUid = (targetId && targetId.trim() !== "") ? targetId : null;
+  const targetEmail = (inviteEmail && inviteEmail.trim() !== "") ? inviteEmail : null;
+  const authorName = (customName && customName.trim() !== "") ? customName : null;
 
-    if (dbError) {
-      console.error(dbError)
-      setErrorMsg(dbError.message)
-      setIsPublishing(false)
-      return
-    }
+  // 2. Build the exact payload
+  // We explicitly include all three target keys. If they are null, Supabase sends SQL NULL.
+  const quoteData = {
+    publisher_id: user.id,
+    content: quoteText,
+    template_id: bgType === 'template' ? (templateId || null) : null,
+    live_photo_url: null,
+    quoted_user_id: targetUid,
+    quoted_email: targetEmail,
+    custom_author_name: authorName
+  };
 
-    // Secondary Actions
-    if (inviteEmail) {
-      fetch('/api/invite', {
+  // 3. Perform Insert
+  const { error: dbError } = await supabase
+    .from('quotes')
+    .insert([quoteData]); // Wrap in array to ensure it's treated as a single row
+
+  if (dbError) {
+    console.error("Supabase Insert Error:", dbError);
+    setErrorMsg(dbError.message || "Failed to publish quote.");
+    setIsPublishing(false);
+    return;
+  }
+
+  // 4. Handle side effects (async/await for reliability)
+  try {
+    if (targetEmail) {
+      await fetch('/api/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail, publisherName: currentUsername, quoteContent: quoteText })
-      }).catch(err => console.error('Invite error:', err))
+        body: JSON.stringify({ email: targetEmail, publisherName: currentUsername, quoteContent: quoteText })
+      });
     }
 
     if (targetUsername) {
-      fetch('/api/notify', {
+      await fetch('/api/notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quoterUsername: currentUsername, quotedUsername: targetUsername, quoteContent: quoteText }),
-      }).catch(err => console.error('Notify error:', err))
+      });
     }
-
-    router.push('/feed')
+  } catch (err) {
+    console.error('Background task error:', err);
   }
+
+  router.push('/feed');
+};
 
   return (
     <div className="flex flex-col pt-10 px-6 w-full max-w-2xl mx-auto min-h-[calc(100vh-120px)] pb-10">
