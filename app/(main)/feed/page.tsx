@@ -315,14 +315,14 @@ export default function FeedPage() {
     const publisherName = quote.publisher?.username || 'Unknown'
     const isRegisteredUser = !!quote.quoted_user?.username
     
-    // UPDATED TARGET NAME LOGIC: Prioritize custom name, then registered user, then email
-    let targetName = 'Unknown'
-    if (quote.custom_author_name) {
-      targetName = quote.custom_author_name
-    } else if (isRegisteredUser) {
-      targetName = quote.quoted_user!.username
-    } else if (quote.quoted_email) {
-      targetName = 'Pending Invite'
+    // EXPLICIT TARGET NAME LOGIC
+    let targetName = 'Unknown';
+    if (quote.custom_author_name && quote.custom_author_name.trim() !== '') {
+      targetName = quote.custom_author_name;
+    } else if (isRegisteredUser && quote.quoted_user?.username) {
+      targetName = quote.quoted_user.username;
+    } else if (quote.quoted_email && quote.quoted_email.trim() !== '') {
+      targetName = 'Pending Invite';
     }
 
     // Only show a handle (@) if it's a registered user
