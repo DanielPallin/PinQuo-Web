@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Bell, UserPlus, Heart, User, CheckCircle2 } from 'lucide-react'
+import { Bell, UserPlus, User, CheckCircle2, MessageCircle, SmilePlus } from 'lucide-react'
 import { type RealtimeChannel } from '@supabase/supabase-js'
 import Link from 'next/link'
 
@@ -152,17 +152,22 @@ export default function NotificationBell() {
                       <Link 
                         href={`/${notif.actor.username}`}
                         onClick={() => setIsOpen(false)}
-                        className="font-bold text-black hover:underline"
+                        className="font-bold text-black hover:underline mr-1"
                       >
                         {notif.actor.username}
                       </Link>
                       
-                      {/* Dynamic Text */}
-                      {notif.type === 'follow' && ' started following you.'}
-                      {notif.type === 'reaction' && ' reacted to your quote.'}
+                      {/* Dynamic Text routing for all 3 features */}
+                      {notif.type === 'follow' && 'started following you.'}
+                      {notif.type === 'reaction' && 'reacted to your content.'}
+                      {notif.type === 'comment' && 'commented on your quote.'}
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
-                      {notif.type === 'follow' ? <UserPlus className="w-3.5 h-3.5 text-blue-500" /> : <Heart className="w-3.5 h-3.5 text-pink-500" />}
+                      {/* Dynamic Icon routing */}
+                      {notif.type === 'follow' && <UserPlus className="w-3.5 h-3.5 text-blue-500" />}
+                      {notif.type === 'reaction' && <SmilePlus className="w-3.5 h-3.5 text-pink-500" />}
+                      {notif.type === 'comment' && <MessageCircle className="w-3.5 h-3.5 text-emerald-500" />}
+                      
                       <span className="text-xs font-bold text-slate-400">{timeAgo(notif.created_at)}</span>
                     </div>
                   </div>
