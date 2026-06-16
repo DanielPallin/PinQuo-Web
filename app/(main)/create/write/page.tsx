@@ -26,9 +26,11 @@ function WriteQuoteForm() {
   const targetId = searchParams.get('targetId')
   const targetUsername = searchParams.get('targetUsername')
   const inviteEmail = searchParams.get('inviteEmail')
+  const customName = searchParams.get('customName') // ADDED: Extract customName from URL
 
   const isExistingUser = !!targetId
-  const displayTarget = targetUsername || inviteEmail || 'Unknown'
+  // ADDED: Include customName in the display target logic
+  const displayTarget = targetUsername || customName || inviteEmail || 'Unknown'
 
   const [quoteText, setQuoteText] = useState('')
   const [bgType, setBgType] = useState<'avatar' | 'template' | 'snap'>(
@@ -64,6 +66,7 @@ function WriteQuoteForm() {
     if (targetId) params.append('targetId', targetId)
     if (targetUsername) params.append('targetUsername', targetUsername)
     if (inviteEmail) params.append('inviteEmail', inviteEmail)
+    if (customName) params.append('customName', customName) // ADDED: Pass customName to the preview page
     
     if (bgType === 'template' && selectedTemplate) {
       params.append('templateId', selectedTemplate.id)
