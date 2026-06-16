@@ -166,6 +166,8 @@ export default function FeedPage() {
 
   // Live Search Logic (Debounced)
   useEffect(() => {
+    let active = true
+
     const searchUsers = async () => {
       if (searchQuery.trim().length < 2) {
         setSearchResults([])
@@ -180,17 +182,24 @@ export default function FeedPage() {
         .ilike('username', `%${searchQuery}%`)
         .limit(5)
 
-      if (data && !error) {
-        setSearchResults(data as SearchProfile[])
+      if (active) {
+        if (data && !error) {
+          setSearchResults(data as SearchProfile[])
+        } else if (error) {
+          console.error('Error searching users:', error)
+        }
+        setIsSearching(false)
       }
-      setIsSearching(false)
     }
 
     const delayDebounceFn = setTimeout(() => {
-      searchUsers()
+      void searchUsers()
     }, 300)
 
-    return () => clearTimeout(delayDebounceFn)
+    return () => {
+      active = false
+      clearTimeout(delayDebounceFn)
+    }
   }, [searchQuery, supabase])
 
   // Handle clicking outside the search dropdown
