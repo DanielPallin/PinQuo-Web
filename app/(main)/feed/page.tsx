@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, User, X, Send, SmilePlus } from 'lucide-react'
+import { Loader2, User, X, Send, SmilePlus, Search } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
-import QuoteCard, { FeedQuote, GroupedReaction } from '@/components/QuoteCard' // UPDATE THIS PATH
+import QuoteCard, { FeedQuote, GroupedReaction } from '@/components/QuoteCard'
 import Link from 'next/link'
 import Image from 'next/image'
 import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react'
@@ -42,23 +42,40 @@ type CommentType = {
   reactions: { reaction_type: string, user_id: string }[]
 }
 
+type SearchProfile = {
+  id: string
+  username: string
+  avatar_url: string | null
+}
+
 export default function FeedPage() {
   const supabase = createClient()
   
+  // Feed States
   const [quotes, setQuotes] = useState<FeedQuote[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isPaginationLoading, setIsPaginationLoading] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [expandedQuote, setExpandedQuote] = useState<FeedQuote | null>(null)
   
+  // Comments States
   const [comments, setComments] = useState<CommentType[]>([])
   const [newComment, setNewComment] = useState('')
   const [isPostingComment, setIsPostingComment] = useState(false)
   const [activeCommentEmojiPicker, setActiveCommentEmojiPicker] = useState<string | null>(null)
 
+  // Pagination
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
 
+  // Search States
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchProfile[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false)
+  const searchContainerRef = useRef<HTMLDivElement>(null)
+
+  // Fetch Main Feed
   useEffect(() => {
     let isMounted = true
 
@@ -128,6 +145,7 @@ export default function FeedPage() {
     return () => { isMounted = false }
   }, [supabase, page])
 
+  // Fetch Comments
   useEffect(() => {
     if (!expandedQuote) return
     const fetchComments = async () => {
@@ -145,6 +163,47 @@ export default function FeedPage() {
     }
     fetchComments()
   }, [expandedQuote, supabase])
+
+  // Live Search Logic (Debounced)
+  useEffect(() => {
+    const searchUsers = async () => {
+      if (searchQuery.trim().length < 2) {
+        setSearchResults([])
+        setIsSearching(false)
+        return
+      }
+
+      setIsSearching(true)
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .ilike('username', `%${searchQuery}%`)
+        .limit(5)
+
+      if (data && !error) {
+        setSearchResults(data as SearchProfile[])
+      }
+      setIsSearching(false)
+    }
+
+    const delayDebounceFn = setTimeout(() => {
+      searchUsers()
+    }, 300)
+
+    return () => clearTimeout(delayDebounceFn)
+  }, [searchQuery, supabase])
+
+  // Handle clicking outside the search dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSearchDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
 
   const handleDynamicReaction = async (emojiObj: EmojiClickData, targetId: string, type: 'quote' | 'comment', targetOwnerId?: string) => {
     if (!currentUserId) return
@@ -253,11 +312,70 @@ export default function FeedPage() {
       </div>
 
       <div className="px-4 mt-4">
+        
+        {/* Search Bar */}
+        <div className="mb-6 relative z-30" ref={searchContainerRef}>
+          <div className="relative flex items-center bg-white border border-slate-200 rounded-full px-4 py-3 shadow-[0_2px_10px_rgb(0,0,0,0.02)] focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all">
+            <Search className="w-5 h-5 text-slate-400 mr-2 shrink-0" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value)
+                setShowSearchDropdown(true)
+              }}
+              onFocus={() => setShowSearchDropdown(true)}
+              placeholder="Search users..."
+              className="flex-1 bg-transparent border-none outline-none text-sm font-medium text-slate-800 placeholder:text-slate-400"
+            />
+            {isSearching && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+            {searchQuery && !isSearching && (
+              <button 
+                onClick={() => { setSearchQuery(''); setSearchResults([]); setShowSearchDropdown(false); }} 
+                className="p-1 hover:bg-slate-100 rounded-full transition"
+              >
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            )}
+          </div>
+
+          {/* Search Dropdown */}
+          {showSearchDropdown && searchQuery.trim().length >= 2 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50">
+              {searchResults.length > 0 ? (
+                <div className="flex flex-col">
+                  {searchResults.map((user) => (
+                    <Link 
+                      key={user.id} 
+                      href={`/${user.username}`}
+                      onClick={() => setShowSearchDropdown(false)}
+                      className="flex items-center gap-3 p-3 hover:bg-slate-50 transition border-b border-slate-50 last:border-none"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden shrink-0 border border-slate-200">
+                        {user.avatar_url ? (
+                          <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-full h-full p-2 text-slate-400" />
+                        )}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-800">{user.username}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : !isSearching ? (
+                <div className="p-4 text-center text-slate-500 text-sm font-medium">No users found.</div>
+              ) : null}
+            </div>
+          )}
+        </div>
+
         {isLoading ? (
           <div className="flex justify-center mt-20"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
         ) : (
           <div className="flex flex-col gap-6">
-            {/* THIS IS WHERE THE MAGIC HAPPENS */}
+            {/* Feed Cards */}
             {quotes.map((quote) => (
               <QuoteCard 
                 key={quote.id} 
@@ -277,6 +395,7 @@ export default function FeedPage() {
         )}
       </div>
 
+      {/* Expanded Modal */}
       {expandedQuote && (
         <div onClick={() => setExpandedQuote(null)} className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-start sm:justify-center p-0 sm:p-8 animate-in fade-in duration-200 cursor-pointer overflow-hidden">
           <div onClick={(e) => e.stopPropagation()} className="w-full h-full sm:h-auto sm:max-h-[90vh] max-w-[550px] bg-slate-50 sm:rounded-[40px] flex flex-col overflow-hidden cursor-default shadow-2xl relative">
