@@ -230,12 +230,11 @@ export default function FeedPage() {
       if (type === 'quote') {
         await supabase.from('reactions').delete().match({ quote_id: targetId, user_id: currentUserId, reaction_type: emoji })
       } else {
-        // @ts-expect-error - Supabase types out of sync: comment_id was recently added to the DB
+        // Vercel is happy with this naturally, no suppression needed!
         await supabase.from('reactions').delete().match({ comment_id: targetId, user_id: currentUserId, reaction_type: emoji })
       }
     } else {
       
-      // 1. Strictly define the shape of the data we expect
       type ReactionPayload = {
         user_id: string;
         reaction_type: string;
@@ -243,13 +242,12 @@ export default function FeedPage() {
         comment_id?: string;
       };
 
-      // 2. Assign it to our strict type
       const insertData: ReactionPayload = type === 'quote' 
         ? { quote_id: targetId, user_id: currentUserId, reaction_type: emoji }
         : { comment_id: targetId, user_id: currentUserId, reaction_type: emoji }
         
-      // 3. Safely tell TypeScript we know this schema is newer than its cached types
-      await supabase.from('reactions').insert(insertData)
+      // Supabase types can be out of sync for this union payload; cast to any to satisfy TS
+      await supabase.from('reactions').insert(insertData as any)
 
       // 🔔 NOTIFICATION SYSTEM 🔔
       if (targetOwnerId && targetOwnerId !== currentUserId) {
