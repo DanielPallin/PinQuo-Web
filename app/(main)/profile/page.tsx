@@ -5,8 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  ArrowLeft, Bell, Edit3, Camera, Star, 
-  Crown, LayoutTemplate, User, Loader2, Check, X, ChevronRight
+  ArrowLeft, Edit3, Camera, Star, 
+  Crown, LayoutTemplate, User, Loader2, Check, X, ChevronRight, LogOut
 } from 'lucide-react'
 import Image from 'next/image'
 import NotificationBell from '@/components/NotificationBell'
@@ -47,6 +47,9 @@ export default function ProfilePage() {
   const [isEditingBio, setIsEditingBio] = useState(false)
   const [editBio, setEditBio] = useState('')
   const [isUploading, setIsUploading] = useState(false)
+  
+  // ADDED: Logout state
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -124,7 +127,7 @@ export default function ProfilePage() {
 
     const { data: existing } = await supabase.from('profiles').select('id').eq('username', cleanUsername).neq('id', profile.id).maybeSingle()
     if (existing) {
-      setUsernameError('Usarname already taken')
+      setUsernameError('Username already taken')
       return
     }
 
@@ -173,6 +176,19 @@ export default function ProfilePage() {
     setIsUploading(false)
   }
 
+  // ADDED: Secure Logout Handler
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      await supabase.auth.signOut()
+      router.push('/')
+      router.refresh() // Force a hard refresh so Next.js clears cached user state
+    } catch (error) {
+      console.error('Error logging out:', error)
+      setIsLoggingOut(false)
+    }
+  }
+
   const renderMiniGrid = (quotes: MiniQuote[], onClick: () => void) => {
     const slots = [...quotes, ...Array(Math.max(0, 4 - quotes.length)).fill(null)].slice(0, 4)
     return (
@@ -192,18 +208,19 @@ export default function ProfilePage() {
       
       <div className="sticky top-0 z-40 bg-slate-50/95 backdrop-blur-md pt-6 pb-4 px-6 flex justify-between items-center shrink-0 border-b border-slate-200/50 shadow-sm">
       <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
-<Image
-  src="/PinQuo_logo.png" 
-  alt="PinQuo Logo"
-  width={130}
-  height={40}
-  priority
-  className="h-9 w-auto object-contain" 
-/>
+        <Image
+          src="/PinQuo_logo.png" 
+          alt="PinQuo Logo"
+          width={130}
+          height={40}
+          priority
+          className="h-9 w-auto object-contain" 
+        />
         <NotificationBell />
       </div>
+
       {/* Profilinfo */}
-      <div className="flex gap-6 mb-10 w-full items-start">
+      <div className="flex gap-6 mb-10 w-full items-start mt-6">
         <div className="flex flex-col items-center gap-3 w-1/3 shrink-0 pt-1">
           <div className="flex flex-col items-center w-full">
             {isEditingUsername ? (
@@ -342,6 +359,24 @@ export default function ProfilePage() {
               <span className="font-bold text-slate-700 text-lg">Settings(soon)</span>
             </div>
             <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-black transition" />
+          </button>
+          
+          {/* ADDED: Logout Button */}
+          <button 
+            onClick={handleLogout} 
+            disabled={isLoggingOut}
+            className="flex items-center justify-between bg-white p-4 rounded-3xl hover:bg-red-50 active:bg-red-100 transition group border border-slate-100 hover:border-red-100 shadow-sm cursor-pointer mt-1 disabled:opacity-50"
+          >
+            <div className="flex items-center gap-4">
+              {isLoggingOut ? (
+                <Loader2 className="w-6 h-6 text-red-500 animate-spin" />
+              ) : (
+                <LogOut className="w-6 h-6 text-red-500 group-hover:scale-110 transition-transform" />
+              )}
+              <span className="font-bold text-red-600 text-lg">
+                {isLoggingOut ? 'Logging out...' : 'Log Out'}
+              </span>
+            </div>
           </button>
         </div>
       </div>
