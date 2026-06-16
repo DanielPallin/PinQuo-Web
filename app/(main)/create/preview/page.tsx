@@ -99,25 +99,51 @@ function PreviewQuoteForm() {
     return;
   }
 
-  // 4. Handle side effects (async/await for reliability)
+    // 4. Handle side effects (concurrently and with fallback resolution)
   try {
+    let publisherName = currentUsername;
+    if (publisherName === "You") {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", user.id)
+        .single();
+      if (profile?.username) {
+        publisherName = profile.username;
+      }
+    }
+
+    const sideEffects: Promise<unknown>[] = [];
+
     if (targetEmail) {
-      await fetch('/api/invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: targetEmail, publisherName: currentUsername, quoteContent: quoteText })
-      });
+      sideEffects.push(
+        fetch("/api/invite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: targetEmail, publisherName, quoteContent: quoteText })
+        }).then(res => {
+          if (!res.ok) console.error("Invite failed with status:", res.status);
+        }).catch(err => console.error("Invite error:", err))
+      );
     }
 
     if (targetUsername) {
-      await fetch('/api/notify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoterUsername: currentUsername, quotedUsername: targetUsername, quoteContent: quoteText }),
-      });
+      sideEffects.push(
+        fetch("/api/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quoterUsername: publisherName, quotedUsername: targetUsername, quoteContent: quoteText }),
+        }).then(res => {
+          if (!res.ok) console.error("Notify failed with status:", res.status);
+        }).catch(err => console.error("Notify error:", err))
+      );
+    }
+
+    if (sideEffects.length > 0) {
+      await Promise.all(sideEffects);
     }
   } catch (err) {
-    console.error('Background task error:', err);
+    console.error("Background task error:", err);
   }
 
   router.push('/feed');
