@@ -300,6 +300,8 @@ export default function FeedPage() {
     }
     setIsPostingComment(false)
   }
+    setIsPostingComment(false)
+  }
 
   const toggleFavorite = async (quoteId: string) => {
     if (!currentUserId) return

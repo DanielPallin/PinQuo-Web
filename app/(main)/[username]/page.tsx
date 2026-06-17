@@ -138,7 +138,16 @@ export default function PublicProfilePage() {
     // Database Sync
     if (!currentlyFollowing) {
       // Execute Follow
-      await supabase.from('follows').insert({ follower_id: currentUser.id, following_id: targetProfile.id })
+      const { error: followError } = await supabase.from('follows').insert({ follower_id: currentUser.id, following_id: targetProfile.id })
+      
+      if (!followError) {
+        // NEW: Trigger notification for the followed user
+        await supabase.from('notifications').insert({
+          receiver_id: targetProfile.id,
+          actor_id: currentUser.id,
+          type: 'follow'
+        })
+      }
     } else {
       // Execute Unfollow
       await supabase.from('follows').delete().match({ follower_id: currentUser.id, following_id: targetProfile.id })

@@ -88,15 +88,27 @@ function PreviewQuoteForm() {
   };
 
   // 3. Perform Insert
-  const { error: dbError } = await supabase
+  const { data: insertedQuote, error: dbError } = await supabase
     .from('quotes')
-    .insert([quoteData]); // Wrap in array to ensure it's treated as a single row
+    .insert([quoteData])
+    .select()
+    .single();
 
   if (dbError) {
     console.error("Supabase Insert Error:", dbError);
     setErrorMsg(dbError.message || "Failed to publish quote.");
     setIsPublishing(false);
     return;
+  }
+
+  // NEW: Trigger notification for the quoted user
+  if (targetId && targetId.trim() !== "" && insertedQuote) {
+    await supabase.from('notifications').insert({
+      receiver_id: targetId,
+      actor_id: user.id,
+      type: 'quote',
+      quote_id: insertedQuote.id
+    });
   }
 
     // 4. Handle side effects (concurrently and with fallback resolution)
