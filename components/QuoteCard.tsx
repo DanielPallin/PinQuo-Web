@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { User, MessageCircle, Star, SmilePlus } from 'lucide-react'
+import { User, MessageCircle, Star, SmilePlus, Download, Share2 } from 'lucide-react'
 import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react'
+import { toPng } from 'html-to-image'
 
 // Exporting these types so your pages can use them
 export type GroupedReaction = { emoji: string, count: number, hasReacted: boolean }
@@ -77,6 +78,39 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     onReact(emoji, quote.id, 'quote', quote.publisher?.id)
   }
 
+  const handleExport = async () => {
+    const element = document.getElementById(`quote-graphic-${quote.id}`)
+    if (!element) return
+
+    try {
+      const dataUrl = await toPng(element, { cacheBust: true })
+      
+      // Check if Web Share API is available and supports files
+      if (navigator.share && navigator.can?.('share')) {
+        const response = await fetch(dataUrl)
+        const blob = await response.blob()
+        const file = new File([blob], `quote-${quote.id}.png`, { type: 'image/png' })
+
+        if (await navigator.can({ value: 'share', type: 'file' })) {
+          await navigator.share({
+            files: [file],
+            title: 'My Quote',
+            text: quote.content,
+          })
+          return
+        }
+      }
+
+      // Fallback: Download the image
+      const link = document.createElement('a')
+      link.download = `quote-${quote.id}.png`
+      link.href = dataUrl
+      link.click()
+    } catch (err) {
+      console.error('Export failed:', err)
+    }
+  }
+
   return (
     <div className={`w-full flex flex-col bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 ${isExpanded ? 'p-0 pb-6 rounded-t-[40px]' : 'p-5 rounded-[40px]'}`}>
       
@@ -94,6 +128,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
 
       {/* The Graphic */}
       <div 
+        id={`quote-graphic-${quote.id}`}
         onClick={(e) => { e.stopPropagation(); if (!isExpanded && onExpand) onExpand(quote) }}
         className={`w-full bg-white rounded-[32px] overflow-hidden flex flex-col border border-slate-100 relative ${!isExpanded ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-lg' : 'shadow-sm'}`}
       >
@@ -148,6 +183,38 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
 
         <div className="flex items-center gap-4 text-slate-400">
           {!isExpanded && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleExport() }}
+              className="flex items-center gap-1.5 hover:text-black transition cursor-pointer"
+            >
+              <Share2 className="w-5 h-5" />
+              <span className="font-bold text-sm">Share</span>
+            </button>
+          )}
+          <button onClick={(e) => { e.stopPropagation(); if (onExpand) onExpand(quote) }} className="flex items-center gap-1.5 hover:text-black transition cursor-pointer">
+            <MessageCircle className="w-5 h-5" />
+            <span className="font-bold text-sm">{quote.commentCount}</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4 text-slate-400">
+        {!isExpanded && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleExport() }}
+            className="flex items-center gap-1.5 hover:text-black transition cursor-pointer"
+          >
+            <Download className="w-5 h-5" />
+            <span className="font-bold text-sm">Download</span>
+          </button>
+        )}
+        <button onClick={(e) => { e.stopPropagation(); onFavorite(quote.id) }} className={`hover:scale-110 transition-transform cursor-pointer ${quote.isFavorited ? 'text-yellow-400 fill-yellow-400' : 'hover:text-yellow-400'}`}>
+          <Star className="w-6 h-6" strokeWidth={2} />
+        </button>
+      </div>
+    </div>
+  )
+}
              <button onClick={(e) => { e.stopPropagation(); if (onExpand) onExpand(quote) }} className="flex items-center gap-1.5 hover:text-black transition cursor-pointer">
                <MessageCircle className="w-5 h-5" />
                <span className="font-bold text-sm">{quote.commentCount}</span>
