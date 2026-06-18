@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Bell, UserPlus, User, CheckCircle2, MessageCircle, SmilePlus } from 'lucide-react'
+import { Bell, UserPlus, User, CheckCircle2, MessageCircle, SmilePlus, Quote } from 'lucide-react'
 import { type RealtimeChannel } from '@supabase/supabase-js'
 import Link from 'next/link'
 
@@ -11,6 +11,7 @@ type Notification = {
   type: string
   is_read: boolean
   created_at: string
+  quote_id: string | null // ADDED: To track which quote was interacted with
   actor: { username: string, avatar_url: string | null }
 }
 
@@ -39,13 +40,14 @@ export default function NotificationBell() {
 
       const { data } = await supabase
         .from('notifications')
+        // ADDED: quote_id to the select query
         .select(`
-          id, type, is_read, created_at,
+          id, type, is_read, created_at, quote_id,
           actor:profiles!notifications_actor_id_fkey(username, avatar_url)
         `)
         .eq('receiver_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(10) // Upped to top 10
+        .limit(10)
 
       if (data && isMounted) {
         const parsedData = data as unknown as Notification[]
@@ -100,9 +102,30 @@ export default function NotificationBell() {
     setNotifications(notifications.map(n => ({ ...n, is_read: true })))
   }
 
+  // ADDED: Individual mark as read when clicking a specific notification
+  const handleNotificationClick = async (notifId: string) => {
+    setIsOpen(false)
+    const notif = notifications.find(n => n.id === notifId)
+    if (!notif || notif.is_read) return
+
+    setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, is_read: true } : n))
+    setUnreadCount(prev => Math.max(0, prev - 1))
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      await supabase.from('notifications').update({ is_read: true }).eq('id', notifId).eq('receiver_id', user.id)
+    }
+  }
+
+  // ADDED: Routing logic helper
+  const getActionLink = (notif: Notification) => {
+    if (notif.type === 'follow') return `/${notif.actor.username}`
+    if (notif.quote_id) return `/feed?quoteId=${notif.quote_id}`
+    return '#'
+  }
+
   return (
     <div className="relative" ref={dropdownRef}>
-      
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className={`relative p-2 rounded-full transition-colors cursor-pointer ${isOpen ? 'bg-slate-200' : 'hover:bg-slate-200'}`}
@@ -132,10 +155,10 @@ export default function NotificationBell() {
               notifications.map((notif) => (
                 <div key={notif.id} className={`flex items-start gap-4 p-4 transition hover:bg-slate-50 border-b border-slate-50 last:border-0 ${!notif.is_read ? 'bg-emerald-50/30' : ''}`}>
                   
-                  {/* Clickable Avatar Link */}
+                  {/* Clickable Avatar Link -> Goes to Profile */}
                   <Link 
                     href={`/${notif.actor.username}`}
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => handleNotificationClick(notif.id)}
                     className="w-12 h-12 rounded-full bg-slate-200 shrink-0 flex items-center justify-center overflow-hidden border border-slate-200 hover:ring-2 hover:ring-slate-200 transition-all cursor-pointer"
                   >
                     {notif.actor.avatar_url ? (
@@ -147,25 +170,32 @@ export default function NotificationBell() {
 
                   <div className="flex-1 flex flex-col justify-center pt-1">
                     <p className="text-sm text-slate-700 leading-snug">
-                      {/* Clickable Username Link */}
+                      {/* Clickable Username Link -> Goes to Profile */}
                       <Link 
                         href={`/${notif.actor.username}`}
-                        onClick={() => setIsOpen(false)}
+                        onClick={() => handleNotificationClick(notif.id)}
                         className="font-bold text-black hover:underline mr-1 cursor-pointer"
                       >
                         {notif.actor.username}
                       </Link>
                       
-                      {/* Dynamic Text routing for all 3 features */}
-                      {notif.type === 'follow' && 'started following you.'}
-                      {notif.type === 'reaction' && 'reacted to your quote.'}
-                      {notif.type === 'comment' && 'commented on your quote.'}
+                      {/* Clickable Action Text -> Goes to exact Quote or Profile */}
+                      <Link 
+                        href={getActionLink(notif)}
+                        onClick={() => handleNotificationClick(notif.id)}
+                        className="hover:text-black hover:underline transition-colors cursor-pointer"
+                      >
+                        {notif.type === 'follow' && 'started following you.'}
+                        {notif.type === 'reaction' && 'reacted to your quote.'}
+                        {notif.type === 'comment' && 'commented on your quote.'}
+                        {notif.type === 'quote' && 'quoted you in a post.'}
+                      </Link>
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
-                      {/* Dynamic Icon routing */}
                       {notif.type === 'follow' && <UserPlus className="w-3.5 h-3.5 text-blue-500" />}
                       {notif.type === 'reaction' && <SmilePlus className="w-3.5 h-3.5 text-pink-500" />}
                       {notif.type === 'comment' && <MessageCircle className="w-3.5 h-3.5 text-emerald-500" />}
+                      {notif.type === 'quote' && <Quote className="w-3.5 h-3.5 text-indigo-500" />}
                       
                       <span className="text-xs font-bold text-slate-400">{timeAgo(notif.created_at)}</span>
                     </div>
