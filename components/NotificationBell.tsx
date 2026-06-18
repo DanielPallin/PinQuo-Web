@@ -11,7 +11,7 @@ type Notification = {
   type: string
   is_read: boolean
   created_at: string
-  quote_id: string | null // ADDED: To track which quote was interacted with
+  quote_id: string | null
   actor: { username: string, avatar_url: string | null }
 }
 
@@ -40,7 +40,6 @@ export default function NotificationBell() {
 
       const { data } = await supabase
         .from('notifications')
-        // ADDED: quote_id to the select query
         .select(`
           id, type, is_read, created_at, quote_id,
           actor:profiles!notifications_actor_id_fkey(username, avatar_url)
@@ -102,7 +101,7 @@ export default function NotificationBell() {
     setNotifications(notifications.map(n => ({ ...n, is_read: true })))
   }
 
-  // ADDED: Individual mark as read when clicking a specific notification
+  // Handle Marking Individual Notifications as Read on Click
   const handleNotificationClick = async (notifId: string) => {
     setIsOpen(false)
     const notif = notifications.find(n => n.id === notifId)
@@ -117,7 +116,7 @@ export default function NotificationBell() {
     }
   }
 
-  // ADDED: Routing logic helper
+  // DYNAMIC ROUTING HELPER
   const getActionLink = (notif: Notification) => {
     if (notif.type === 'follow') return `/${notif.actor.username}`
     if (notif.quote_id) return `/feed?quoteId=${notif.quote_id}`
@@ -155,7 +154,7 @@ export default function NotificationBell() {
               notifications.map((notif) => (
                 <div key={notif.id} className={`flex items-start gap-4 p-4 transition hover:bg-slate-50 border-b border-slate-50 last:border-0 ${!notif.is_read ? 'bg-emerald-50/30' : ''}`}>
                   
-                  {/* Clickable Avatar Link -> Goes to Profile */}
+                  {/* AVATAR CLICK -> Goes to Profile */}
                   <Link 
                     href={`/${notif.actor.username}`}
                     onClick={() => handleNotificationClick(notif.id)}
@@ -170,7 +169,8 @@ export default function NotificationBell() {
 
                   <div className="flex-1 flex flex-col justify-center pt-1">
                     <p className="text-sm text-slate-700 leading-snug">
-                      {/* Clickable Username Link -> Goes to Profile */}
+                      
+                      {/* USERNAME CLICK -> Goes to Profile */}
                       <Link 
                         href={`/${notif.actor.username}`}
                         onClick={() => handleNotificationClick(notif.id)}
@@ -179,7 +179,7 @@ export default function NotificationBell() {
                         {notif.actor.username}
                       </Link>
                       
-                      {/* Clickable Action Text -> Goes to exact Quote or Profile */}
+                      {/* ACTION TEXT CLICK -> Goes exactly to the Quote Modal or Profile */}
                       <Link 
                         href={getActionLink(notif)}
                         onClick={() => handleNotificationClick(notif.id)}
