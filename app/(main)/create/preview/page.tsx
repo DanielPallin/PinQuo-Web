@@ -68,7 +68,6 @@ function PreviewQuoteForm() {
       return
     }
 
-    // Strict validation to prevent malformed string insertions
     const isValidTargetId = targetId && targetId !== 'undefined' && targetId !== 'null' && targetId.trim() !== '';
     const targetUid = isValidTargetId ? targetId : null;
     const targetEmail = (inviteEmail && inviteEmail.trim() !== "") ? inviteEmail : null;
@@ -84,7 +83,6 @@ function PreviewQuoteForm() {
       custom_author_name: authorName
     }
 
-    // 1. Insert Quote
     const { error: dbError, data: newQuoteData } = await supabase
       .from('quotes')
       .insert([quoteData])
@@ -98,7 +96,6 @@ function PreviewQuoteForm() {
       return
     }
 
-    // 2. Trigger Quote Notification safely
     if (targetUid && targetUid !== user.id && newQuoteData?.id) {
       const { error: notifError } = await supabase.from('notifications').insert({
         receiver_id: targetUid,
@@ -113,7 +110,6 @@ function PreviewQuoteForm() {
       }
     }
 
-    // 3. Background Email/Push Logic
     try {
       let publisherName = currentUsername;
       if (publisherName === "You") {
@@ -123,12 +119,14 @@ function PreviewQuoteForm() {
 
       const sideEffects: Promise<unknown>[] = [];
 
+      // ADDED: Using keepalive and removing await Promise.all blocking[cite: 17]
       if (targetEmail) {
         sideEffects.push(
           fetch("/api/invite", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: targetEmail, publisherName, quoteContent: quoteText })
+            body: JSON.stringify({ email: targetEmail, publisherName, quoteContent: quoteText }),
+            keepalive: true
           }).catch(err => console.error("Invite error:", err))
         )
       }
@@ -139,13 +137,16 @@ function PreviewQuoteForm() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ quoterUsername: publisherName, quotedUsername: targetUsername, quoteContent: quoteText }),
+            keepalive: true
           }).catch(err => console.error("Notify error:", err))
         )
       }
 
-      if (sideEffects.length > 0) await Promise.all(sideEffects);
+      if (sideEffects.length > 0) {
+        Promise.all(sideEffects).catch(err => console.error("Background task error:", err))
+      }
     } catch (err) {
-      console.error("Background task error:", err);
+      console.error("Background task setup error:", err);
     }
 
     router.push('/feed')

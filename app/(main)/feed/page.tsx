@@ -48,7 +48,6 @@ type SearchProfile = {
   avatar_url: string | null
 }
 
-// HELPER: Formats the raw DB response into a usable FeedQuote
 const formatQuote = (q: RawQuoteData, userId: string | null): FeedQuote => {
   const quoteReacts = (q.reactions || []).filter(r => r.comment_id === null)
   const reactMap: Record<string, GroupedReaction> = {}
@@ -97,8 +96,9 @@ function FeedContent() {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const searchContainerRef = useRef<HTMLDivElement>(null)
 
-  // 1. Check for specific quote passed from notification
+  // ADDED: isMounted flag for fetchSpecificQuote[cite: 16]
   useEffect(() => {
+    let isMounted = true
     const fetchSpecificQuote = async () => {
       if (!quoteIdParam) return
       
@@ -118,16 +118,16 @@ function FeedContent() {
         .eq('id', quoteIdParam)
         .single()
 
-      if (data && !error) {
+      if (data && !error && isMounted) {
         const q = data as unknown as RawQuoteData
         setExpandedQuote(formatQuote(q, user?.id || null))
       }
     }
 
     fetchSpecificQuote()
+    return () => { isMounted = false }
   }, [quoteIdParam, supabase])
 
-  // 2. Fetch standard feed
   useEffect(() => {
     let isMounted = true
 
@@ -240,7 +240,6 @@ function FeedContent() {
 
   const handleCloseModal = () => {
     setExpandedQuote(null)
-    // If opened via URL param, clear the param without refreshing the page
     if (quoteIdParam) {
       router.replace('/feed', { scroll: false })
     }
@@ -440,8 +439,8 @@ function FeedContent() {
 
       {/* Expanded Modal */}
       {expandedQuote && (
-        <div onClick={handleCloseModal} className="fixed inset-0 z-100 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-start sm:justify-center p-0 sm:p-8 animate-in fade-in duration-200 cursor-pointer overflow-hidden">
-          <div onClick={(e) => e.stopPropagation()} className="w-full h-full sm:h-auto sm:max-h-[90vh] max-w-550px bg-slate-50 sm:rounded-[40px] flex flex-col overflow-hidden cursor-default shadow-2xl relative">
+        <div onClick={handleCloseModal} className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-start sm:justify-center p-0 sm:p-8 animate-in fade-in duration-200 cursor-pointer overflow-hidden">
+          <div onClick={(e) => e.stopPropagation()} className="w-full h-full sm:h-auto sm:max-h-[90vh] max-w-[550px] bg-slate-50 sm:rounded-[40px] flex flex-col overflow-hidden cursor-default shadow-2xl relative">
             
             <div className="shrink-0 relative">
                <button onClick={handleCloseModal} className="absolute top-4 right-4 z-50 p-2 bg-black/10 hover:bg-black/20 rounded-full transition text-slate-700 backdrop-blur-md">
@@ -535,7 +534,6 @@ function FeedContent() {
   )
 }
 
-// Next.js requirement: Wrap useSearchParams components in Suspense
 export default function FeedPage() {
   return (
     <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>}>

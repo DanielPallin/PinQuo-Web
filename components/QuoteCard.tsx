@@ -6,7 +6,6 @@ import { User, MessageCircle, Star, SmilePlus, Share2, Loader2 } from 'lucide-re
 import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react'
 import { toPng } from 'html-to-image'
 
-// Exporting these types so your pages can use them
 export type GroupedReaction = { emoji: string, count: number, hasReacted: boolean }
 
 export type FeedQuote = {
@@ -46,9 +45,8 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const [isExporting, setIsExporting] = useState(false)
   
   const pickerRef = useRef<HTMLDivElement>(null)
-  const cardGraphicRef = useRef<HTMLDivElement>(null) // Reference for html-to-image
+  const cardGraphicRef = useRef<HTMLDivElement>(null)
 
-  // Handle clicking outside the local emoji picker
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
@@ -62,7 +60,6 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const publisherName = quote.publisher?.username || 'Unknown'
   const isRegisteredUser = !!quote.quoted_user?.username
   
-  // EXPLICIT TARGET NAME LOGIC
   let targetName = 'Unknown';
   if (quote.custom_author_name && quote.custom_author_name.trim() !== '') {
     targetName = quote.custom_author_name;
@@ -81,26 +78,22 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     onReact(emoji, quote.id, 'quote', quote.publisher?.id)
   }
 
-  // --- PHASE 2: EXPORT TO IMAGE / SHARE ---
   const handleExport = async (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!cardGraphicRef.current) return
     
     setIsExporting(true)
     try {
-      // Capture the card as a high-res PNG
       const dataUrl = await toPng(cardGraphicRef.current, {
         quality: 1,
         pixelRatio: 2, 
-        cacheBust: true, // Helps prevent caching issues with external images
+        cacheBust: true,
       })
 
-      // Convert DataURL to a File object for the Share API
       const res = await fetch(dataUrl)
       const blob = await res.blob()
       const file = new File([blob], `pinquo-${targetName.replace(/\s+/g, '-').toLowerCase()}.png`, { type: 'image/png' })
 
-      // Attempt to use the Native Mobile Web Share API
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: 'PinQuo',
@@ -108,13 +101,16 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
           files: [file]
         })
       } else {
-        // Fallback for Desktop: Auto-download the image
         const link = document.createElement('a')
         link.download = file.name
         link.href = dataUrl
         link.click()
       }
     } catch (err) {
+      // ADDED: Explicit check to ignore user cancellation AbortError[cite: 9]
+      if (err instanceof Error && err.name === 'AbortError') {
+        return
+      }
       console.error('Failed to export image:', err)
       alert('Oops! Something went wrong while generating the image.')
     } finally {
@@ -124,8 +120,6 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
 
   return (
     <div className={`w-full flex flex-col bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 ${isExpanded ? 'p-0 pb-6 rounded-t-[40px]' : 'p-5 rounded-[40px]'}`}>
-      
-      {/* Publisher Header */}
       <div className={`flex items-center justify-between mb-5 px-2 ${isExpanded ? 'pt-6 px-6' : ''}`}>
         <div className="flex items-center gap-3">
           <Link href={`/${publisherName}`} className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden border border-slate-300">
@@ -137,7 +131,6 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       </div>
 
-      {/* The Graphic (Wrapped in Ref for Image Export) */}
       <div 
         ref={cardGraphicRef}
         onClick={(e) => { e.stopPropagation(); if (!isExpanded && onExpand) onExpand(quote) }}
@@ -145,9 +138,8 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
       >
         <div className="relative w-full h-48 shrink-0 pointer-events-none">
           <div className={`absolute inset-0 bg-linear-to-br ${bgGradient}`}></div>
-          {/* Note: crossOrigin="anonymous" is critical here so html-to-image doesn't crash on Supabase URLs */}
           {!quote.template && targetAvatarUrl && <img src={targetAvatarUrl} alt="Bg" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover opacity-90" />}
-          <div className="absolute bottom-0 left-0 w-full h-32 bg-linear-to-t from-white via-white/80 to-transparent"></div>
+          <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-white via-white/80 to-transparent"></div>
         </div>
         <div className="relative bg-white px-6 pb-8 pt-2 flex flex-col items-center text-center -mt-10 z-10 pointer-events-none">
           <div className="text-[70px] font-serif font-black text-black leading-none mb-1">“ ”</div>
@@ -160,9 +152,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       </div>
 
-      {/* Dynamic Action Bar */}
       <div className={`flex justify-between items-center mt-4 px-3 ${isExpanded ? 'px-6 border-b border-slate-50 pb-4' : ''}`}>
-        
         <div className="flex items-center gap-2 flex-wrap">
           {quote.groupedReactions.map((r) => (
             <button 
@@ -194,8 +184,6 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
 
         <div className="flex items-center gap-4 text-slate-400">
-          
-          {/* ADDED: Export / Share Button */}
           <button onClick={handleExport} disabled={isExporting} title="Share Meme Card" className="hover:text-black hover:scale-110 active:scale-95 transition cursor-pointer disabled:opacity-50">
             {isExporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Share2 className="w-5 h-5" />}
           </button>
@@ -210,7 +198,6 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
           <button onClick={(e) => { e.stopPropagation(); onFavorite(quote.id) }} title="Favorite" className={`hover:scale-110 transition-transform active:scale-95 cursor-pointer ${quote.isFavorited ? 'text-yellow-400 fill-yellow-400' : 'hover:text-yellow-400'}`}>
             <Star className="w-6 h-6" strokeWidth={2} />
           </button>
-
         </div>
       </div>
     </div>
