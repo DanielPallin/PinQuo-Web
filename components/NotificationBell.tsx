@@ -161,7 +161,7 @@ export default function NotificationBell() {
                     className="w-12 h-12 rounded-full bg-slate-200 shrink-0 flex items-center justify-center overflow-hidden border border-slate-200 hover:ring-2 hover:ring-slate-200 transition-all cursor-pointer"
                   >
                     {notif.actor.avatar_url ? (
-                      <img src={notif.actor.avatar_url} alt="Avatar" crossOrigin="anonymous" className="w-full h-full object-cover" />
+                      <img src={notif.actor.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                     ) : (
                       <User className="w-6 h-6 text-slate-400" />
                     )}
