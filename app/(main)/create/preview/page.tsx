@@ -104,10 +104,9 @@ function PreviewQuoteForm() {
         quote_id: newQuoteData.id
       });
       
-      if (notifError) {
-        console.error("DEBUG - Notification failed to send:", notifError);
-        alert("Debug Error: Quote published but Notification failed! Check console.");
-      }
+      if (notifError) {  
+        console.error("DEBUG - Notification failed to send:", notifError);  
+      } 
     }
 
     try {
@@ -120,27 +119,35 @@ function PreviewQuoteForm() {
       const sideEffects: Promise<unknown>[] = [];
 
       // ADDED: Using keepalive and removing await Promise.all blocking[cite: 17]
-      if (targetEmail) {
-        sideEffects.push(
-          fetch("/api/invite", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: targetEmail, publisherName, quoteContent: quoteText }),
-            keepalive: true
-          }).catch(err => console.error("Invite error:", err))
-        )
-      }
+      if (targetEmail) {  
+        sideEffects.push(  
+          fetch("/api/invite", {  
+            method: "POST",  
+            headers: { "Content-Type": "application/json" },  
+            body: JSON.stringify({ email: targetEmail, publisherName, quoteContent: quoteText }),  
+            keepalive: true  
+          })  
+            .then(res => {  
+              if (!res.ok) console.error("Invite failed with status:", res.status)  
+            })  
+            .catch(err => console.error("Invite error:", err))  
+        )  
+      }  
 
-      if (targetUsername) {
-        sideEffects.push(
-          fetch("/api/notify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ quoterUsername: publisherName, quotedUsername: targetUsername, quoteContent: quoteText }),
-            keepalive: true
-          }).catch(err => console.error("Notify error:", err))
-        )
-      }
+      if (targetUsername) {  
+        sideEffects.push(  
+          fetch("/api/notify", {  
+            method: "POST",  
+            headers: { "Content-Type": "application/json" },  
+            body: JSON.stringify({ quoterUsername: publisherName, quotedUsername: targetUsername, quoteContent: quoteText }),  
+            keepalive: true  
+          })  
+            .then(res => {  
+              if (!res.ok) console.error("Notify failed with status:", res.status)  
+            })  
+            .catch(err => console.error("Notify error:", err))  
+        )  
+      }  
 
       if (sideEffects.length > 0) {
         Promise.all(sideEffects).catch(err => console.error("Background task error:", err))

@@ -108,7 +108,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
       }
     } catch (err) {
       // ADDED: Explicit check to ignore user cancellation AbortError[cite: 9]
-      if (err instanceof Error && err.name === 'AbortError') {
+      if (err instanceof Error && (err.name === 'AbortError' || err.name === 'NotAllowedError')) {
         return
       }
       console.error('Failed to export image:', err)
