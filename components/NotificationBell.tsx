@@ -45,7 +45,7 @@ export default function NotificationBell() {
         `)
         .eq('receiver_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(5)
+        .limit(10) // Upped to top 10
 
       if (data && isMounted) {
         const parsedData = data as unknown as Notification[]
@@ -58,7 +58,6 @@ export default function NotificationBell() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Includes our unique Date.now() bypass from the earlier Strict Mode fix!
       subscription = supabase
         .channel(`realtime-notifications-${Date.now()}`)
         .on('postgres_changes', { 
@@ -106,7 +105,7 @@ export default function NotificationBell() {
       
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className={`relative p-2 rounded-full transition-colors ${isOpen ? 'bg-slate-200' : 'hover:bg-slate-200'}`}
+        className={`relative p-2 rounded-full transition-colors cursor-pointer ${isOpen ? 'bg-slate-200' : 'hover:bg-slate-200'}`}
       >
         <Bell className="w-8 h-8 text-black" />
         {unreadCount > 0 && (
@@ -115,12 +114,12 @@ export default function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-3 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-slate-100 z-100 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200">
+        <div className="absolute top-full right-0 mt-3 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-slate-100 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200">
           
           <div className="flex justify-between items-center px-5 py-4 border-b border-slate-50 bg-slate-50/50">
             <h3 className="font-black text-lg text-slate-800">Notifications</h3>
             {unreadCount > 0 && (
-              <button onClick={markAllAsRead} className="text-emerald-600 hover:text-emerald-700 font-bold text-sm flex items-center gap-1 transition">
+              <button onClick={markAllAsRead} className="text-emerald-600 hover:text-emerald-700 font-bold text-sm flex items-center gap-1 transition cursor-pointer">
                 <CheckCircle2 className="w-4 h-4" /> Mark read
               </button>
             )}
@@ -137,10 +136,10 @@ export default function NotificationBell() {
                   <Link 
                     href={`/${notif.actor.username}`}
                     onClick={() => setIsOpen(false)}
-                    className="w-12 h-12 rounded-full bg-slate-200 shrink-0 flex items-center justify-center overflow-hidden border border-slate-200 hover:ring-2 hover:ring-slate-200 transition-all"
+                    className="w-12 h-12 rounded-full bg-slate-200 shrink-0 flex items-center justify-center overflow-hidden border border-slate-200 hover:ring-2 hover:ring-slate-200 transition-all cursor-pointer"
                   >
                     {notif.actor.avatar_url ? (
-                      <img src={notif.actor.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                      <img src={notif.actor.avatar_url} alt="Avatar" crossOrigin="anonymous" className="w-full h-full object-cover" />
                     ) : (
                       <User className="w-6 h-6 text-slate-400" />
                     )}
@@ -152,14 +151,14 @@ export default function NotificationBell() {
                       <Link 
                         href={`/${notif.actor.username}`}
                         onClick={() => setIsOpen(false)}
-                        className="font-bold text-black hover:underline mr-1"
+                        className="font-bold text-black hover:underline mr-1 cursor-pointer"
                       >
                         {notif.actor.username}
                       </Link>
                       
                       {/* Dynamic Text routing for all 3 features */}
                       {notif.type === 'follow' && 'started following you.'}
-                      {notif.type === 'reaction' && 'reacted to your content.'}
+                      {notif.type === 'reaction' && 'reacted to your quote.'}
                       {notif.type === 'comment' && 'commented on your quote.'}
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">

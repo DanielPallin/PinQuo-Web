@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { User, MessageCircle, Star, SmilePlus } from 'lucide-react'
+import { User, MessageCircle, Star, SmilePlus, Share2, Loader2 } from 'lucide-react'
 import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react'
+import { toPng } from 'html-to-image'
 
 // Exporting these types so your pages can use them
 export type GroupedReaction = { emoji: string, count: number, hasReacted: boolean }
@@ -42,7 +43,10 @@ const getQuoteFontSize = (text: string) => {
 
 export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand, onFavorite }: QuoteCardProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  
   const pickerRef = useRef<HTMLDivElement>(null)
+  const cardGraphicRef = useRef<HTMLDivElement>(null) // Reference for html-to-image
 
   // Handle clicking outside the local emoji picker
   useEffect(() => {
@@ -77,6 +81,47 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     onReact(emoji, quote.id, 'quote', quote.publisher?.id)
   }
 
+  // --- PHASE 2: EXPORT TO IMAGE / SHARE ---
+  const handleExport = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!cardGraphicRef.current) return
+    
+    setIsExporting(true)
+    try {
+      // Capture the card as a high-res PNG
+      const dataUrl = await toPng(cardGraphicRef.current, {
+        quality: 1,
+        pixelRatio: 2, 
+        cacheBust: true, // Helps prevent caching issues with external images
+      })
+
+      // Convert DataURL to a File object for the Share API
+      const res = await fetch(dataUrl)
+      const blob = await res.blob()
+      const file = new File([blob], `pinquo-${targetName.replace(/\s+/g, '-').toLowerCase()}.png`, { type: 'image/png' })
+
+      // Attempt to use the Native Mobile Web Share API
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: 'PinQuo',
+          text: `Check out this quote by ${targetName} on PinQuo!`,
+          files: [file]
+        })
+      } else {
+        // Fallback for Desktop: Auto-download the image
+        const link = document.createElement('a')
+        link.download = file.name
+        link.href = dataUrl
+        link.click()
+      }
+    } catch (err) {
+      console.error('Failed to export image:', err)
+      alert('Oops! Something went wrong while generating the image.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <div className={`w-full flex flex-col bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 ${isExpanded ? 'p-0 pb-6 rounded-t-[40px]' : 'p-5 rounded-[40px]'}`}>
       
@@ -92,15 +137,17 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       </div>
 
-      {/* The Graphic */}
+      {/* The Graphic (Wrapped in Ref for Image Export) */}
       <div 
+        ref={cardGraphicRef}
         onClick={(e) => { e.stopPropagation(); if (!isExpanded && onExpand) onExpand(quote) }}
         className={`w-full bg-white rounded-[32px] overflow-hidden flex flex-col border border-slate-100 relative ${!isExpanded ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-lg' : 'shadow-sm'}`}
       >
         <div className="relative w-full h-48 shrink-0 pointer-events-none">
-          <div className={`absolute inset-0 bg-gradient-to-br ${bgGradient}`}></div>
-          {!quote.template && targetAvatarUrl && <img src={targetAvatarUrl} alt="Bg" className="absolute inset-0 w-full h-full object-cover opacity-90" />}
-          <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-white via-white/80 to-transparent"></div>
+          <div className={`absolute inset-0 bg-linear-to-br ${bgGradient}`}></div>
+          {/* Note: crossOrigin="anonymous" is critical here so html-to-image doesn't crash on Supabase URLs */}
+          {!quote.template && targetAvatarUrl && <img src={targetAvatarUrl} alt="Bg" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover opacity-90" />}
+          <div className="absolute bottom-0 left-0 w-full h-32 bg-linear-to-t from-white via-white/80 to-transparent"></div>
         </div>
         <div className="relative bg-white px-6 pb-8 pt-2 flex flex-col items-center text-center -mt-10 z-10 pointer-events-none">
           <div className="text-[70px] font-serif font-black text-black leading-none mb-1">“ ”</div>
@@ -147,18 +194,25 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
 
         <div className="flex items-center gap-4 text-slate-400">
+          
+          {/* ADDED: Export / Share Button */}
+          <button onClick={handleExport} disabled={isExporting} title="Share Meme Card" className="hover:text-black hover:scale-110 active:scale-95 transition cursor-pointer disabled:opacity-50">
+            {isExporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Share2 className="w-5 h-5" />}
+          </button>
+
           {!isExpanded && (
-             <button onClick={(e) => { e.stopPropagation(); if (onExpand) onExpand(quote) }} className="flex items-center gap-1.5 hover:text-black transition cursor-pointer">
+             <button onClick={(e) => { e.stopPropagation(); if (onExpand) onExpand(quote) }} title="Comments" className="flex items-center gap-1.5 hover:text-black hover:scale-110 active:scale-95 transition cursor-pointer">
                <MessageCircle className="w-5 h-5" />
                <span className="font-bold text-sm">{quote.commentCount}</span>
              </button>
           )}
-          <button onClick={(e) => { e.stopPropagation(); onFavorite(quote.id) }} className={`hover:scale-110 transition-transform cursor-pointer ${quote.isFavorited ? 'text-yellow-400 fill-yellow-400' : 'hover:text-yellow-400'}`}>
+
+          <button onClick={(e) => { e.stopPropagation(); onFavorite(quote.id) }} title="Favorite" className={`hover:scale-110 transition-transform active:scale-95 cursor-pointer ${quote.isFavorited ? 'text-yellow-400 fill-yellow-400' : 'hover:text-yellow-400'}`}>
             <Star className="w-6 h-6" strokeWidth={2} />
           </button>
+
         </div>
       </div>
-
     </div>
   )
 }
