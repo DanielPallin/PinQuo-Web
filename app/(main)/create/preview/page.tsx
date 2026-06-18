@@ -19,7 +19,6 @@ function PreviewQuoteForm() {
   const searchParams = useSearchParams()
   const supabase = createClient()
 
-  // Query Params
   const targetId = searchParams.get('targetId')
   const targetUsername = searchParams.get('targetUsername')
   const inviteEmail = searchParams.get('inviteEmail')
@@ -29,7 +28,6 @@ function PreviewQuoteForm() {
   const templateId = searchParams.get('templateId')
   const templateGradient = searchParams.get('templateGradient') || 'from-slate-200 to-slate-300'
 
-  // State
   const [isPublishing, setIsPublishing] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [currentUsername, setCurrentUsername] = useState('You')
@@ -49,7 +47,7 @@ function PreviewQuoteForm() {
         if (data?.username) setCurrentUsername(data.username)
       }
 
-      if (targetId && isMounted) {
+      if (targetId && isMounted && targetId !== 'undefined' && targetId !== 'null') {
         const { data: targetData } = await supabase.from('profiles').select('avatar_url').eq('id', targetId).single()
         if (targetData?.avatar_url) setTargetAvatarUrl(targetData.avatar_url)
       }
@@ -60,94 +58,106 @@ function PreviewQuoteForm() {
   }, [supabase, targetId])
 
   const handlePublish = async () => {
-  setIsPublishing(true);
-  setErrorMsg('');
+    setIsPublishing(true)
+    setErrorMsg('')
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    setErrorMsg("You must be logged in to post a quote.");
-    setIsPublishing(false);
-    return;
-  }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setErrorMsg("You must be logged in to post a quote.")
+      setIsPublishing(false)
+      return
+    }
 
-  // 1. Prepare target variables explicitly to ensure we don't send "" or undefined
-  const targetUid = (targetId && targetId.trim() !== "") ? targetId : null;
-  const targetEmail = (inviteEmail && inviteEmail.trim() !== "") ? inviteEmail : null;
-  const authorName = (customName && customName.trim() !== "") ? customName : null;
+    const isValidTargetId = targetId && targetId !== 'undefined' && targetId !== 'null' && targetId.trim() !== '';
+    const targetUid = isValidTargetId ? targetId : null;
+    const targetEmail = (inviteEmail && inviteEmail.trim() !== "") ? inviteEmail : null;
+    const authorName = (customName && customName.trim() !== "") ? customName : null;
 
-  // 2. Build the exact payload
-  // We explicitly include all three target keys. If they are null, Supabase sends SQL NULL.
-  const quoteData = {
-    publisher_id: user.id,
-    content: quoteText,
-    template_id: bgType === 'template' ? (templateId || null) : null,
-    live_photo_url: null,
-    quoted_user_id: targetUid,
-    quoted_email: targetEmail,
-    custom_author_name: authorName
-  };
+    const quoteData = {
+      publisher_id: user.id,
+      content: quoteText,
+      template_id: bgType === 'template' ? (templateId || null) : null,
+      live_photo_url: null,
+      quoted_user_id: targetUid,
+      quoted_email: targetEmail,
+      custom_author_name: authorName
+    }
 
-  // 3. Perform Insert
-  const { error: dbError } = await supabase
-    .from('quotes')
-    .insert([quoteData]); // Wrap in array to ensure it's treated as a single row
+    const { error: dbError, data: newQuoteData } = await supabase
+      .from('quotes')
+      .insert([quoteData])
+      .select('id')
+      .single()
 
-  if (dbError) {
-    console.error("Supabase Insert Error:", dbError);
-    setErrorMsg(dbError.message || "Failed to publish quote.");
-    setIsPublishing(false);
-    return;
-  }
+    if (dbError) {
+      console.error("Supabase Insert Error:", dbError)
+      setErrorMsg(dbError.message || "Failed to publish quote.")
+      setIsPublishing(false)
+      return
+    }
 
-    // 4. Handle side effects (concurrently and with fallback resolution)
-  try {
-    let publisherName = currentUsername;
-    if (publisherName === "You") {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("id", user.id)
-        .single();
-      if (profile?.username) {
-        publisherName = profile.username;
+    if (targetUid && targetUid !== user.id && newQuoteData?.id) {
+      const { error: notifError } = await supabase.from('notifications').insert({
+        receiver_id: targetUid,
+        actor_id: user.id,
+        type: 'quote',
+        quote_id: newQuoteData.id
+      });
+      
+      if (notifError) {  
+        console.error("DEBUG - Notification failed to send:", notifError);  
+      } 
+    }
+
+    try {
+      let publisherName = currentUsername;
+      if (publisherName === "You") {
+        const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).single();
+        if (profile?.username) publisherName = profile.username;
       }
+
+      const sideEffects: Promise<unknown>[] = [];
+
+      // ADDED: Using keepalive and removing await Promise.all blocking[cite: 17]
+      if (targetEmail) {  
+        sideEffects.push(  
+          fetch("/api/invite", {  
+            method: "POST",  
+            headers: { "Content-Type": "application/json" },  
+            body: JSON.stringify({ email: targetEmail, publisherName, quoteContent: quoteText }),  
+            keepalive: true  
+          })  
+            .then(res => {  
+              if (!res.ok) console.error("Invite failed with status:", res.status)  
+            })  
+            .catch(err => console.error("Invite error:", err))  
+        )  
+      }  
+
+      if (targetUsername) {  
+        sideEffects.push(  
+          fetch("/api/notify", {  
+            method: "POST",  
+            headers: { "Content-Type": "application/json" },  
+            body: JSON.stringify({ quoterUsername: publisherName, quotedUsername: targetUsername, quoteContent: quoteText }),  
+            keepalive: true  
+          })  
+            .then(res => {  
+              if (!res.ok) console.error("Notify failed with status:", res.status)  
+            })  
+            .catch(err => console.error("Notify error:", err))  
+        )  
+      }  
+
+      if (sideEffects.length > 0) {
+        Promise.all(sideEffects).catch(err => console.error("Background task error:", err))
+      }
+    } catch (err) {
+      console.error("Background task setup error:", err);
     }
 
-    const sideEffects: Promise<unknown>[] = [];
-
-    if (targetEmail) {
-      sideEffects.push(
-        fetch("/api/invite", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: targetEmail, publisherName, quoteContent: quoteText })
-        }).then(res => {
-          if (!res.ok) console.error("Invite failed with status:", res.status);
-        }).catch(err => console.error("Invite error:", err))
-      );
-    }
-
-    if (targetUsername) {
-      sideEffects.push(
-        fetch("/api/notify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quoterUsername: publisherName, quotedUsername: targetUsername, quoteContent: quoteText }),
-        }).then(res => {
-          if (!res.ok) console.error("Notify failed with status:", res.status);
-        }).catch(err => console.error("Notify error:", err))
-      );
-    }
-
-    if (sideEffects.length > 0) {
-      await Promise.all(sideEffects);
-    }
-  } catch (err) {
-    console.error("Background task error:", err);
+    router.push('/feed')
   }
-
-  router.push('/feed');
-};
 
   return (
     <div className="flex flex-col pt-10 px-6 w-full max-w-2xl mx-auto min-h-[calc(100vh-120px)] pb-10">

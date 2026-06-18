@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { Suspense, useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, User, X, Send, SmilePlus, Search } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import QuoteCard, { FeedQuote, GroupedReaction } from '@/components/QuoteCard'
@@ -19,7 +20,6 @@ const timeAgo = (dateString: string) => {
   return `${Math.floor(seconds / 86400)}d`
 }
 
-// Internal Types for the feed processing
 type RawQuoteData = {
   id: string
   content: string
@@ -48,34 +48,86 @@ type SearchProfile = {
   avatar_url: string | null
 }
 
-export default function FeedPage() {
+const formatQuote = (q: RawQuoteData, userId: string | null): FeedQuote => {
+  const quoteReacts = (q.reactions || []).filter(r => r.comment_id === null)
+  const reactMap: Record<string, GroupedReaction> = {}
+  
+  quoteReacts.forEach((r) => {
+    if (!reactMap[r.reaction_type]) {
+      reactMap[r.reaction_type] = { emoji: r.reaction_type, count: 0, hasReacted: false }
+    }
+    reactMap[r.reaction_type].count++
+    if (userId && r.user_id === userId) reactMap[r.reaction_type].hasReacted = true
+  })
+
+  return {
+    ...q,
+    groupedReactions: Object.values(reactMap).sort((a, b) => b.count - a.count),
+    commentCount: q.comments?.[0]?.count || 0,
+    favoriteCount: (q.favorites || []).length,
+    isFavorited: userId ? (q.favorites || []).some((f) => f.user_id === userId) : false
+  }
+}
+
+function FeedContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   
-  // Feed States
+  const quoteIdParam = searchParams.get('quoteId')
+
   const [quotes, setQuotes] = useState<FeedQuote[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isPaginationLoading, setIsPaginationLoading] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [expandedQuote, setExpandedQuote] = useState<FeedQuote | null>(null)
   
-  // Comments States
   const [comments, setComments] = useState<CommentType[]>([])
   const [newComment, setNewComment] = useState('')
   const [isPostingComment, setIsPostingComment] = useState(false)
   const [activeCommentEmojiPicker, setActiveCommentEmojiPicker] = useState<string | null>(null)
 
-  // Pagination
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
 
-  // Search States
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchProfile[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const searchContainerRef = useRef<HTMLDivElement>(null)
 
-  // Fetch Main Feed
+  // ADDED: isMounted flag for fetchSpecificQuote[cite: 16]
+  useEffect(() => {
+    let isMounted = true
+    const fetchSpecificQuote = async () => {
+      if (!quoteIdParam) return
+      
+      const { data: { user } } = await supabase.auth.getUser()
+
+      const { data, error } = await supabase
+        .from('quotes')
+        .select(`
+          id, content, created_at, quoted_email, custom_author_name,
+          publisher:profiles!quotes_publisher_id_fkey(id, username),
+          quoted_user:profiles!quotes_quoted_user_id_fkey(username, avatar_url),
+          template:templates(style_config),
+          reactions(reaction_type, user_id, comment_id),
+          favorites(user_id),
+          comments(count)
+        `)
+        .eq('id', quoteIdParam)
+        .single()
+
+      if (data && !error && isMounted) {
+        const q = data as unknown as RawQuoteData
+        setExpandedQuote(formatQuote(q, user?.id || null))
+      }
+    }
+
+    fetchSpecificQuote()
+    return () => { isMounted = false }
+  }, [quoteIdParam, supabase])
+
   useEffect(() => {
     let isMounted = true
 
@@ -105,34 +157,12 @@ export default function FeedPage() {
 
       if (data && isMounted) {
         const rawData = data as unknown as RawQuoteData[]
-
-        const formattedQuotes: FeedQuote[] = rawData.map((q) => {
-          const quoteReacts = (q.reactions || []).filter(r => r.comment_id === null)
-          const reactMap: Record<string, GroupedReaction> = {}
-          
-          quoteReacts.forEach((r) => {
-            if (!reactMap[r.reaction_type]) {
-              reactMap[r.reaction_type] = { emoji: r.reaction_type, count: 0, hasReacted: false }
-            }
-            reactMap[r.reaction_type].count++
-            if (user && r.user_id === user.id) reactMap[r.reaction_type].hasReacted = true
-          })
-
-          return {
-            ...q,
-            groupedReactions: Object.values(reactMap).sort((a, b) => b.count - a.count),
-            commentCount: q.comments?.[0]?.count || 0,
-            favoriteCount: (q.favorites || []).length,
-            isFavorited: user ? (q.favorites || []).some((f) => f.user_id === user.id) : false
-          }
-        })
+        const formattedQuotes = rawData.map(q => formatQuote(q, user?.id || null))
 
         if (page === 0) setQuotes(formattedQuotes)
         else setQuotes((prev) => [...prev, ...formattedQuotes])
 
         if (formattedQuotes.length < ITEMS_PER_PAGE) setHasMore(false)
-      } else if (error) {
-        console.error("Error fetching feed:", error)
       }
       
       if (isMounted) {
@@ -145,7 +175,6 @@ export default function FeedPage() {
     return () => { isMounted = false }
   }, [supabase, page])
 
-  // Fetch Comments
   useEffect(() => {
     if (!expandedQuote) return
     const fetchComments = async () => {
@@ -164,7 +193,6 @@ export default function FeedPage() {
     fetchComments()
   }, [expandedQuote, supabase])
 
-  // Live Search Logic (Debounced)
   useEffect(() => {
     let active = true
 
@@ -185,8 +213,6 @@ export default function FeedPage() {
       if (active) {
         if (data && !error) {
           setSearchResults(data as SearchProfile[])
-        } else if (error) {
-          console.error('Error searching users:', error)
         }
         setIsSearching(false)
       }
@@ -202,7 +228,6 @@ export default function FeedPage() {
     }
   }, [searchQuery, supabase])
 
-  // Handle clicking outside the search dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
@@ -213,6 +238,12 @@ export default function FeedPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const handleCloseModal = () => {
+    setExpandedQuote(null)
+    if (quoteIdParam) {
+      router.replace('/feed', { scroll: false })
+    }
+  }
 
   const handleDynamicReaction = async (emojiObj: EmojiClickData, targetId: string, type: 'quote' | 'comment', targetOwnerId?: string) => {
     if (!currentUserId) return
@@ -221,7 +252,7 @@ export default function FeedPage() {
 
        let isRemoving = false
     if (type === 'quote') {
-       const quote = quotes.find(q => q.id === targetId)
+       const quote = quotes.find(q => q.id === targetId) || (expandedQuote?.id === targetId ? expandedQuote : undefined)
        isRemoving = quote?.groupedReactions.find(r => r.emoji === emoji)?.hasReacted || false
     }
 
@@ -303,12 +334,14 @@ export default function FeedPage() {
 
   const toggleFavorite = async (quoteId: string) => {
     if (!currentUserId) return
-    const quote = quotes.find((q) => q.id === quoteId)
+    const quote = quotes.find((q) => q.id === quoteId) || (expandedQuote?.id === quoteId ? expandedQuote : null)
     if (!quote) return
     const isAdding = !quote.isFavorited
     const updateFavoriteState = (q: FeedQuote) => ({ ...q, favoriteCount: q.favoriteCount + (isAdding ? 1 : -1), isFavorited: isAdding })
+    
     setQuotes((prev) => prev.map((q) => q.id === quoteId ? updateFavoriteState(q) : q))
     if (expandedQuote?.id === quoteId) setExpandedQuote(updateFavoriteState(expandedQuote))
+    
     if (isAdding) await supabase.from('favorites').insert({ quote_id: quoteId, user_id: currentUserId })
     else await supabase.from('favorites').delete().match({ quote_id: quoteId, user_id: currentUserId })
   }
@@ -406,11 +439,11 @@ export default function FeedPage() {
 
       {/* Expanded Modal */}
       {expandedQuote && (
-        <div onClick={() => setExpandedQuote(null)} className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-start sm:justify-center p-0 sm:p-8 animate-in fade-in duration-200 cursor-pointer overflow-hidden">
+        <div onClick={handleCloseModal} className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-start sm:justify-center p-0 sm:p-8 animate-in fade-in duration-200 cursor-pointer overflow-hidden">
           <div onClick={(e) => e.stopPropagation()} className="w-full h-full sm:h-auto sm:max-h-[90vh] max-w-[550px] bg-slate-50 sm:rounded-[40px] flex flex-col overflow-hidden cursor-default shadow-2xl relative">
             
             <div className="shrink-0 relative">
-               <button onClick={() => setExpandedQuote(null)} className="absolute top-4 right-4 z-50 p-2 bg-black/10 hover:bg-black/20 rounded-full transition text-slate-700 backdrop-blur-md">
+               <button onClick={handleCloseModal} className="absolute top-4 right-4 z-50 p-2 bg-black/10 hover:bg-black/20 rounded-full transition text-slate-700 backdrop-blur-md">
                  <X className="w-6 h-6" />
                </button>
                {/* REUSING THE CARD IN THE MODAL */}
@@ -498,5 +531,13 @@ export default function FeedPage() {
       )}
 
     </div>
+  )
+}
+
+export default function FeedPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>}>
+      <FeedContent />
+    </Suspense>
   )
 }
