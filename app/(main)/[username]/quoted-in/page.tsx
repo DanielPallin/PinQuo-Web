@@ -6,7 +6,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Crown, User, Loader2, X, Send, SmilePlus } from 'lucide-react'
 import Link from 'next/link'
 import QuoteCard, { FeedQuote, GroupedReaction } from '@/components/QuoteCard'
-import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react'
+import { EmojiClickData } from 'emoji-picker-react'
+import CustomEmojiPicker from '@/components/CustomEmojiPicker'
 
 const timeAgo = (dateString: string) => {
   const seconds = Math.floor((new Date().getTime() - new Date(dateString).getTime()) / 1000)
@@ -366,9 +367,9 @@ export default function QuotedInPage() {
                                  <button onClick={() => setActiveCommentEmojiPicker(prev => prev === comment.id ? null : comment.id)} className="reaction-trigger text-slate-400 hover:text-black p-1 transition"><SmilePlus className="w-3.5 h-3.5" /></button>
                                  {activeCommentEmojiPicker === comment.id && (
                                     <div className="absolute z-50 top-full mt-1 left-0 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
-                                      <EmojiPicker theme={Theme.LIGHT} onEmojiClick={(e) => handleDynamicReaction(e, comment.id, 'comment', comment.user.id)} />
+                                      <CustomEmojiPicker onEmojiClick={(e) => handleDynamicReaction(e, comment.id, 'comment', comment.user.id)} />
                                     </div>
-                                 )}
+                                  )}
                                </div>
                             </div>
                          </div>

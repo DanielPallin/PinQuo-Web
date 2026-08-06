@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { User, MessageCircle, Star, SmilePlus, Share2, Loader2 } from 'lucide-react'
-import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react'
+import { EmojiClickData } from 'emoji-picker-react'
+import CustomEmojiPicker from './CustomEmojiPicker'
 import { toPng } from 'html-to-image'
 
 export type GroupedReaction = { emoji: string, count: number, hasReacted: boolean }
@@ -177,7 +178,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
 
             {showEmojiPicker && (
               <div className="absolute z-50 bottom-full mb-2 left-0 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2">
-                <EmojiPicker theme={Theme.LIGHT} onEmojiClick={handleReactionSelection} />
+                <CustomEmojiPicker onEmojiClick={handleReactionSelection} />
               </div>
             )}
           </div>
