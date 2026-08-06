@@ -97,6 +97,19 @@ function FeedContent() {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const searchContainerRef = useRef<HTMLDivElement>(null)
 
+  // LOCK BODY SCROLL ON MOBILE WHEN MODAL IS OPEN
+  useEffect(() => {
+    if (expandedQuote) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [expandedQuote])
+
   // ADDED: isMounted flag for fetchSpecificQuote[cite: 16]
   useEffect(() => {
     let isMounted = true
@@ -300,6 +313,8 @@ function FeedContent() {
       }
     }
 
+    
+
     if (type === 'comment' && expandedQuote) {
       const { data } = await supabase.from('comments').select(`*, user:profiles(id, username, avatar_url), reactions(reaction_type, user_id)`).eq('quote_id', expandedQuote.id).order('created_at', { ascending: true })
       if (data) setComments(data as unknown as CommentType[])
@@ -441,7 +456,9 @@ function FeedContent() {
       {/* Expanded Modal */}
       {expandedQuote && (
         <div onClick={handleCloseModal} className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-start sm:justify-center p-0 sm:p-8 animate-in fade-in duration-200 cursor-pointer overflow-hidden">
-          <div onClick={(e) => e.stopPropagation()} className="w-full h-full sm:h-auto sm:max-h-[90vh] max-w-[550px] bg-slate-50 sm:rounded-[40px] flex flex-col overflow-hidden cursor-default shadow-2xl relative">
+          
+          {/* 👇 Changed h-full to h-[100dvh] right here 👇 */}
+          <div onClick={(e) => e.stopPropagation()} className="w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] max-w-[550px] bg-slate-50 sm:rounded-[40px] flex flex-col overflow-hidden cursor-default shadow-2xl relative">
             
             <div className="shrink-0 relative">
                <button onClick={handleCloseModal} className="absolute top-4 right-4 z-50 p-2 bg-black/10 hover:bg-black/20 rounded-full transition text-slate-700 backdrop-blur-md">
@@ -507,7 +524,7 @@ function FeedContent() {
             </div>
 
             {/* Comment Input */}
-            <div className="p-4 bg-white border-t border-slate-100 shrink-0 mb-safe">
+            <div className="p-4 bg-white border-t border-slate-100 shrink-0">
                <div className="relative flex items-center">
                  <input 
                    type="text" 

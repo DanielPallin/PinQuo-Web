@@ -148,6 +148,19 @@ export default function PublishedPage() {
     fetchComments()
   }, [expandedQuote, supabase])
 
+  // LOCK BODY SCROLL ON MOBILE WHEN MODAL IS OPEN
+  useEffect(() => {
+    if (expandedQuote) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [expandedQuote])
+
   const handleDynamicReaction = async (emojiObj: EmojiClickData, targetId: string, type: 'quote' | 'comment', targetOwnerId?: string) => {
     if (!currentUserId) return
     const emoji = emojiObj.emoji
@@ -319,7 +332,9 @@ export default function PublishedPage() {
       {/* Theater Modal with Comments */}
       {expandedQuote && (
         <div onClick={() => setExpandedQuote(null)} className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-start sm:justify-center p-0 sm:p-8 animate-in fade-in duration-200 cursor-pointer overflow-hidden">
-          <div onClick={(e) => e.stopPropagation()} className="w-full h-full sm:h-auto sm:max-h-[90vh] max-w-[550px] bg-slate-50 sm:rounded-[40px] flex flex-col overflow-hidden cursor-default shadow-2xl relative">
+          
+          {/* 👇 Changed h-full to h-[100dvh] right here 👇 */}
+          <div onClick={(e) => e.stopPropagation()} className="w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] max-w-[550px] bg-slate-50 sm:rounded-[40px] flex flex-col overflow-hidden cursor-default shadow-2xl relative">
             
             <div className="shrink-0 relative">
                <button onClick={() => setExpandedQuote(null)} className="absolute top-4 right-4 z-50 p-2 bg-black/10 hover:bg-black/20 rounded-full transition text-slate-700 backdrop-blur-md">
@@ -382,7 +397,7 @@ export default function PublishedPage() {
                )}
             </div>
 
-            <div className="p-4 bg-white border-t border-slate-100 shrink-0 mb-safe">
+            <div className="p-4 bg-white border-t border-slate-100 shrink-0">
                <div className="relative flex items-center">
                  <input 
                    type="text" 
