@@ -8,7 +8,8 @@ import NotificationBell from '@/components/NotificationBell'
 import QuoteCard, { FeedQuote, GroupedReaction } from '@/components/QuoteCard'
 import Link from 'next/link'
 import Image from 'next/image'
-import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react'
+import { EmojiClickData } from 'emoji-picker-react'
+import CustomEmojiPicker from '@/components/CustomEmojiPicker'
 
 const ITEMS_PER_PAGE = 5
 
@@ -492,10 +493,10 @@ function FeedContent() {
                                <div className="relative">
                                  <button onClick={() => setActiveCommentEmojiPicker(prev => prev === comment.id ? null : comment.id)} className="reaction-trigger text-slate-400 hover:text-black p-1 transition"><SmilePlus className="w-3.5 h-3.5" /></button>
                                  {activeCommentEmojiPicker === comment.id && (
-                                    <div className="absolute z-50 top-full mt-1 left-0 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
-                                      <EmojiPicker theme={Theme.LIGHT} onEmojiClick={(e) => handleDynamicReaction(e, comment.id, 'comment', comment.user.id)} />
-                                    </div>
-                                 )}
+                                  <div className="absolute z-50 top-full mt-1 left-0 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                                    <CustomEmojiPicker onEmojiClick={(e) => handleDynamicReaction(e, comment.id, 'comment', comment.user.id)} />
+                                  </div>
+                                  )}
                                </div>
                             </div>
                          </div>
