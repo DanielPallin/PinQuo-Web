@@ -118,7 +118,6 @@ function PreviewQuoteForm() {
 
       const sideEffects: Promise<unknown>[] = [];
 
-      // ADDED: Using keepalive and removing await Promise.all blocking[cite: 17]
       if (targetEmail) {  
         sideEffects.push(  
           fetch("/api/invite", {  
@@ -176,27 +175,41 @@ function PreviewQuoteForm() {
           <span className="text-slate-800 underline decoration-slate-300 underline-offset-4 decoration-2">{currentUsername}</span>
         </div>
 
-        <div className="w-full max-w-[460px] bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col border border-slate-100 mb-10">
-          <div className="relative w-full h-64 shrink-0 pointer-events-none">
+        <div className="w-full max-w-[460px] bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col border border-slate-100 mb-10 relative">
+          
+          {/* Image height reduced to h-48 to match QuoteCard */}
+          <div className="relative w-full h-48 shrink-0 pointer-events-none">
             <div className={`absolute inset-0 bg-linear-to-br ${bgStyle}`}></div>
             {bgType === 'avatar' && (
               <div className={`absolute inset-0 ${targetAvatarUrl ? '' : 'bg-black/20'} mix-blend-overlay`}>
                 {targetAvatarUrl && <img src={targetAvatarUrl} alt="" className="w-full h-full object-cover opacity-80" />}
               </div>
             )}
-            <div className="absolute bottom-0 left-0 w-full h-32 bg-linear-to-t from-white via-white/60 to-transparent"></div>
+            <div className="absolute bottom-0 left-0 w-full h-32 bg-linear-to-t from-white via-white/80 to-transparent"></div>
           </div>
 
-          <div className="relative bg-white px-8 pb-10 pt-2 flex flex-col items-center text-center -mt-12 z-10 pointer-events-none">
-            <div className="text-[80px] font-serif font-black text-black leading-none tracking-tighter mb-2 select-none">“ ”</div>
+          {/* Margins, paddings, and text sizes scaled down to match the feed card exactly */}
+          <div className="relative bg-white px-6 pb-8 pt-2 flex flex-col items-center text-center -mt-10 z-10 pointer-events-none">
+            <div className="text-[70px] font-serif font-black text-black leading-none mb-1 select-none">“ ”</div>
+            
             <p className={`font-medium text-black leading-snug wrap-break-words whitespace-pre-wrap px-2 ${getQuoteFontSize(quoteText)}`}>
               {quoteText}
             </p>
-            <div className="w-full mt-10 flex flex-col items-center relative">
-              <div className="w-16 h-[2px] bg-black mb-3"></div>
-              <p className="text-2xl font-medium text-black tracking-wide">-{displayTarget}</p>
-              {displayHandle && <p className="text-slate-400 font-medium text-lg mt-0.5">{displayHandle}</p>}
-              <span className="absolute bottom-0 right-0 text-slate-400 font-medium text-sm translate-y-8">PinQuo</span>
+            
+            <div className="w-full mt-6 flex flex-col items-center relative">
+              <div className="w-12 h-[2px] bg-black mb-2"></div>
+              
+              <p className="text-xl font-medium text-black tracking-wide">
+                -{displayTarget}
+              </p>
+              
+              {displayHandle && (
+                <p className="text-slate-400 font-medium text-sm mt-0.5">
+                  {displayHandle}
+                </p>
+              )}
+              
+              <span className="absolute bottom-0 right-0 text-slate-400 font-medium text-sm translate-y-6">PinQuo</span>
             </div>
           </div>
         </div>

@@ -524,7 +524,7 @@ function FeedContent() {
             </div>
 
             {/* Comment Input */}
-            <div className="p-4 bg-white border-t border-slate-100 shrink-0">
+            <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-white border-t border-slate-100 shrink-0">
                <div className="relative flex items-center">
                  <input 
                    type="text" 
@@ -532,7 +532,8 @@ function FeedContent() {
                    onChange={e => setNewComment(e.target.value)}
                    onKeyDown={e => e.key === 'Enter' && handlePostComment()}
                    placeholder="Write a comment..."
-                   className="w-full bg-slate-100 border-none rounded-full py-3.5 pl-5 pr-12 text-sm font-medium focus:ring-2 focus:ring-emerald-200 transition outline-none"
+                   /* 👇 Changed text-sm to text-[16px] to fix iOS Auto-Zoom! 👇 */
+                   className="w-full bg-slate-100 border-none rounded-full py-3.5 pl-5 pr-12 text-[16px] font-medium focus:ring-2 focus:ring-emerald-200 transition outline-none"
                  />
                  <button 
                    onClick={handlePostComment}
