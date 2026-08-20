@@ -364,11 +364,7 @@ function FeedContent() {
 
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50/50 pb-24 relative">
-      <div className="sticky top-0 z-40 bg-slate-50/95 backdrop-blur-md pt-6 pb-4 px-6 flex justify-between items-center border-b border-slate-200/50">
-        <Image src="/PinQuo_logo.png" alt="PinQuo Logo" width={130} height={40} priority className="h-9 w-auto object-contain" />
-        <NotificationBell />
-      </div>
-
+      
       <div className="px-4 mt-4">
         
         {/* Search Bar */}
