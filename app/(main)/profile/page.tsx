@@ -205,19 +205,6 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white pb-24 pt-6 px-6">
-      
-      <div className="sticky top-0 z-40 bg-slate-50/95 backdrop-blur-md pt-6 pb-4 px-6 flex justify-between items-center shrink-0 border-b border-slate-200/50 shadow-sm">
-      <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
-        <Image
-          src="/PinQuo_logo.png" 
-          alt="PinQuo Logo"
-          width={130}
-          height={40}
-          priority
-          className="h-9 w-auto object-contain" 
-        />
-        <NotificationBell />
-      </div>
 
       {/* Profilinfo */}
       <div className="flex gap-6 mb-10 w-full items-start mt-6">

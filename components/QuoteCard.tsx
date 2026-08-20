@@ -17,7 +17,7 @@ export type FeedQuote = {
   custom_author_name: string | null
   publisher: { id: string, username: string } | null
   quoted_user: { username: string, avatar_url: string | null } | null
-  template: { style_config: { gradient: string, baseColor: string } } | null
+  template: { style_config: { gradient: string, baseColor: string }, image_url?: string } | null
   groupedReactions: GroupedReaction[]
   commentCount: number
   favoriteCount: number
@@ -71,7 +71,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   }
 
   const displayHandle = isRegisteredUser ? `@${targetName.toLowerCase().replace(/[^a-z0-9]/g, '')}` : null
-  const bgGradient = !quote.template ? 'from-slate-800 to-slate-900' : quote.template.style_config.gradient
+const bgGradient = quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300';
   const targetAvatarUrl = quote.quoted_user?.avatar_url
 
   const handleReactionSelection = (emoji: EmojiClickData) => {
@@ -138,38 +138,64 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         onClick={(e) => { e.stopPropagation(); if (!isExpanded && onExpand) onExpand(quote) }}
         className={`w-full bg-white rounded-[32px] overflow-hidden flex flex-col border border-slate-100 relative ${!isExpanded ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-lg' : 'shadow-sm'}`}
       >
-        {/* 1. Aggressively shrink the top image/gradient from h-48 to h-12 in the modal */}
+        {/* Aggressively shrink the top image/gradient from h-48 to h-12 in the modal */}
         <div className={`relative w-full ${isExpanded ? 'h-12' : 'h-48'} shrink-0 pointer-events-none transition-all duration-300`}>
-          <div className={`absolute inset-0 bg-linear-to-br ${bgGradient}`}></div>
-          {!quote.template && targetAvatarUrl && <img src={targetAvatarUrl} alt="Bg" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover opacity-90" />}
-          <div className={`absolute bottom-0 left-0 w-full ${isExpanded ? 'h-12' : 'h-32'} bg-gradient-to-t from-white via-white/80 to-transparent`}></div>
+          
+          {/* 1. The Bucket Image */}
+          {quote.template?.image_url && (
+            <img src={quote.template.image_url} alt="Bg" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover" />
+          )}
+
+          {/* 2. Dynamic Cinematic Filters (Only applies if an image exists) */}
+          {quote.template?.image_url && (
+             <>
+               <div className="absolute inset-0 bg-slate-900/30 mix-blend-multiply"></div>
+               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/10 to-black/60"></div>
+             </>
+          )}
+
+          {/* 3. Fallback CSS Gradient (If no template image exists) */}
+          {!quote.template?.image_url && (
+            <div className={`absolute inset-0 bg-linear-to-br ${bgGradient}`}></div>
+          )}
+
+          {/* 4. Avatar Mode */}
+          {!quote.template && targetAvatarUrl && (
+            <div className="absolute inset-0 mix-blend-overlay">
+              <img src={targetAvatarUrl} alt="Bg" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover opacity-80" />
+            </div>
+          )}
+
+          {/* 5. The Bottom Fade */}
+          <div className={`absolute bottom-0 left-0 w-full ${isExpanded ? 'h-12' : 'h-32'} bg-gradient-to-t from-white via-white/90 to-transparent`}></div>
         </div>
         
-        {/* 2. Shrink paddings, text sizes, and quote marks drastically */}
+        {/* Shrink paddings, text sizes, and quote marks drastically */}
         <div className={`relative bg-white px-5 ${isExpanded ? 'pb-4 pt-0 -mt-2' : 'pb-8 pt-2 -mt-10'} flex flex-col items-center text-center z-10 pointer-events-none transition-all duration-300`}>
           
           {/* Quote Marks shrink from 70px to 36px */}
-          <div className={`${isExpanded ? 'text-[36px] mb-0' : 'text-[70px] mb-1'} font-serif font-black text-black leading-none select-none`}>
+          <div className={`${isExpanded ? 'text-[36px] mb-0' : 'text-[70px] mb-1'} font-serif font-black text-slate-800 leading-none select-none`}>
             “ ”
           </div>
           
-          {/* Force the quote text to be much smaller (text-[17px]) in the modal */}
-          <p className={`font-medium text-black leading-snug whitespace-pre-wrap px-2 ${isExpanded ? 'text-[17px]' : getQuoteFontSize(quote.content)}`}>
+          {/* Force the quote text to be much smaller in the modal */}
+          <p className={`font-medium text-slate-900 leading-snug whitespace-pre-wrap px-2 ${isExpanded ? 'text-[17px]' : getQuoteFontSize(quote.content)}`}>
             {quote.content}
           </p>
           
           {/* Shrink author details and hide the @handle to save more space */}
           <div className={`w-full ${isExpanded ? 'mt-3' : 'mt-6'} flex flex-col items-center`}>
-            <div className={`w-12 h-[2px] bg-black ${isExpanded ? 'mb-1.5' : 'mb-2'}`}></div>
-            <p className={`${isExpanded ? 'text-base' : 'text-xl'} font-medium tracking-wide ${(!isRegisteredUser && !quote.custom_author_name) ? 'text-slate-400 italic' : 'text-black'}`}>
+            <div className={`w-12 h-[3px] bg-slate-800 rounded-full ${isExpanded ? 'mb-1.5' : 'mb-3'}`}></div>
+            <p className={`${isExpanded ? 'text-base' : 'text-lg'} font-bold tracking-wide ${(!isRegisteredUser && !quote.custom_author_name) ? 'text-slate-400 italic font-medium' : 'text-slate-900'}`}>
               {targetName}
             </p>
             {displayHandle && !isExpanded && (
-              <p className="text-slate-400 font-medium text-sm mt-0.5">{displayHandle}</p>
+              <p className="text-slate-400 font-medium text-xs mt-0.5">{displayHandle}</p>
             )}
           </div>
         </div>
       </div>
+
       {/* Integrated Quick Comment Bar */}
       {!isExpanded && (
         <div 
@@ -185,5 +211,4 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       )}
     </div>
-  )
-}
+  )}

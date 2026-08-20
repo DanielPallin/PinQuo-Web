@@ -2,16 +2,16 @@
 
 import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Loader2, CheckCircle2, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const getQuoteFontSize = (text: string) => {
   const len = text.length
-  if (len < 40) return 'text-4xl md:text-5xl'
-  if (len < 80) return 'text-3xl md:text-4xl'
-  if (len < 140) return 'text-2xl md:text-3xl'
-  if (len < 200) return 'text-xl md:text-2xl'
-  return 'text-lg md:text-xl'
+  if (len < 40) return 'text-3xl md:text-4xl'
+  if (len < 80) return 'text-2xl md:text-3xl'
+  if (len < 140) return 'text-xl md:text-2xl'
+  if (len < 200) return 'text-lg md:text-xl'
+  return 'text-base md:text-lg'
 }
 
 function PreviewQuoteForm() {
@@ -27,6 +27,7 @@ function PreviewQuoteForm() {
   const bgType = searchParams.get('bgType') || 'template'
   const templateId = searchParams.get('templateId')
   const templateGradient = searchParams.get('templateGradient') || 'from-slate-200 to-slate-300'
+  const templateImageUrl = searchParams.get('templateImageUrl') // Fetches the new bucket URL!
 
   const [isPublishing, setIsPublishing] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -35,7 +36,6 @@ function PreviewQuoteForm() {
 
   const displayTarget = targetUsername || customName || inviteEmail || 'Unknown'
   const displayHandle = targetUsername || inviteEmail ? `@${displayTarget.toLowerCase().replace(/[^a-z0-9]/g, '')}` : null
-  const bgStyle = bgType === 'template' ? templateGradient : 'from-slate-400 to-slate-700'
 
   useEffect(() => {
     let isMounted = true
@@ -97,18 +97,15 @@ function PreviewQuoteForm() {
     }
 
     if (targetUid && targetUid !== user.id && newQuoteData?.id) {
-      const { error: notifError } = await supabase.from('notifications').insert({
+      await supabase.from('notifications').insert({
         receiver_id: targetUid,
         actor_id: user.id,
         type: 'quote',
         quote_id: newQuoteData.id
       });
-      
-      if (notifError) {  
-        console.error("DEBUG - Notification failed to send:", notifError);  
-      } 
     }
 
+    // Fire-and-forget side effects
     try {
       let publisherName = currentUsername;
       if (publisherName === "You") {
@@ -118,35 +115,27 @@ function PreviewQuoteForm() {
 
       const sideEffects: Promise<unknown>[] = [];
 
-      if (targetEmail) {  
-        sideEffects.push(  
-          fetch("/api/invite", {  
-            method: "POST",  
-            headers: { "Content-Type": "application/json" },  
-            body: JSON.stringify({ email: targetEmail, publisherName, quoteContent: quoteText }),  
-            keepalive: true  
-          })  
-            .then(res => {  
-              if (!res.ok) console.error("Invite failed with status:", res.status)  
-            })  
-            .catch(err => console.error("Invite error:", err))  
-        )  
-      }  
+      if (targetEmail) {
+        sideEffects.push(
+          fetch("/api/invite", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: targetEmail, publisherName, quoteContent: quoteText }),
+            keepalive: true
+          }).catch(err => console.error("Invite error:", err))
+        )
+      }
 
-      if (targetUsername) {  
-        sideEffects.push(  
-          fetch("/api/notify", {  
-            method: "POST",  
-            headers: { "Content-Type": "application/json" },  
-            body: JSON.stringify({ quoterUsername: publisherName, quotedUsername: targetUsername, quoteContent: quoteText }),  
-            keepalive: true  
-          })  
-            .then(res => {  
-              if (!res.ok) console.error("Notify failed with status:", res.status)  
-            })  
-            .catch(err => console.error("Notify error:", err))  
-        )  
-      }  
+      if (targetUsername) {
+        sideEffects.push(
+          fetch("/api/notify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ quoterUsername: publisherName, quotedUsername: targetUsername, quoteContent: quoteText }),
+            keepalive: true
+          }).catch(err => console.error("Notify error:", err))
+        )
+      }
 
       if (sideEffects.length > 0) {
         Promise.all(sideEffects).catch(err => console.error("Background task error:", err))
@@ -159,70 +148,103 @@ function PreviewQuoteForm() {
   }
 
   return (
-    <div className="flex flex-col pt-10 px-6 w-full max-w-2xl mx-auto min-h-[calc(100vh-120px)] pb-10">
-      <div className="relative text-center mb-8 shrink-0">
-        <button onClick={() => router.back()} className="absolute left-0 top-0 p-4 hover:bg-slate-100 rounded-full transition">
-          <ArrowLeft className="w-12 h-12 text-black" />
+    <div className="flex flex-col pt-6 px-4 w-full max-w-lg mx-auto min-h-[100dvh] pb-6 bg-slate-50/50">
+      
+      {/* Sleek Modern Header */}
+      <div className="relative text-center mb-6 shrink-0 flex items-center justify-center">
+        <button onClick={() => router.back()} className="absolute left-0 p-2 hover:bg-slate-200 rounded-full transition text-slate-700">
+          <ArrowLeft className="w-6 h-6" />
         </button>
-        <h1 className="text-5xl font-black text-black">PinQuo</h1>
-        <p className="text-slate-500 font-bold text-2xl mt-3 underline decoration-slate-300 underline-offset-4 decoration-2">Quote Preview</p>
+        <div className="flex flex-col items-center">
+          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+            Preview <Sparkles className="w-5 h-5 text-emerald-500" />
+          </h1>
+        </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center w-full">
-        <div className="flex flex-wrap justify-center items-center gap-x-3 gap-y-1 mb-6 text-2xl font-bold text-slate-500 text-center">
-          <span className="text-slate-800 underline decoration-slate-300 underline-offset-4 decoration-2">{displayTarget}</span>
-          <span className="font-medium">has been quoted by</span>
-          <span className="text-slate-800 underline decoration-slate-300 underline-offset-4 decoration-2">{currentUsername}</span>
+      <div className="flex-1 flex flex-col items-center justify-start w-full">
+        
+        {/* Info Pill (Replaces the massive text lines) */}
+        <div className="flex items-center gap-1.5 mb-6 text-xs font-bold text-slate-500 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100">
+          <span className="text-slate-800">{displayTarget}</span>
+          <span className="text-slate-400 font-medium">quoted by</span>
+          <span className="text-slate-800">{currentUsername}</span>
         </div>
 
-        <div className="w-full max-w-[460px] bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col border border-slate-100 mb-10 relative">
+        {/* The Quote Card - 1:1 Match with the Feed Component */}
+        <div className="w-full max-w-[420px] bg-white rounded-[32px] shadow-xl overflow-hidden flex flex-col border border-slate-100 mb-8 relative">
           
-          {/* Image height reduced to h-48 to match QuoteCard */}
           <div className="relative w-full h-48 shrink-0 pointer-events-none">
-            <div className={`absolute inset-0 bg-linear-to-br ${bgStyle}`}></div>
+            {/* 1. Bucket Image */}
+            {bgType === 'template' && templateImageUrl && (
+              <img src={templateImageUrl} alt="Background" className="absolute inset-0 w-full h-full object-cover" />
+            )}
+
+            {/* 2. Dynamic Cinematic Filters */}
+            {bgType === 'template' && templateImageUrl && (
+               <>
+                 <div className="absolute inset-0 bg-slate-900/30 mix-blend-multiply"></div>
+                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/10 to-black/60"></div>
+               </>
+            )}
+
+            {/* 3. Fallback CSS Gradient */}
+            {bgType === 'template' && !templateImageUrl && (
+              <div className={`absolute inset-0 bg-linear-to-br ${templateGradient}`}></div>
+            )}
+
+            {/* 4. Avatar Mode */}
             {bgType === 'avatar' && (
               <div className={`absolute inset-0 ${targetAvatarUrl ? '' : 'bg-black/20'} mix-blend-overlay`}>
                 {targetAvatarUrl && <img src={targetAvatarUrl} alt="" className="w-full h-full object-cover opacity-80" />}
               </div>
             )}
-            <div className="absolute bottom-0 left-0 w-full h-32 bg-linear-to-t from-white via-white/80 to-transparent"></div>
+            
+            {/* Soft Text Blend */}
+            <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-white via-white/95 to-transparent"></div>
           </div>
 
-          {/* Margins, paddings, and text sizes scaled down to match the feed card exactly */}
           <div className="relative bg-white px-6 pb-8 pt-2 flex flex-col items-center text-center -mt-10 z-10 pointer-events-none">
-            <div className="text-[70px] font-serif font-black text-black leading-none mb-1 select-none">“ ”</div>
+            <div className="text-[50px] font-serif font-black text-slate-800 leading-none mb-2 select-none">“ ”</div>
             
-            <p className={`font-medium text-black leading-snug wrap-break-words whitespace-pre-wrap px-2 ${getQuoteFontSize(quoteText)}`}>
+            <p className={`font-medium text-slate-900 leading-snug wrap-break-words whitespace-pre-wrap px-2 ${getQuoteFontSize(quoteText)}`}>
               {quoteText}
             </p>
             
             <div className="w-full mt-6 flex flex-col items-center relative">
-              <div className="w-12 h-[2px] bg-black mb-2"></div>
+              <div className="w-10 h-[3px] bg-slate-800 mb-3 rounded-full"></div>
               
-              <p className="text-xl font-medium text-black tracking-wide">
-                -{displayTarget}
+              <p className={`text-lg font-bold tracking-wide ${customName ? 'text-slate-400 italic font-medium' : 'text-slate-900'}`}>
+                {displayTarget}
               </p>
               
-              {displayHandle && (
-                <p className="text-slate-400 font-medium text-sm mt-0.5">
+              {displayHandle && !customName && (
+                <p className="text-slate-400 font-medium text-xs mt-0.5">
                   {displayHandle}
                 </p>
               )}
-              
-              <span className="absolute bottom-0 right-0 text-slate-400 font-medium text-sm translate-y-6">PinQuo</span>
             </div>
           </div>
         </div>
 
-        {errorMsg && <p className="text-red-500 font-bold text-center text-xl mb-6">{errorMsg}</p>}
+        {errorMsg && <p className="text-red-500 font-bold text-center text-sm mb-4 px-4">{errorMsg}</p>}
 
-        <button
-          onClick={handlePublish}
-          disabled={isPublishing}
-          className="w-full max-w-[460px] bg-[#bbf7d0] text-emerald-950 font-black py-8 px-12 rounded-[40px] transition-all shadow-xl text-3xl flex items-center justify-center gap-4 border-4 border-emerald-200 disabled:opacity-70"
-        >
-          {isPublishing ? <Loader2 className="w-10 h-10 animate-spin" /> : <>Publish <CheckCircle2 className="w-10 h-10 stroke-3" /></>}
-        </button>
+        {/* Sleek, Modern Publish Button */}
+        <div className="w-full max-w-[420px] mt-auto">
+          <button
+            onClick={handlePublish}
+            disabled={isPublishing}
+            className="w-full bg-[#bbf7d0] text-emerald-950 hover:bg-[#86efac] font-black py-4 px-6 rounded-full transition-all active:scale-[0.98] shadow-lg flex items-center justify-center gap-2 border-[3px] border-emerald-200 disabled:opacity-70 disabled:active:scale-100 text-xl"
+          >
+            {isPublishing ? (
+              <Loader2 className="w-6 h-6 animate-spin" />
+            ) : (
+              <>
+                Publish to Feed <CheckCircle2 className="w-6 h-6 stroke-[2.5px]" />
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -230,7 +252,7 @@ function PreviewQuoteForm() {
 
 export default function PreviewPage() {
   return (
-    <Suspense fallback={<div className="p-16 text-center text-slate-500 text-2xl font-bold">Generating preview...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-slate-300" /></div>}>
       <PreviewQuoteForm />
     </Suspense>
   )

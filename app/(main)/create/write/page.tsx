@@ -2,20 +2,21 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Camera, ArrowLeft, ChevronLeft, ChevronRight, CheckCircle2, Loader2 } from 'lucide-react'
+import { Camera, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
-// knows not to delete them when it compiles the app!
+// Safe list for your fallback gradients
 const TAILWIND_SAFELIST = "bg-orange-200 bg-yellow-200 bg-slate-300 bg-slate-200 from-orange-200 to-red-200 from-yellow-200 to-amber-200 from-slate-300 to-slate-400"
 
 type Template = {
   id: string
   name: string
   style_config: {
-    baseColor: string
+    baseColor?: string
     gradient: string
   }
-  is_pro_only: boolean
+  access_tier: 'free' | 'pro' | 'premium'
+  image_url?: string 
 }
 
 function WriteQuoteForm() {
@@ -26,10 +27,9 @@ function WriteQuoteForm() {
   const targetId = searchParams.get('targetId')
   const targetUsername = searchParams.get('targetUsername')
   const inviteEmail = searchParams.get('inviteEmail')
-  const customName = searchParams.get('customName') // ADDED: Extract customName from URL
+  const customName = searchParams.get('customName') 
 
   const isExistingUser = !!targetId
-  // ADDED: Include customName in the display target logic
   const displayTarget = targetUsername || customName || inviteEmail || 'Unknown'
 
   const [quoteText, setQuoteText] = useState('')
@@ -41,22 +41,63 @@ function WriteQuoteForm() {
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true)
 
+  // Smart Fetch: Grabs 10 free + User's unlocked PRO templates
   useEffect(() => {
-    const fetchTemplates = async () => {
-      const { data, error } = await supabase
-        .from('templates')
-        .select('id, name, style_config, is_pro_only')
-        .eq('is_pro_only', false)
-        .order('created_at', { ascending: true })
+    let isMounted = true
 
-      if (data && data.length > 0) {
-        setTemplates(data)
-        setSelectedTemplate(data[0])
+    const fetchTemplates = async () => {
+      setIsLoadingTemplates(true)
+      const { data: { user } } = await supabase.auth.getUser()
+
+      try {
+        // Fetch up to 10 Free Templates (using access_tier now)
+        const { data: freeTemplates, error: freeError } = await supabase
+          .from('templates')
+          .select('id, name, style_config, access_tier, image_url')
+          .eq('access_tier', 'free')
+          .order('created_at', { ascending: true })
+          .limit(10)
+
+        let ownedTemplates: Template[] = []
+
+        // Fetch templates the user owns
+        if (user) {
+          const { data: unlocked, error: unlockError } = await supabase
+            .from('user_unlocked_templates')
+            .select('template_id')
+            .eq('user_id', user.id)
+            
+          if (!unlockError && unlocked && unlocked.length > 0) {
+            const unlockedIds = unlocked.map(u => u.template_id)
+            
+            const { data: premiumData } = await supabase
+              .from('templates')
+              .select('id, name, style_config, access_tier, image_url')
+              .in('id', unlockedIds)
+            
+            if (premiumData) ownedTemplates = premiumData
+          }
+        }
+
+        if (isMounted) {
+          const combined = [...(freeTemplates || []), ...ownedTemplates]
+          const uniqueTemplates = Array.from(new Map(combined.map(item => [item.id, item])).values())
+          
+          setTemplates(uniqueTemplates)
+          if (uniqueTemplates.length > 0 && bgType === 'template') {
+            setSelectedTemplate(uniqueTemplates[0])
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching templates:", error)
+      } finally {
+        if (isMounted) setIsLoadingTemplates(false)
       }
-      setIsLoadingTemplates(false)
     }
+
     fetchTemplates()
-  }, [supabase])
+    return () => { isMounted = false }
+  }, [supabase, bgType])
 
   const handlePreview = () => {
     if (!quoteText.trim()) return
@@ -66,11 +107,18 @@ function WriteQuoteForm() {
     if (targetId) params.append('targetId', targetId)
     if (targetUsername) params.append('targetUsername', targetUsername)
     if (inviteEmail) params.append('inviteEmail', inviteEmail)
-    if (customName) params.append('customName', customName) // ADDED: Pass customName to the preview page
+    if (customName) params.append('customName', customName)
     
     if (bgType === 'template' && selectedTemplate) {
       params.append('templateId', selectedTemplate.id)
       params.append('templateGradient', selectedTemplate.style_config.gradient)
+    if (selectedTemplate.style_config?.gradient) {
+        params.append('templateGradient', selectedTemplate.style_config.gradient)
+      }
+      
+      if (selectedTemplate.image_url) {
+        params.append('templateImageUrl', selectedTemplate.image_url)
+      }
     }
 
     router.push(`/create/preview?${params.toString()}`)
@@ -128,37 +176,65 @@ function WriteQuoteForm() {
           </div>
         )}
 
-        {/* TEMPLATE CAROUSEL */}
+        {/* NEW TEMPLATE CAROUSEL */}
         <div className="w-full flex flex-col items-center shrink-0 mt-2">
           <p className="text-xl font-black text-slate-800 mb-4">Choose template</p>
           
           {isLoadingTemplates ? (
             <Loader2 className="w-8 h-8 animate-spin text-slate-300 my-4" />
           ) : templates.length > 0 ? (
-            <div className="flex items-center justify-center gap-2 w-full">
-              <ChevronLeft className="w-8 h-8 text-black cursor-pointer hover:scale-110 transition" />
+            <div className="w-full relative max-w-md mx-auto">
               
-              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 px-2 items-center justify-center">
+              {/* Horizontal Scrollable Carousel */}
+              <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-4 px-2 items-center">
                 {templates.map((template) => {
                   const isSelected = bgType === 'template' && selectedTemplate?.id === template.id
-                  const baseColor = template.style_config?.baseColor || 'bg-slate-200'
+                  const gradient = template.style_config?.gradient || 'from-slate-200 to-slate-300'
                   
                   return (
-                    <div key={template.id} onClick={() => { setBgType('template'); setSelectedTemplate(template) }} className="flex flex-col items-center gap-2 cursor-pointer group shrink-0">
-                      <div className={`relative w-20 h-20 rounded-[24px] overflow-hidden ${baseColor} border-4 transition-all ${isSelected ? 'border-emerald-400 scale-105 shadow-md' : 'border-transparent group-hover:scale-105'}`}>
-                        {isSelected && (
-                          <div className="absolute inset-0 bg-white/30 flex items-center justify-center">
-                            <div className="bg-[#bbf7d0] rounded-full p-1.5 border-[3px] border-emerald-500"><CheckCircle2 className="w-8 h-8 text-emerald-800" strokeWidth={3} /></div>
-                          </div>
-                        )}
+                    <button
+                      key={template.id}
+                      onClick={() => { setBgType('template'); setSelectedTemplate(template) }}
+                      className={`relative shrink-0 w-28 h-28 sm:w-32 sm:h-32 rounded-3xl overflow-hidden snap-center transition-all duration-200 ${
+                        isSelected 
+                          ? 'ring-4 ring-emerald-400 scale-105 shadow-lg' 
+                          : 'opacity-70 hover:opacity-100 scale-95 border-2 border-slate-100'
+                      }`}
+                    >
+                      {/* Render Image from Bucket, fallback to style_config gradient */}
+                      {template.image_url ? (
+                        <img 
+                          src={template.image_url} 
+                          alt={template.name}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          crossOrigin="anonymous"
+                        />
+                      ) : (
+                        <div className={`absolute inset-0 bg-linear-to-br ${gradient}`}></div>
+                      )}
+
+                      {/* Dynamic Badges for Owned Templates */}
+                      {template.access_tier === 'pro' && (
+                        <div className="absolute top-2 right-2 bg-yellow-500/90 backdrop-blur-md text-yellow-950 text-[9px] font-black px-2 py-1 rounded-full z-10 shadow-sm border border-yellow-300">
+                          PRO
+                        </div>
+                      )}
+                      {template.access_tier === 'premium' && (
+                        <div className="absolute top-2 right-2 bg-purple-600/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-full z-10 shadow-sm border border-purple-400">
+                          EXCLUSIVE
+                        </div>
+                      )}
+                      
+                      {/* Name Label */}
+                      <div className={`absolute bottom-0 left-0 w-full p-2 text-center text-[10px] sm:text-xs font-black uppercase tracking-wide truncate backdrop-blur-md z-10 transition-colors ${
+                        isSelected ? 'bg-emerald-400/90 text-emerald-950' : 'bg-white/80 text-slate-700'
+                      }`}>
+                        {template.name}
                       </div>
-                      <span className="text-xs font-black text-slate-500 uppercase tracking-wide">{template.name}</span>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
-
-              <ChevronRight className="w-8 h-8 text-black cursor-pointer hover:scale-110 transition" />
             </div>
           ) : (
             <p className="text-slate-400 font-bold text-sm">No templates found.</p>
@@ -192,7 +268,6 @@ function WriteQuoteForm() {
 
       </div>
       
-      {/* Hide safelist from DOM but keep it compiled */}
       <div className="hidden">{TAILWIND_SAFELIST}</div>
     </div>
   )

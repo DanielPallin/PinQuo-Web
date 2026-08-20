@@ -49,7 +49,7 @@ export default async function MainLayout({
         {/* ========================================= */}
         <aside className="hidden lg:flex w-70 xl:w-[320px] flex-col sticky top-0 h-screen border-r border-slate-200/60 px-6 py-8 overflow-y-auto shrink-0 bg-white">
           <Link href="/feed" className="mb-10 pl-2 transition-transform hover:scale-105 active:scale-95">
-            <Image src="/PinQuo_logo.png" alt="PinQuo Logo" width={150} height={45} priority className="h-10 w-auto object-contain" />
+            <Image src="/PinQuote-Logo.png" alt="PinQuo Logo" width={150} height={45} priority className="h-10 w-auto object-contain" />
           </Link>
 
           <nav className="flex flex-col gap-2 flex-1">
@@ -84,6 +84,10 @@ export default async function MainLayout({
               <PlusSquare className="w-6 h-6 stroke-3" />
               <span className="text-xl font-black tracking-wide">Post Quote</span>
             </Link>
+            <span className="text-l font-seriff text-red-600 tracking-wide">NOTE:</span>
+            <span className="text-l font-seriff text-red-600 tracking-wide">Website RECONSTRUCTION. Some features are locked, some designs are ugly or placeholders and UX might not be what you expect.
+            </span>
+    
           </nav>
 
           <div className="mt-auto pt-6 text-sm font-bold text-slate-400 pl-4">

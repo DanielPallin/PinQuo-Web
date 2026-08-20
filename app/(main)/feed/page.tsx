@@ -27,9 +27,10 @@ type RawQuoteData = {
   created_at: string
   quoted_email: string | null
   custom_author_name: string | null
+  image_url: string | null
   publisher: { id: string, username: string } | null
   quoted_user: { username: string, avatar_url: string | null } | null
-  template: { style_config: { gradient: string, baseColor: string } } | null
+  template: { style_config: { gradient: string, baseColor: string }, image_url } | null
   reactions: { reaction_type: string, user_id: string, comment_id: string | null }[] | null
   favorites: { user_id: string }[] | null
   comments: { count: number }[] | null
@@ -124,7 +125,7 @@ function FeedContent() {
           id, content, created_at, quoted_email, custom_author_name,
           publisher:profiles!quotes_publisher_id_fkey(id, username),
           quoted_user:profiles!quotes_quoted_user_id_fkey(username, avatar_url),
-          template:templates(style_config),
+          template:templates(style_config, image_url),
           reactions(reaction_type, user_id, comment_id),
           favorites(user_id),
           comments(count)
@@ -161,7 +162,7 @@ function FeedContent() {
           id, content, created_at, quoted_email, custom_author_name,
           publisher:profiles!quotes_publisher_id_fkey(id, username),
           quoted_user:profiles!quotes_quoted_user_id_fkey(username, avatar_url),
-          template:templates(style_config),
+          template:templates(style_config, image_url),
           reactions(reaction_type, user_id, comment_id),
           favorites(user_id),
           comments(count)
