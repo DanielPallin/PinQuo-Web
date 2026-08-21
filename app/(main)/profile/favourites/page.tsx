@@ -44,6 +44,33 @@ type RawFavoriteRow = {
   quote: RawQuoteData | null
 }
 
+const formatQuote = (quote: RawQuoteData, currentUserId: string): FeedQuote => {
+  const reactions: Record<string, GroupedReaction> = {}
+
+  quote.reactions?.forEach(reaction => {
+    if (reaction.comment_id) return
+    if (!reactions[reaction.reaction_type]) {
+      reactions[reaction.reaction_type] = {
+        emoji: reaction.reaction_type,
+        count: 0,
+        hasReacted: false
+      }
+    }
+    reactions[reaction.reaction_type].count++
+    if (reaction.user_id === currentUserId) {
+      reactions[reaction.reaction_type].hasReacted = true
+    }
+  })
+
+  return {
+    ...quote,
+    groupedReactions: Object.values(reactions).sort((a, b) => b.count - a.count),
+    isFavorited: quote.favorites?.some(favorite => favorite.user_id === currentUserId) ?? false,
+    favoriteCount: quote.favorites?.length ?? 0,
+    commentCount: quote.comments?.[0]?.count ?? 0
+  }
+}
+
 export default function FavouritesPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -76,47 +103,38 @@ export default function FavouritesPage() {
 
       if (profileData && isMounted) setCurrentUserProfile(profileData)
 
+      // THE FIX: We select 'quote_id', and then nest all the quote data inside 'quotes(...)'
       const { data, error } = await supabase
         .from('favorites')
         .select(`
-          id, content, created_at, quoted_email, custom_author_name,
-          publisher:profiles!quotes_publisher_id_fkey(id, username),
-          quoted_user:profiles!quotes_quoted_user_id_fkey(username, avatar_url),
-          template:templates(style_config, image_url),
-          reactions(reaction_type, user_id, comment_id),
-          favorites(user_id),
-          comments(count)
-          .order('created_at', { ascending: false })
+          quote_id,
+          created_at,
+          quotes (
+            id, content, created_at, quoted_email, custom_author_name,
+            publisher:profiles!quotes_publisher_id_fkey(id, username),
+            quoted_user:profiles!quotes_quoted_user_id_fkey(username, avatar_url),
+            template:templates(style_config, image_url),
+            reactions(reaction_type, user_id, comment_id),
+            favorites(user_id),
+            comments(count)
+          )
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      if (data && isMounted) {
-        const rawRows = data as unknown as RawFavoriteRow[]
-        
-        const formattedQuotes: FeedQuote[] = rawRows
-          .filter((row) => row.quote !== null)
-          .map((row) => {
-            const q = row.quote as RawQuoteData
-            const quoteReacts = (q.reactions || []).filter(r => r.comment_id === null)
-            const reactMap: Record<string, GroupedReaction> = {}
-            
-            quoteReacts.forEach((r) => {
-              if (!reactMap[r.reaction_type]) {
-                reactMap[r.reaction_type] = { emoji: r.reaction_type, count: 0, hasReacted: false }
-              }
-              reactMap[r.reaction_type].count++
-              if (user && r.user_id === user.id) reactMap[r.reaction_type].hasReacted = true
-            })
+      if (error) {
+        console.error("Error fetching favorites:", error)
+        return
+      }
 
-            return {
-              ...q,
-              groupedReactions: Object.values(reactMap).sort((a, b) => b.count - a.count),
-              commentCount: q.comments?.[0]?.count || 0,
-              favoriteCount: (q.favorites || []).length,
-              isFavorited: true
-            }
-          })
+      if (data && isMounted) {
+        // We map over the favorites, extract the inner 'quotes' object, and filter out any nulls
+        const rawFavoriteQuotes = data
+          .map(fav => fav.quotes)
+          .filter(Boolean) as unknown as RawQuoteData[]
+
+        // We run it through your formatQuote function just like the Feed does!
+        const formattedQuotes = rawFavoriteQuotes.map(q => formatQuote(q, user.id))
 
         setQuotes(formattedQuotes)
       } else if (error) {
