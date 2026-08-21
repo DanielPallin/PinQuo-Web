@@ -16,7 +16,7 @@ interface TemplateCardProps {
   content: string
   quotedUser?: ProfileData | null
   quotedEmail?: string | null
-  customAuthorName?: string | null // 1. ADD THIS PROP
+  customAuthorName?: string | null
   templateConfig?: TemplateStyle | null
   useAvatarBg?: boolean
   livePhotoUrl?: string | null
@@ -26,7 +26,7 @@ export default function TemplateCard({
   content,
   quotedUser,
   quotedEmail,
-  customAuthorName, // 2. EXTRACT IT HERE
+  customAuthorName,
   templateConfig,
   useAvatarBg = true,
   livePhotoUrl

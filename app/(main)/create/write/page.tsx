@@ -2,11 +2,13 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Camera, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react'
+import { Camera, ArrowLeft, Loader2, Sparkles, User as UserIcon, X, Lock, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
-// Safe list for your fallback gradients
 const TAILWIND_SAFELIST = "bg-orange-200 bg-yellow-200 bg-slate-300 bg-slate-200 from-orange-200 to-red-200 from-yellow-200 to-amber-200 from-slate-300 to-slate-400"
+
+type AccessTier = 'free' | 'pro' | 'premium'
+type FilterState = 'all' | 'favorites' | 'packs'
 
 type Template = {
   id: string
@@ -15,8 +17,42 @@ type Template = {
     baseColor?: string
     gradient: string
   }
-  access_tier: 'free' | 'pro' | 'premium'
+  access_tier?: AccessTier 
+  is_pro_only?: boolean 
   image_url?: string 
+  category?: string 
+  computed_tier?: AccessTier
+  computed_pack_name?: string
+}
+
+type DerivedPack = {
+  name: string
+  cover_image_url: string | null
+  price_tier: AccessTier
+  templates: Template[]
+}
+
+const TIER_WEIGHTS: Record<AccessTier, number> = {
+  free: 0,
+  pro: 1,
+  premium: 2
+}
+
+const canAccessPack = (userTier: AccessTier, itemTier: AccessTier) => {
+  return TIER_WEIGHTS[userTier] >= TIER_WEIGHTS[itemTier]
+}
+
+// SMART PARSER: Extracts "Cyberpunk Pack" from ".../paid_templates/cyberpunk-pack/bg.jpg"
+const extractPackNameFromUrl = (url: string | undefined): string | null => {
+  if (!url) return null
+  const match = url.match(/(?:paid_templates|free_templates)\/([^\/]+)/)
+  if (match && match[1]) {
+    return match[1]
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  }
+  return null
 }
 
 function WriteQuoteForm() {
@@ -24,84 +60,141 @@ function WriteQuoteForm() {
   const searchParams = useSearchParams()
   const supabase = createClient()
 
+  // Routing Params
   const targetId = searchParams.get('targetId')
   const targetUsername = searchParams.get('targetUsername')
   const inviteEmail = searchParams.get('inviteEmail')
   const customName = searchParams.get('customName') 
-
   const isExistingUser = !!targetId
   const displayTarget = targetUsername || customName || inviteEmail || 'Unknown'
 
+  // Form State
   const [quoteText, setQuoteText] = useState('')
-  const [bgType, setBgType] = useState<'avatar' | 'template' | 'snap'>(
-    isExistingUser ? 'avatar' : 'template'
-  )
-
-  const [templates, setTemplates] = useState<Template[]>([])
+  const [bgType, setBgType] = useState<'avatar' | 'template' | 'snap'>(isExistingUser ? 'avatar' : 'template')
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
-  const [isLoadingTemplates, setIsLoadingTemplates] = useState(true)
 
-  // Smart Fetch: Grabs 10 free + User's unlocked PRO templates
+  // UX Navigation State
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeFilter, setActiveFilter] = useState<FilterState>('all')
+
+  // Core Data State
+  const [userTier, setUserTier] = useState<AccessTier>('free')
+  const [allTemplates, setAllTemplates] = useState<Template[]>([])
+  const [packs, setPacks] = useState<DerivedPack[]>([])
+  const [favorites, setFavorites] = useState<Template[]>([])
+  const [isLoadingCore, setIsLoadingCore] = useState(true)
+
+  // Bottom Sheet State
+  const [activePack, setActivePack] = useState<DerivedPack | null>(null)
+
+  // 1. Fetch ALL Data & Build Smart Packs
   useEffect(() => {
     let isMounted = true
-
-    const fetchTemplates = async () => {
-      setIsLoadingTemplates(true)
+    const fetchCoreData = async () => {
+      setIsLoadingCore(true)
       const { data: { user } } = await supabase.auth.getUser()
 
-      try {
-        // Fetch up to 10 Free Templates (using access_tier now)
-        const { data: freeTemplates, error: freeError } = await supabase
-          .from('templates')
-          .select('id, name, style_config, access_tier, image_url')
-          .eq('access_tier', 'free')
-          .order('created_at', { ascending: true })
-          .limit(10)
-
-        let ownedTemplates: Template[] = []
-
-        // Fetch templates the user owns
-        if (user) {
-          const { data: unlocked, error: unlockError } = await supabase
-            .from('user_unlocked_templates')
-            .select('template_id')
-            .eq('user_id', user.id)
-            
-          if (!unlockError && unlocked && unlocked.length > 0) {
-            const unlockedIds = unlocked.map(u => u.template_id)
-            
-            const { data: premiumData } = await supabase
-              .from('templates')
-              .select('id, name, style_config, access_tier, image_url')
-              .in('id', unlockedIds)
-            
-            if (premiumData) ownedTemplates = premiumData
-          }
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('access_tier, is_pro').eq('id', user.id).single()
+        if (isMounted && profile) {
+          const mappedTier = profile.access_tier ? (profile.access_tier as AccessTier) : (profile.is_pro ? 'pro' : 'free')
+          setUserTier(mappedTier)
         }
 
-        if (isMounted) {
-          const combined = [...(freeTemplates || []), ...ownedTemplates]
-          const uniqueTemplates = Array.from(new Map(combined.map(item => [item.id, item])).values())
-          
-          setTemplates(uniqueTemplates)
-          if (uniqueTemplates.length > 0 && bgType === 'template') {
-            setSelectedTemplate(uniqueTemplates[0])
-          }
+        const { data: favData } = await supabase
+          .from('user_template_interactions')
+          .select('template_id, templates(*)')
+          .eq('user_id', user.id)
+          .eq('is_favorite', true)
+        
+        if (isMounted && favData) {
+          const formattedFavs = favData.map(f => f.templates as unknown as Template).filter(Boolean)
+          setFavorites(formattedFavs)
         }
-      } catch (error) {
-        console.error("Error fetching templates:", error)
-      } finally {
-        if (isMounted) setIsLoadingTemplates(false)
       }
+
+      const { data: templatesData } = await supabase.from('templates').select('*').order('created_at', { ascending: true })
+
+      if (isMounted && templatesData) {
+        const packMap = new Map<string, DerivedPack>()
+        const processedTemplates: Template[] = []
+
+        ;(templatesData as Template[]).forEach((t) => {
+          const isPaidFolder = t.image_url?.includes('paid_templates')
+          const computedTier = isPaidFolder ? 'pro' : (t.access_tier || (t.is_pro_only ? 'pro' : 'free'))
+          
+          // Use the URL parser first, fallback to DB category, then to defaults
+          const parsedFolderName = extractPackNameFromUrl(t.image_url)
+          let packName = parsedFolderName || t.category
+
+          if (!packName || packName.toLowerCase() === 'general') {
+            packName = computedTier === 'free' ? 'Starter Collection' : 'Pro Collection'
+          }
+
+          t.computed_tier = computedTier
+          t.computed_pack_name = packName
+          processedTemplates.push(t)
+
+          if (!packMap.has(packName)) {
+            packMap.set(packName, {
+              name: packName,
+              cover_image_url: t.image_url || null, 
+              price_tier: computedTier, 
+              templates: []
+            })
+          }
+          
+          if (TIER_WEIGHTS[computedTier] > TIER_WEIGHTS[packMap.get(packName)!.price_tier]) {
+             packMap.get(packName)!.price_tier = computedTier
+          }
+          
+          packMap.get(packName)!.templates.push(t)
+        })
+
+        setAllTemplates(processedTemplates)
+        setPacks(Array.from(packMap.values()))
+      }
+
+      if (isMounted) setIsLoadingCore(false)
     }
 
-    fetchTemplates()
+    fetchCoreData()
     return () => { isMounted = false }
-  }, [supabase, bgType])
+  }, [supabase])
+
+  // 2. Compute Filtered & SMART SORTED Data
+  const lowercaseQuery = searchQuery.toLowerCase().trim()
+  
+  const sortUnlockedFirst = (aAccess: boolean, bAccess: boolean) => {
+    if (aAccess && !bAccess) return -1
+    if (!aAccess && bAccess) return 1
+    return 0
+  }
+
+  const sortedTemplates = allTemplates
+    .filter(t => t.name.toLowerCase().includes(lowercaseQuery) || (t.computed_pack_name?.toLowerCase().includes(lowercaseQuery)))
+    .sort((a, b) => sortUnlockedFirst(canAccessPack(userTier, a.computed_tier || 'free'), canAccessPack(userTier, b.computed_tier || 'free')))
+
+  const sortedPacks = packs
+    .filter(p => p.name.toLowerCase().includes(lowercaseQuery))
+    .sort((a, b) => sortUnlockedFirst(canAccessPack(userTier, a.price_tier), canAccessPack(userTier, b.price_tier)))
+
+  const filteredFavorites = favorites.filter(t => t.name.toLowerCase().includes(lowercaseQuery))
+
+  // 3. Action Handlers
+  const handleSelectTemplate = (template: Template) => {
+    setBgType('template')
+    setSelectedTemplate(template)
+    setActivePack(null)
+  }
+
+  const handleLockedClick = (template: Template) => {
+    const parentPack = packs.find(p => p.name === template.computed_pack_name)
+    if (parentPack) setActivePack(parentPack)
+  }
 
   const handlePreview = () => {
     if (!quoteText.trim()) return
-
     const params = new URLSearchParams({ quote: quoteText, bgType: bgType })
 
     if (targetId) params.append('targetId', targetId)
@@ -111,163 +204,272 @@ function WriteQuoteForm() {
     
     if (bgType === 'template' && selectedTemplate) {
       params.append('templateId', selectedTemplate.id)
-      params.append('templateGradient', selectedTemplate.style_config.gradient)
-    if (selectedTemplate.style_config?.gradient) {
-        params.append('templateGradient', selectedTemplate.style_config.gradient)
-      }
-      
-      if (selectedTemplate.image_url) {
-        params.append('templateImageUrl', selectedTemplate.image_url)
-      }
+      if (selectedTemplate.style_config?.gradient) params.append('templateGradient', selectedTemplate.style_config.gradient)
+      if (selectedTemplate.image_url) params.append('templateImageUrl', selectedTemplate.image_url)
     }
 
     router.push(`/create/preview?${params.toString()}`)
   }
 
-  return (
-    <div className="flex flex-col pt-6 px-4 w-full max-w-lg mx-auto min-h-[calc(100vh-120px)] pb-6">
-      
-      {/* Header */}
-      <div className="relative text-center mb-6 shrink-0">
-        <button 
-          onClick={() => router.back()}
-          title="Go Back"
-          className="absolute left-0 top-0 p-2 hover:bg-slate-100 rounded-full transition"
-        >
-          <ArrowLeft className="w-8 h-8 text-black" />
-        </button>
-        <h1 className="text-3xl font-black text-black leading-tight">PinQuo</h1>
-        <p className="text-slate-500 font-bold text-sm mt-1">Quoting {displayTarget}</p>
-      </div>
+  const isFormValid = quoteText.trim().length > 0 && (bgType !== 'template' || !!selectedTemplate)
+  const isPackLocked = activePack && !canAccessPack(userTier, activePack.price_tier)
 
-      <div className="flex-1 flex flex-col items-center justify-start gap-4 w-full">
+  const renderTemplateCard = (template: Template) => {
+    const isSelected = bgType === 'template' && selectedTemplate?.id === template.id
+    const itemTier = template.computed_tier || 'free'
+    const isLocked = !canAccessPack(userTier, itemTier)
+
+    return (
+      <button
+        key={template.id}
+        onClick={() => isLocked ? handleLockedClick(template) : handleSelectTemplate(template)}
+        className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] overflow-hidden snap-start transition-all duration-200 group ${
+          isSelected 
+            ? 'ring-4 ring-emerald-400 scale-[1.02] shadow-lg z-10' 
+            : isLocked 
+              ? 'grayscale opacity-60 hover:opacity-80 border-2 border-slate-200' 
+              : 'opacity-90 hover:opacity-100 border border-slate-200 shadow-sm'
+        }`}
+      >
+        {template.image_url ? (
+          <img src={template.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" crossOrigin="anonymous"/>
+        ) : (
+          <div className={`absolute inset-0 bg-linear-to-br ${template.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
+        )}
         
-        {/* SNAP PRO */}
-        <div className="flex flex-col items-center w-full opacity-50 shrink-0">
-          <button 
-            type="button" disabled
-            className="w-full flex flex-col items-center justify-center gap-1 bg-slate-50 text-slate-400 font-black py-4 px-4 rounded-[28px] text-base border-2 border-dashed border-slate-200 cursor-not-allowed shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <Camera className="w-6 h-6" strokeWidth={2.5} />
-              <span>Snap Live-Photo (PRO)</span>
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Coming in v2.0</span>
-          </button>
-        </div>
-
-        <div className="text-slate-400 font-black text-xs uppercase tracking-widest shrink-0 mt-1">Or</div>
-
-        {/* AVATAR OPTION */}
-        {isExistingUser && (
-          <div className="w-full flex flex-col items-center shrink-0">
-            <button
-              type="button"
-              onClick={() => setBgType('avatar')}
-              className={`w-full py-4 px-4 rounded-[28px] font-black text-base transition-all ${
-                bgType === 'avatar' 
-                  ? 'bg-[#bbf7d0] text-emerald-950 shadow-md ring-4 ring-emerald-200' 
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              Use Quoted Users Avatar
-            </button>
-            <div className="text-slate-400 font-black text-xs uppercase tracking-widest shrink-0 mt-5">Or</div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+        
+        {isLocked && (
+          <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-md p-1.5 rounded-full border border-white/20 shadow-sm">
+            <Lock className="w-3 h-3 text-white" />
           </div>
         )}
 
-        {/* NEW TEMPLATE CAROUSEL */}
-        <div className="w-full flex flex-col items-center shrink-0 mt-2">
-          <p className="text-xl font-black text-slate-800 mb-4">Choose template</p>
-          
-          {isLoadingTemplates ? (
-            <Loader2 className="w-8 h-8 animate-spin text-slate-300 my-4" />
-          ) : templates.length > 0 ? (
-            <div className="w-full relative max-w-md mx-auto">
-              
-              {/* Horizontal Scrollable Carousel */}
-              <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-4 px-2 items-center">
-                {templates.map((template) => {
-                  const isSelected = bgType === 'template' && selectedTemplate?.id === template.id
-                  const gradient = template.style_config?.gradient || 'from-slate-200 to-slate-300'
-                  
-                  return (
-                    <button
-                      key={template.id}
-                      onClick={() => { setBgType('template'); setSelectedTemplate(template) }}
-                      className={`relative shrink-0 w-28 h-28 sm:w-32 sm:h-32 rounded-3xl overflow-hidden snap-center transition-all duration-200 ${
-                        isSelected 
-                          ? 'ring-4 ring-emerald-400 scale-105 shadow-lg' 
-                          : 'opacity-70 hover:opacity-100 scale-95 border-2 border-slate-100'
-                      }`}
-                    >
-                      {/* Render Image from Bucket, fallback to style_config gradient */}
-                      {template.image_url ? (
-                        <img 
-                          src={template.image_url} 
-                          alt={template.name}
-                          className="absolute inset-0 w-full h-full object-cover"
-                          crossOrigin="anonymous"
-                        />
-                      ) : (
-                        <div className={`absolute inset-0 bg-linear-to-br ${gradient}`}></div>
-                      )}
-
-                      {/* Dynamic Badges for Owned Templates */}
-                      {template.access_tier === 'pro' && (
-                        <div className="absolute top-2 right-2 bg-yellow-500/90 backdrop-blur-md text-yellow-950 text-[9px] font-black px-2 py-1 rounded-full z-10 shadow-sm border border-yellow-300">
-                          PRO
-                        </div>
-                      )}
-                      {template.access_tier === 'premium' && (
-                        <div className="absolute top-2 right-2 bg-purple-600/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-full z-10 shadow-sm border border-purple-400">
-                          EXCLUSIVE
-                        </div>
-                      )}
-                      
-                      {/* Name Label */}
-                      <div className={`absolute bottom-0 left-0 w-full p-2 text-center text-[10px] sm:text-xs font-black uppercase tracking-wide truncate backdrop-blur-md z-10 transition-colors ${
-                        isSelected ? 'bg-emerald-400/90 text-emerald-950' : 'bg-white/80 text-slate-700'
-                      }`}>
-                        {template.name}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ) : (
-            <p className="text-slate-400 font-bold text-sm">No templates found.</p>
-          )}
+        <div className="absolute bottom-0 left-0 w-full p-2 text-center text-[9px] font-black uppercase tracking-wide text-white truncate drop-shadow-md">
+          {template.name}
         </div>
+      </button>
+    )
+  }
 
-        {/* QUOTE INPUT SECTION */}
-        <div className="w-full mt-4 shrink-0">
-          <p className="text-xl font-black text-slate-800 mb-3 text-center">Quote:</p>
-          <div className="relative w-full bg-slate-100 rounded-[36px] p-6 pb-24 shadow-inner">
-            <span className="absolute top-5 left-6 text-5xl font-serif text-slate-300">&ldquo;</span>
+  return (
+    <div className="flex flex-col pt-6 w-full max-w-2xl mx-auto min-h-[100dvh] bg-[#f8fafc] relative">
+      
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 px-4">
+        <button onClick={() => router.back()} className="p-2 hover:bg-slate-200 rounded-full transition text-slate-700 -ml-2">
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+        <div className="flex flex-col items-center">
+          <h1 className="text-xl font-black text-slate-900">PinQuo</h1>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Editor</p>
+        </div>
+        <div className="w-10"></div>
+      </div>
+
+      <div className="flex-1 flex flex-col w-full z-10">
+        
+        {/* Quote Input Area */}
+        <div className="px-4 mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm font-bold text-slate-800 ml-1">What did <span className="text-emerald-600">{displayTarget}</span> say?</label>
+          </div>
+          <div className="relative w-full bg-white rounded-[32px] p-6 shadow-[0_2px_15px_rgb(0,0,0,0.03)] border border-slate-100 focus-within:border-emerald-300 focus-within:ring-4 focus-within:ring-emerald-100 transition-all">
+            <span className="absolute top-4 left-4 text-4xl font-serif font-black text-slate-200 select-none">“</span>
             <textarea
               value={quoteText}
               onChange={(e) => setQuoteText(e.target.value)}
               placeholder="Type the quote here..."
-              className="w-full h-20 bg-transparent text-slate-900 text-xl resize-none focus:outline-none placeholder:text-slate-400 pl-12 pr-8 pt-2 leading-relaxed font-semibold"
+              className="w-full h-28 bg-transparent text-slate-900 text-xl md:text-2xl font-medium resize-none focus:outline-none placeholder:text-slate-300 px-6 py-2 leading-snug"
             />
-            <span className="absolute bottom-[85px] right-6 text-5xl font-serif text-slate-300">&rdquo;</span>
+            <span className="absolute bottom-2 right-4 text-4xl font-serif font-black text-slate-200 select-none">”</span>
+          </div>
+        </div>
 
-            <div className="absolute bottom-6 left-0 right-0 flex justify-center z-20">
-              <button
-                onClick={handlePreview}
-                disabled={quoteText.trim().length === 0 || (bgType === 'template' && !selectedTemplate)}
-                className="bg-[#bbf7d0] text-emerald-950 font-black py-4 px-16 rounded-full disabled:opacity-50 transition hover:bg-[#a7f3d0] active:scale-95 shadow-sm text-lg"
-              >
-                Preview
-              </button>
+        {/* Backgrounds Section */}
+        <div className="w-full flex flex-col">
+          <div className="px-4 flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-slate-800" />
+              <h3 className="text-lg font-black text-slate-900">Backgrounds</h3>
             </div>
+          </div>
+
+          <div className="px-4 mb-4">
+            <div className="relative w-full group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+              <input 
+                type="text" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search templates, packs, or vibes..." 
+                className="w-full bg-white border border-slate-200 rounded-full py-3 pl-11 pr-4 text-sm font-medium focus:outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 transition-all shadow-sm"
+              />
+            </div>
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex gap-2 overflow-x-auto px-4 pb-2 no-scrollbar">
+            {(['all', 'favorites', 'packs'] as FilterState[]).map(filter => (
+              <button 
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={`shrink-0 px-5 py-2 rounded-full text-sm font-bold transition-all border ${
+                  activeFilter === filter 
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
+                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </button>
+            ))}
+          </div>
+          
+          {/* HORIZONTAL CAROUSEL (Flattened & Scrolling naturally) */}
+          <div className="relative w-full flex overflow-x-auto snap-x snap-mandatory pt-4 pb-8 px-4 gap-3 no-scrollbar items-center">
+            
+            {/* 1. Live Snap (Locked) */}
+            <div className="relative shrink-0 w-[100px] h-[130px] rounded-[20px] border-2 border-dashed border-slate-300 bg-white/50 flex flex-col items-center justify-center opacity-60 snap-start cursor-not-allowed">
+              <Camera className="w-6 h-6 text-slate-400 mb-2" strokeWidth={2.5} />
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center leading-tight">Live<br/>Snap</span>
+              <div className="absolute -top-2 right-0 bg-slate-300 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-white">v2.0</div>
+            </div>
+
+            {/* 2. Quoted User Avatar */}
+            {isExistingUser && (
+              <button
+                onClick={() => setBgType('avatar')}
+                className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] flex flex-col items-center justify-center snap-start transition-all duration-200 ${
+                  bgType === 'avatar' ? 'ring-4 ring-emerald-400 scale-[1.02] shadow-md bg-emerald-50 border-none' : 'bg-white border-2 border-slate-200 shadow-sm opacity-90 hover:opacity-100'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${bgType === 'avatar' ? 'bg-emerald-200 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                  <UserIcon className="w-5 h-5" />
+                </div>
+                <span className={`text-[10px] font-black uppercase tracking-widest text-center leading-tight ${bgType === 'avatar' ? 'text-emerald-800' : 'text-slate-500'}`}>Use<br/>Avatar</span>
+              </button>
+            )}
+
+            {/* The Vertical Divider */}
+            <div className="shrink-0 w-[2px] h-20 bg-slate-200 mx-1 rounded-full"></div>
+
+            {/* Scrolling Dynamic Assets */}
+            {isLoadingCore ? (
+              <div className="w-[100px] h-[130px] flex items-center justify-center shrink-0">
+                <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+              </div>
+            ) : (
+              <>
+                {/* RENDER ALL TEMPLATES */}
+                {activeFilter === 'all' && sortedTemplates.map(renderTemplateCard)}
+                
+                {/* RENDER FAVORITES */}
+                {activeFilter === 'favorites' && filteredFavorites.length === 0 && (
+                  <div className="w-[200px] text-sm font-bold text-slate-400 text-center flex items-center justify-center">No favorites pinned yet.</div>
+                )}
+                {activeFilter === 'favorites' && filteredFavorites.map(renderTemplateCard)}
+
+                {/* RENDER PACKS */}
+                {activeFilter === 'packs' && sortedPacks.map(pack => {
+                  const isLocked = !canAccessPack(userTier, pack.price_tier)
+                  return (
+                    <button
+                      key={`pack-${pack.name}`}
+                      onClick={() => setActivePack(pack)}
+                      className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] overflow-hidden snap-start transition-all duration-200 border-2 border-slate-200 group ${isLocked ? 'grayscale opacity-70 hover:opacity-90' : 'shadow-sm hover:shadow-md'}`}
+                    >
+                      {pack.cover_image_url ? (
+                        <img src={pack.cover_image_url} alt="" className="absolute inset-0 w-full h-full object-cover" crossOrigin="anonymous" />
+                      ) : (
+                        <div className="absolute inset-0 bg-slate-200"></div>
+                      )}
+                      <div className="absolute top-1.5 left-1.5 right-1.5 bottom-1.5 border border-white/40 rounded-xl pointer-events-none z-10"></div>
+                      
+                      {isLocked ? (
+                        <div className="absolute inset-0 bg-slate-900/50 flex flex-col items-center justify-center z-20">
+                          <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-full mb-1 border border-white/10">
+                            <Lock className="w-3 h-3 text-white" />
+                          </div>
+                          <span className="text-[9px] font-black text-white uppercase tracking-widest mt-1 text-center leading-tight drop-shadow-md">{pack.name}</span>
+                        </div>
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col items-center justify-end pb-2 z-20">
+                          <span className="text-[10px] font-black text-white uppercase tracking-widest drop-shadow-md text-center leading-tight px-1">{pack.name}</span>
+                          <span className="text-[7px] font-bold text-slate-300 uppercase mt-0.5">{pack.templates.length} Items</span>
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </>
+            )}
           </div>
         </div>
 
       </div>
       
+      {/* Native Action Button (Sits at bottom, perfectly scrollable) */}
+        <div className="mt-auto w-full px-4 pt-6 pb-8">
+          <button
+            onClick={handlePreview}
+            disabled={!isFormValid}
+            className="w-full bg-[#bbf7d0] text-emerald-950 hover:bg-[#86efac] active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-[#bbf7d0] disabled:active:scale-100 font-black text-xl py-4 px-6 rounded-full transition-all duration-200 shadow-lg shadow-emerald-200/50 border-4 border-emerald-200 flex items-center justify-center"
+          >
+            Preview & Publish
+          </button>
+            
+        </div>
+
+      {/* BOTTOM SHEET DRAWER */}
+      <div 
+        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300 ${activePack ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        onClick={() => setActivePack(null)}
+      ></div>
+      
+      <div className={`fixed bottom-0 left-0 right-0 ${isPackLocked ? 'h-auto pb-8' : 'h-[70vh]'} bg-white rounded-t-[40px] z-50 transition-transform duration-300 ease-in-out flex flex-col shadow-2xl ${activePack ? 'translate-y-0' : 'translate-y-full'}`}>
+        
+        <div className="flex items-center justify-between p-6 pb-2 border-b border-slate-100 shrink-0">
+          <div className="flex flex-col">
+            <h2 className="text-xl font-black text-slate-900">{activePack?.name}</h2>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              {activePack?.price_tier === 'free' ? 'Free Collection' : `${activePack?.price_tier} Collection`}
+            </span>
+          </div>
+          <button onClick={() => setActivePack(null)} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full transition text-slate-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 no-scrollbar relative">
+          
+          {isPackLocked ? (
+            <div className="flex flex-col items-center justify-center p-6 text-center">
+              <div className="w-16 h-16 bg-yellow-50 text-yellow-500 rounded-full flex items-center justify-center mb-4 border border-yellow-100">
+                <Lock className="w-8 h-8" />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 mb-2">Unlock {activePack?.name}</h3>
+              <p className="text-slate-500 font-medium mb-8">Upgrade to <span className="font-bold text-slate-700 capitalize">{activePack?.price_tier}</span> to use this template and 100+ more.</p>
+              
+              <button 
+                onClick={() => router.push('/settings')} 
+                className="w-full max-w-[250px] bg-[#ffcc00] text-yellow-950 font-black py-4 px-6 rounded-full shadow-sm hover:scale-105 transition-transform uppercase tracking-wide mb-5"
+              >
+                Upgrade to {activePack?.price_tier}
+              </button>
+
+              <div className="h-px w-3/4 bg-slate-100 mb-4"></div>
+              
+              <p className="text-sm font-bold text-slate-400">
+                Or buy this specific pack in the <button onClick={() => router.push('/store')} className="text-emerald-500 hover:underline">Store</button>
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3 pb-24">
+              {activePack?.templates.map(renderTemplateCard)}
+            </div>
+          )}
+        </div>
+      </div>
       <div className="hidden">{TAILWIND_SAFELIST}</div>
     </div>
   )
@@ -275,7 +477,7 @@ function WriteQuoteForm() {
 
 export default function WriteQuotePage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-slate-500 text-lg font-bold">Loading editor...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-slate-300" /></div>}>
       <WriteQuoteForm />
     </Suspense>
   )
