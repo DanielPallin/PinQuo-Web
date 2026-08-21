@@ -35,7 +35,7 @@ type RawQuoteData = {
   custom_author_name: string | null
   publisher: { id: string, username: string } | null
   quoted_user: { username: string, avatar_url: string | null } | null
-  template: { style_config: { gradient: string, baseColor: string } } | null
+  template: { style_config: { gradient?: string, baseColor?: string }, image_url: string | null } | null
   reactions: { reaction_type: string, user_id: string, comment_id: string | null }[] | null
   favorites: { user_id: string }[] | null
   comments: { count: number }[] | null
@@ -88,10 +88,11 @@ export default function PublishedPage() {
           id, content, created_at, quoted_email, custom_author_name,
           publisher:profiles!quotes_publisher_id_fkey(id, username),
           quoted_user:profiles!quotes_quoted_user_id_fkey(username, avatar_url),
-          template:templates(style_config),
+          template:templates(style_config, image_url),
           reactions(reaction_type, user_id, comment_id),
           favorites(user_id),
           comments(count)
+          .order('created_at', { ascending: false })
         `)
         .eq('publisher_id', profileData.id)
         .order('created_at', { ascending: false })
@@ -308,23 +309,41 @@ export default function PublishedPage() {
           <div className="text-center mt-10"><p className="text-slate-400 font-bold">No quotes found.</p></div>
         ) : (
           <div className="grid grid-cols-3 gap-2 w-full">
-            {quotes.map((quote) => {
-              const isAvatarBg = !quote.template
-              const targetAvatarUrl = quote.quoted_user?.avatar_url
-              const bgGradient = isAvatarBg ? 'from-slate-800 to-slate-900' : quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300'
+            {quotes.map((quote) => (
+  <Link 
+    key={quote.id} 
+    href={`/feed?quoteId=${quote.id}`}
+    className="relative aspect-square rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95"
+  >
+    {/* 1. The Bucket Image */}
+    {quote.template?.image_url && (
+      <img 
+        src={quote.template.image_url} 
+        alt="Quote" 
+        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+      />
+    )}
+    
+    {/* 2. Fallback Gradient (If no image exists) */}
+    {!quote.template?.image_url && (
+      <div className={`absolute inset-0 bg-linear-to-br ${quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
+    )}
 
-              return (
-                <button 
-                  key={quote.id}
-                  title="Published Quotes"
-                  onClick={() => setExpandedQuote(quote)}
-                  className="w-full aspect-square rounded-[18px] bg-linear-to-br shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-transform relative overflow-hidden cursor-pointer"
-                  style={{ backgroundImage: isAvatarBg && targetAvatarUrl ? `url(${targetAvatarUrl})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}
-                >
-                  {!isAvatarBg && <div className={`absolute inset-0 bg-linear-to-br ${bgGradient}`} />}
-                </button>
-              )
-            })}
+    {/* 3. Avatar Fallback (For legacy quotes) */}
+    {!quote.template && quote.quoted_user?.avatar_url && (
+      <img 
+        src={quote.quoted_user.avatar_url} 
+        alt="Avatar" 
+        className="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-overlay" 
+      />
+    )}
+
+    {/* 4. Cinematic Overlay & Quote Hint */}
+    <div className="absolute inset-0 bg-slate-900/10 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
+      <span className="text-white/60 font-serif text-3xl font-black mb-3 select-none drop-shadow-md">“ ”</span>
+    </div>
+  </Link>
+))}
           </div>
         )}
       </div>

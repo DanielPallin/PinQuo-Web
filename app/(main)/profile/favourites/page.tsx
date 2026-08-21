@@ -34,7 +34,7 @@ type RawQuoteData = {
   custom_author_name: string | null
   publisher: { id: string, username: string } | null
   quoted_user: { username: string, avatar_url: string | null } | null
-  template: { style_config: { gradient: string, baseColor: string } } | null
+  template: { style_config: { gradient?: string, baseColor?: string }, image_url: string | null } | null
   reactions: { reaction_type: string, user_id: string, comment_id: string | null }[] | null
   favorites: { user_id: string }[] | null
   comments: { count: number }[] | null
@@ -42,6 +42,33 @@ type RawQuoteData = {
 
 type RawFavoriteRow = {
   quote: RawQuoteData | null
+}
+
+const formatQuote = (quote: RawQuoteData, currentUserId: string): FeedQuote => {
+  const reactions: Record<string, GroupedReaction> = {}
+
+  quote.reactions?.forEach(reaction => {
+    if (reaction.comment_id) return
+    if (!reactions[reaction.reaction_type]) {
+      reactions[reaction.reaction_type] = {
+        emoji: reaction.reaction_type,
+        count: 0,
+        hasReacted: false
+      }
+    }
+    reactions[reaction.reaction_type].count++
+    if (reaction.user_id === currentUserId) {
+      reactions[reaction.reaction_type].hasReacted = true
+    }
+  })
+
+  return {
+    ...quote,
+    groupedReactions: Object.values(reactions).sort((a, b) => b.count - a.count),
+    isFavorited: quote.favorites?.some(favorite => favorite.user_id === currentUserId) ?? false,
+    favoriteCount: quote.favorites?.length ?? 0,
+    commentCount: quote.comments?.[0]?.count ?? 0
+  }
 }
 
 export default function FavouritesPage() {
@@ -76,14 +103,17 @@ export default function FavouritesPage() {
 
       if (profileData && isMounted) setCurrentUserProfile(profileData)
 
+      // THE FIX: We select 'quote_id', and then nest all the quote data inside 'quotes(...)'
       const { data, error } = await supabase
         .from('favorites')
         .select(`
-          quote:quotes (
+          quote_id,
+          created_at,
+          quotes (
             id, content, created_at, quoted_email, custom_author_name,
             publisher:profiles!quotes_publisher_id_fkey(id, username),
             quoted_user:profiles!quotes_quoted_user_id_fkey(username, avatar_url),
-            template:templates(style_config),
+            template:templates(style_config, image_url),
             reactions(reaction_type, user_id, comment_id),
             favorites(user_id),
             comments(count)
@@ -92,32 +122,19 @@ export default function FavouritesPage() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      if (data && isMounted) {
-        const rawRows = data as unknown as RawFavoriteRow[]
-        
-        const formattedQuotes: FeedQuote[] = rawRows
-          .filter((row) => row.quote !== null)
-          .map((row) => {
-            const q = row.quote as RawQuoteData
-            const quoteReacts = (q.reactions || []).filter(r => r.comment_id === null)
-            const reactMap: Record<string, GroupedReaction> = {}
-            
-            quoteReacts.forEach((r) => {
-              if (!reactMap[r.reaction_type]) {
-                reactMap[r.reaction_type] = { emoji: r.reaction_type, count: 0, hasReacted: false }
-              }
-              reactMap[r.reaction_type].count++
-              if (user && r.user_id === user.id) reactMap[r.reaction_type].hasReacted = true
-            })
+      if (error) {
+        console.error("Error fetching favorites:", error)
+        return
+      }
 
-            return {
-              ...q,
-              groupedReactions: Object.values(reactMap).sort((a, b) => b.count - a.count),
-              commentCount: q.comments?.[0]?.count || 0,
-              favoriteCount: (q.favorites || []).length,
-              isFavorited: true
-            }
-          })
+      if (data && isMounted) {
+        // We map over the favorites, extract the inner 'quotes' object, and filter out any nulls
+        const rawFavoriteQuotes = data
+          .map(fav => fav.quotes)
+          .filter(Boolean) as unknown as RawQuoteData[]
+
+        // We run it through your formatQuote function just like the Feed does!
+        const formattedQuotes = rawFavoriteQuotes.map(q => formatQuote(q, user.id))
 
         setQuotes(formattedQuotes)
       } else if (error) {
@@ -273,25 +290,44 @@ export default function FavouritesPage() {
       {/* Grid */}
       <div className="px-6 w-full">
         {quotes.length === 0 ? (
-          <div className="text-center mt-10"><p className="text-slate-400 font-bold">Inga favoritmarkerade quotes ännu.</p></div>
+          <div className="text-center mt-10"><p className="text-slate-400 font-bold">Your favourite-marked Quotes will show here.</p></div>
         ) : (
           <div className="grid grid-cols-3 gap-2 w-full">
-            {quotes.map((quote) => {
-              const isAvatarBg = !quote.template
-              const targetAvatarUrl = quote.quoted_user?.avatar_url
-              const bgGradient = isAvatarBg ? 'from-slate-800 to-slate-900' : quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300'
-              
-              return (
-                <button 
-                  key={quote.id}
-                  onClick={() => setExpandedQuote(quote)}
-                  className="w-full aspect-square rounded-[18px] bg-linear-to-br shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-transform relative overflow-hidden cursor-pointer"
-                  style={{ backgroundImage: isAvatarBg && targetAvatarUrl ? `url(${targetAvatarUrl})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}
-                >
-                  {!isAvatarBg && <div className={`absolute inset-0 bg-linear-to-br ${bgGradient}`} />}
-                </button>
-              )
-            })}
+            {quotes.map((quote) => (
+  <Link 
+    key={quote.id} 
+    href={`/feed?quoteId=${quote.id}`}
+    className="relative aspect-square rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95"
+  >
+    {/* 1. The Bucket Image */}
+    {quote.template?.image_url && (
+      <img 
+        src={quote.template.image_url} 
+        alt="Quote" 
+        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+      />
+    )}
+    
+    {/* 2. Fallback Gradient (If no image exists) */}
+    {!quote.template?.image_url && (
+      <div className={`absolute inset-0 bg-linear-to-br ${quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
+    )}
+
+    {/* 3. Avatar Fallback (For legacy quotes) */}
+    {!quote.template && quote.quoted_user?.avatar_url && (
+      <img 
+        src={quote.quoted_user.avatar_url} 
+        alt="Avatar" 
+        className="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-overlay" 
+      />
+    )}
+
+    {/* 4. Cinematic Overlay & Quote Hint */}
+    <div className="absolute inset-0 bg-slate-900/10 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
+      <span className="text-white/60 font-serif text-3xl font-black mb-3 select-none drop-shadow-md">“ ”</span>
+    </div>
+  </Link>
+))}
           </div>
         )}
       </div>
