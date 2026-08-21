@@ -14,8 +14,8 @@ export type FeedQuote = {
   created_at: string
   quoted_email: string | null
   custom_author_name: string | null
-  publisher: { id: string, username: string } | null
-  quoted_user: { username: string, avatar_url: string | null } | null
+  publisher: { id: string, username: string, avatar_url: string | null } | null
+  quoted_user: { id: string, username: string, avatar_url: string | null } | null
   template: { 
     style_config: { 
       gradient?: string; 
@@ -136,8 +136,12 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
       {/* Publisher Header */}
       <div className={`flex items-center justify-between mb-4 px-2 ${isExpanded ? 'pt-6 px-6' : ''}`}>
         <div className="flex items-center gap-3">
-          <Link href={`/${publisherName}`} className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden border border-slate-300">
-            <User className="w-6 h-6 text-slate-400" />
+          <Link href={`/${publisherName}`} className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden border border-slate-300 shrink-0">
+            {quote.publisher?.avatar_url ? (
+              <img src={quote.publisher.avatar_url} alt={publisherName} className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-6 h-6 text-slate-400" />
+            )}
           </Link>
           <p className="text-slate-500 font-medium text-sm">
             Published by <Link href={`/${publisherName}`} className="font-bold text-slate-800 hover:text-black hover:underline">{publisherName}</Link>
