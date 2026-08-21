@@ -27,10 +27,9 @@ type RawQuoteData = {
   created_at: string
   quoted_email: string | null
   custom_author_name: string | null
-  image_url: string | null
   publisher: { id: string, username: string } | null
   quoted_user: { username: string, avatar_url: string | null } | null
-  template: { style_config: { gradient: string, baseColor: string }, image_url } | null
+  template: { style_config: { gradient?: string, baseColor?: string }, image_url: string | null } | null
   reactions: { reaction_type: string, user_id: string, comment_id: string | null }[] | null
   favorites: { user_id: string }[] | null
   comments: { count: number }[] | null

@@ -17,7 +17,13 @@ export type FeedQuote = {
   custom_author_name: string | null
   publisher: { id: string, username: string } | null
   quoted_user: { username: string, avatar_url: string | null } | null
-  template: { style_config: { gradient: string, baseColor: string }, image_url?: string } | null
+  template: { 
+    style_config: { 
+      gradient?: string; 
+      baseColor?: string 
+    }; 
+    image_url: string | null 
+  } | null
   groupedReactions: GroupedReaction[]
   commentCount: number
   favoriteCount: number
@@ -132,21 +138,18 @@ const bgGradient = quote.template?.style_config?.gradient || 'from-slate-200 to-
         </div>
       </div>
 
-      {/* The Graphic (Ultra-Compact in Modal Mode) */}
+      {/* The Graphic */}
       <div 
         ref={cardGraphicRef}
         onClick={(e) => { e.stopPropagation(); if (!isExpanded && onExpand) onExpand(quote) }}
         className={`w-full bg-white rounded-[32px] overflow-hidden flex flex-col border border-slate-100 relative ${!isExpanded ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-lg' : 'shadow-sm'}`}
       >
-        {/* Aggressively shrink the top image/gradient from h-48 to h-12 in the modal */}
         <div className={`relative w-full ${isExpanded ? 'h-12' : 'h-48'} shrink-0 pointer-events-none transition-all duration-300`}>
           
-          {/* 1. The Bucket Image */}
           {quote.template?.image_url && (
             <img src={quote.template.image_url} alt="Bg" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover" />
           )}
 
-          {/* 2. Dynamic Cinematic Filters (Only applies if an image exists) */}
           {quote.template?.image_url && (
              <>
                <div className="absolute inset-0 bg-slate-900/30 mix-blend-multiply"></div>
@@ -154,36 +157,29 @@ const bgGradient = quote.template?.style_config?.gradient || 'from-slate-200 to-
              </>
           )}
 
-          {/* 3. Fallback CSS Gradient (If no template image exists) */}
           {!quote.template?.image_url && (
             <div className={`absolute inset-0 bg-linear-to-br ${bgGradient}`}></div>
           )}
 
-          {/* 4. Avatar Mode */}
           {!quote.template && targetAvatarUrl && (
             <div className="absolute inset-0 mix-blend-overlay">
               <img src={targetAvatarUrl} alt="Bg" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover opacity-80" />
             </div>
           )}
 
-          {/* 5. The Bottom Fade */}
           <div className={`absolute bottom-0 left-0 w-full ${isExpanded ? 'h-12' : 'h-32'} bg-gradient-to-t from-white via-white/90 to-transparent`}></div>
         </div>
         
-        {/* Shrink paddings, text sizes, and quote marks drastically */}
         <div className={`relative bg-white px-5 ${isExpanded ? 'pb-4 pt-0 -mt-2' : 'pb-8 pt-2 -mt-10'} flex flex-col items-center text-center z-10 pointer-events-none transition-all duration-300`}>
           
-          {/* Quote Marks shrink from 70px to 36px */}
           <div className={`${isExpanded ? 'text-[36px] mb-0' : 'text-[70px] mb-1'} font-serif font-black text-slate-800 leading-none select-none`}>
             “ ”
           </div>
           
-          {/* Force the quote text to be much smaller in the modal */}
           <p className={`font-medium text-slate-900 leading-snug whitespace-pre-wrap px-2 ${isExpanded ? 'text-[17px]' : getQuoteFontSize(quote.content)}`}>
             {quote.content}
           </p>
           
-          {/* Shrink author details and hide the @handle to save more space */}
           <div className={`w-full ${isExpanded ? 'mt-3' : 'mt-6'} flex flex-col items-center`}>
             <div className={`w-12 h-[3px] bg-slate-800 rounded-full ${isExpanded ? 'mb-1.5' : 'mb-3'}`}></div>
             <p className={`${isExpanded ? 'text-base' : 'text-lg'} font-bold tracking-wide ${(!isRegisteredUser && !quote.custom_author_name) ? 'text-slate-400 italic font-medium' : 'text-slate-900'}`}>
@@ -208,6 +204,35 @@ const bgGradient = quote.template?.style_config?.gradient || 'from-slate-200 to-
           <span className="text-[14px] text-slate-400 font-medium group-hover:text-slate-500 transition-colors">
              comment...
           </span>
+        </div>
+      )}
+
+      {/* RESTORED ACTION BAR (Fixes the Unused Variables Error!) */}
+      {!isExpanded && (
+        <div className="flex items-center justify-between mt-3 px-2">
+          <div className="flex items-center gap-1">
+            {/* Favorite Button */}
+            <button onClick={(e) => { e.stopPropagation(); onFavorite(quote.id); }} className="p-2 hover:bg-slate-50 rounded-full transition group">
+              <Star className={`w-5 h-5 transition-colors ${quote.isFavorited ? 'fill-yellow-400 text-yellow-400' : 'text-slate-400 group-hover:text-yellow-400'}`} />
+            </button>
+            
+            {/* Emoji Reaction Picker */}
+            <div className="relative" ref={pickerRef}>
+              <button onClick={(e) => { e.stopPropagation(); setShowEmojiPicker(!showEmojiPicker); }} className="p-2 hover:bg-slate-50 rounded-full transition group">
+                <SmilePlus className="w-5 h-5 text-slate-400 group-hover:text-emerald-500" />
+              </button>
+              {showEmojiPicker && (
+                <div className="absolute z-50 bottom-full left-0 mb-2 shadow-xl rounded-2xl overflow-hidden border border-slate-100 bg-white">
+                  <CustomEmojiPicker onEmojiClick={handleReactionSelection} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Export Button */}
+          <button onClick={handleExport} disabled={isExporting} className="p-2 hover:bg-slate-50 rounded-full transition group disabled:opacity-50">
+            {isExporting ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : <Share2 className="w-5 h-5 text-slate-400 group-hover:text-blue-500" />}
+          </button>
         </div>
       )}
     </div>
