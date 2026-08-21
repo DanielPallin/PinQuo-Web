@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState, useRef } from 'react'
+import { Suspense, useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, User, X, Send, SmilePlus, Search } from 'lucide-react'
@@ -95,6 +95,27 @@ function FeedContent() {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const searchContainerRef = useRef<HTMLDivElement>(null)
 
+  // ==========================================
+  // THE INFINITE SCROLL OBSERVER LOGIC
+  // ==========================================
+  const observer = useRef<IntersectionObserver | null>(null)
+  
+  const bottomBoundaryRef = useCallback((node: HTMLDivElement | null) => {
+    if (isPaginationLoading) return
+    if (observer.current) observer.current.disconnect()
+
+    observer.current = new IntersectionObserver((entries) => {
+      // If the boundary enters the screen, fetch the next page!
+      // rootMargin '200px' ensures it triggers just before the user hits the absolute bottom
+      if (entries[0].isIntersecting && hasMore) {
+        setPage((prev) => prev + 1)
+      }
+    }, { rootMargin: '200px' })
+
+    if (node) observer.current.observe(node)
+  }, [isPaginationLoading, hasMore])
+  // ==========================================
+
   useEffect(() => {
     document.body.style.overflow = expandedQuote ? 'hidden' : 'unset'
     return () => { document.body.style.overflow = 'unset' }
@@ -161,7 +182,11 @@ function FeedContent() {
         const formattedQuotes = rawData.map(q => formatQuote(q, user?.id || null))
 
         if (page === 0) setQuotes(formattedQuotes)
-        else setQuotes((prev) => [...prev, ...formattedQuotes])
+        else setQuotes((prev) => {
+          // Prevent duplicates on strict mode hot reloads by checking IDs
+          const newQuotes = formattedQuotes.filter(newQ => !prev.some(existingQ => existingQ.id === newQ.id))
+          return [...prev, ...newQuotes]
+        })
 
         if (formattedQuotes.length < ITEMS_PER_PAGE) setHasMore(false)
       }
@@ -403,6 +428,7 @@ function FeedContent() {
         <div className="flex justify-center mt-20"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
       ) : (
         <div className="flex flex-col gap-6">
+          
           {/* Feed Cards */}
           {quotes.map((quote) => (
             <QuoteCard 
@@ -414,11 +440,26 @@ function FeedContent() {
             />
           ))}
           
+          {/* 
+            THE INVISIBLE INFINITE SCROLL TRIGGER 
+            When this div enters the screen, the Observer automatically bumps the page!
+          */}
           {hasMore && (
-            <button onClick={() => setPage((p) => p + 1)} disabled={isPaginationLoading} className="w-full py-4 bg-white border-2 border-slate-200/60 rounded-3xl font-black text-slate-600 hover:text-black transition">
-              {isPaginationLoading ? 'Loading...' : 'Load More Quotes'}
-            </button>
+            <div ref={bottomBoundaryRef} className="w-full flex justify-center py-10 mt-4">
+              {isPaginationLoading ? (
+                <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+              ) : (
+                <div className="w-2 h-2 bg-slate-300 rounded-full"></div>
+              )}
+            </div>
           )}
+          
+          {!hasMore && quotes.length > 0 && (
+            <div className="w-full flex justify-center py-10 mt-4">
+               <span className="text-sm font-bold text-slate-400">You're all caught up!</span>
+            </div>
+          )}
+
         </div>
       )}
 
