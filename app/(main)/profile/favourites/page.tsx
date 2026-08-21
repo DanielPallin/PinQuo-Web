@@ -86,6 +86,7 @@ export default function FavouritesPage() {
           reactions(reaction_type, user_id, comment_id),
           favorites(user_id),
           comments(count)
+          .order('created_at', { ascending: false })
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
@@ -271,25 +272,44 @@ export default function FavouritesPage() {
       {/* Grid */}
       <div className="px-6 w-full">
         {quotes.length === 0 ? (
-          <div className="text-center mt-10"><p className="text-slate-400 font-bold">Inga favoritmarkerade quotes ännu.</p></div>
+          <div className="text-center mt-10"><p className="text-slate-400 font-bold">Your favourite-marked Quotes will show here.</p></div>
         ) : (
           <div className="grid grid-cols-3 gap-2 w-full">
-            {quotes.map((quote) => {
-              const isAvatarBg = !quote.template
-              const targetAvatarUrl = quote.quoted_user?.avatar_url
-              const bgGradient = isAvatarBg ? 'from-slate-800 to-slate-900' : quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300'
-              
-              return (
-                <button 
-                  key={quote.id}
-                  onClick={() => setExpandedQuote(quote)}
-                  className="w-full aspect-square rounded-[18px] bg-linear-to-br shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-transform relative overflow-hidden cursor-pointer"
-                  style={{ backgroundImage: isAvatarBg && targetAvatarUrl ? `url(${targetAvatarUrl})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}
-                >
-                  {!isAvatarBg && <div className={`absolute inset-0 bg-linear-to-br ${bgGradient}`} />}
-                </button>
-              )
-            })}
+            {quotes.map((quote) => (
+  <Link 
+    key={quote.id} 
+    href={`/feed?quoteId=${quote.id}`}
+    className="relative aspect-square rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95"
+  >
+    {/* 1. The Bucket Image */}
+    {quote.template?.image_url && (
+      <img 
+        src={quote.template.image_url} 
+        alt="Quote" 
+        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+      />
+    )}
+    
+    {/* 2. Fallback Gradient (If no image exists) */}
+    {!quote.template?.image_url && (
+      <div className={`absolute inset-0 bg-linear-to-br ${quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
+    )}
+
+    {/* 3. Avatar Fallback (For legacy quotes) */}
+    {!quote.template && quote.quoted_user?.avatar_url && (
+      <img 
+        src={quote.quoted_user.avatar_url} 
+        alt="Avatar" 
+        className="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-overlay" 
+      />
+    )}
+
+    {/* 4. Cinematic Overlay & Quote Hint */}
+    <div className="absolute inset-0 bg-slate-900/10 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
+      <span className="text-white/60 font-serif text-3xl font-black mb-3 select-none drop-shadow-md">“ ”</span>
+    </div>
+  </Link>
+))}
           </div>
         )}
       </div>

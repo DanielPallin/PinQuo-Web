@@ -20,7 +20,10 @@ type Profile = {
 
 type MiniQuote = {
   id: string
-  template: { style_config: { gradient: string, baseColor: string } } | null
+  template: { 
+    style_config: { gradient: string, baseColor: string } 
+    image_url: string | null
+  } | null
 }
 
 export default function ProfilePage() {
@@ -78,7 +81,7 @@ export default function ProfilePage() {
 
       const { data: pubData, count: pubCount } = await supabase
         .from('quotes')
-        .select('id, template:templates(style_config)', { count: 'exact' })
+        .select('id, template:templates(style_config,image_url)', { count: 'exact' })
         .eq('publisher_id', user.id)
         .order('created_at', { ascending: false })
         .limit(4)
@@ -90,7 +93,7 @@ export default function ProfilePage() {
 
       const { data: quotedData, count: quotedCount } = await supabase
         .from('quotes')
-        .select('id, template:templates(style_config)', { count: 'exact' })
+        .select('id, template:templates(style_config,image_url)', { count: 'exact' })
         .eq('quoted_user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(4)
@@ -189,16 +192,46 @@ export default function ProfilePage() {
     }
   }
 
-  const renderMiniGrid = (quotes: MiniQuote[], onClick: () => void) => {
-    const slots = [...quotes, ...Array(Math.max(0, 4 - quotes.length)).fill(null)].slice(0, 4)
+  const renderMiniGrid = (quotesToRender: MiniQuote[], onClick: () => void) => {
+    // We always want exactly 4 slots to maintain the perfect 2x2 grid UI
+    const slots = [0, 1, 2, 3];
+
     return (
-      <button onClick={onClick} className="w-full aspect-square bg-slate-100 rounded-[32px] p-3.5 grid grid-cols-2 grid-rows-2 gap-3 hover:scale-105 active:scale-95 transition-all shadow-inner border-[3px] border-slate-50 cursor-pointer">
-        {slots.map((q, i) => {
-          const bgGradient = q?.template?.style_config?.gradient || 'from-slate-200 to-slate-300'
-          return <div key={i} className={`w-full h-full rounded-2xl ${q ? `bg-linear-to-br ${bgGradient} shadow-sm` : 'bg-slate-200/50'}`} />
+      <div 
+        onClick={onClick}
+        className="grid grid-cols-2 gap-2 w-full p-2.5 bg-white border border-slate-100 rounded-[32px] cursor-pointer hover:shadow-md hover:border-slate-200 transition-all active:scale-95 group shadow-sm"
+      >
+        {slots.map((index) => {
+          const quote = quotesToRender[index];
+          
+          // If the user doesn't have enough quotes to fill the grid, render a sleek placeholder
+          if (!quote) {
+            return <div key={`empty-${index}`} className="aspect-square bg-slate-100 rounded-[20px]"></div>;
+          }
+
+          // If they do have a quote, render the dynamic thumbnail!
+          return (
+            <div key={quote.id} className="relative aspect-square rounded-[20px] overflow-hidden bg-slate-200">
+              
+              {/* 1. The Bucket Image */}
+              {quote.template?.image_url && (
+                <img 
+                  src={quote.template.image_url} 
+                  alt="" 
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                />
+              )}
+              
+              {/* 2. Fallback CSS Gradient */}
+              {!quote.template?.image_url && (
+                <div className={`absolute inset-0 bg-linear-to-br ${quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
+              )}
+
+            </div>
+          );
         })}
-      </button>
-    )
+      </div>
+    );
   }
 
   if (isLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
