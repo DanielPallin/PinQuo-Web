@@ -82,7 +82,7 @@ export default function FavouritesPage() {
           id, content, created_at, quoted_email, custom_author_name,
           publisher:profiles!quotes_publisher_id_fkey(id, username),
           quoted_user:profiles!quotes_quoted_user_id_fkey(username, avatar_url),
-          template:templates(style_config, image_url), -- <-- Add image_url here!
+          template:templates(style_config, image_url),
           reactions(reaction_type, user_id, comment_id),
           favorites(user_id),
           comments(count)
