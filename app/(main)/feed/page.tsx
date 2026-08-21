@@ -1,13 +1,11 @@
 'use client'
 
-import { Suspense, useEffect, useState, useRef } from 'react'
+import { Suspense, useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, User, X, Send, SmilePlus, Search } from 'lucide-react'
-import NotificationBell from '@/components/NotificationBell'
 import QuoteCard, { FeedQuote, GroupedReaction } from '@/components/QuoteCard'
 import Link from 'next/link'
-import Image from 'next/image'
 import { EmojiClickData } from 'emoji-picker-react'
 import CustomEmojiPicker from '@/components/CustomEmojiPicker'
 
@@ -27,8 +25,8 @@ type RawQuoteData = {
   created_at: string
   quoted_email: string | null
   custom_author_name: string | null
-  publisher: { id: string, username: string } | null
-  quoted_user: { username: string, avatar_url: string | null } | null
+  publisher: { id: string, username: string, avatar_url: string | null } | null
+  quoted_user: { id: string, username: string, avatar_url: string | null } | null
   template: { style_config: { gradient?: string, baseColor?: string }, image_url: string | null } | null
   reactions: { reaction_type: string, user_id: string, comment_id: string | null }[] | null
   favorites: { user_id: string }[] | null
@@ -97,33 +95,44 @@ function FeedContent() {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const searchContainerRef = useRef<HTMLDivElement>(null)
 
-  // LOCK BODY SCROLL ON MOBILE WHEN MODAL IS OPEN
+  // ==========================================
+  // THE INFINITE SCROLL OBSERVER LOGIC
+  // ==========================================
+  const observer = useRef<IntersectionObserver | null>(null)
+  
+  const bottomBoundaryRef = useCallback((node: HTMLDivElement | null) => {
+    if (isPaginationLoading) return
+    if (observer.current) observer.current.disconnect()
+
+    observer.current = new IntersectionObserver((entries) => {
+      // If the boundary enters the screen, fetch the next page!
+      // rootMargin '200px' ensures it triggers just before the user hits the absolute bottom
+      if (entries[0].isIntersecting && hasMore) {
+        setPage((prev) => prev + 1)
+      }
+    }, { rootMargin: '200px' })
+
+    if (node) observer.current.observe(node)
+  }, [isPaginationLoading, hasMore])
+  // ==========================================
+
   useEffect(() => {
-    if (expandedQuote) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = 'unset'
-    }
-    
-    return () => {
-      document.body.style.overflow = 'unset'
-    }
+    document.body.style.overflow = expandedQuote ? 'hidden' : 'unset'
+    return () => { document.body.style.overflow = 'unset' }
   }, [expandedQuote])
 
-  // ADDED: isMounted flag for fetchSpecificQuote[cite: 16]
   useEffect(() => {
     let isMounted = true
     const fetchSpecificQuote = async () => {
       if (!quoteIdParam) return
-      
       const { data: { user } } = await supabase.auth.getUser()
 
       const { data, error } = await supabase
         .from('quotes')
         .select(`
           id, content, created_at, quoted_email, custom_author_name,
-          publisher:profiles!quotes_publisher_id_fkey(id, username),
-          quoted_user:profiles!quotes_quoted_user_id_fkey(username, avatar_url),
+          publisher:profiles!quotes_publisher_id_fkey(id, username, avatar_url),
+          quoted_user:profiles!quotes_quoted_user_id_fkey(id, username, avatar_url),
           template:templates(style_config, image_url),
           reactions(reaction_type, user_id, comment_id),
           favorites(user_id),
@@ -144,7 +153,6 @@ function FeedContent() {
 
   useEffect(() => {
     let isMounted = true
-
     const fetchFeed = async () => {
       if (page === 0) setIsLoading(true)
       else setIsPaginationLoading(true)
@@ -155,12 +163,12 @@ function FeedContent() {
       const start = page * ITEMS_PER_PAGE
       const end = start + ITEMS_PER_PAGE - 1
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('quotes')
         .select(`
           id, content, created_at, quoted_email, custom_author_name,
-          publisher:profiles!quotes_publisher_id_fkey(id, username),
-          quoted_user:profiles!quotes_quoted_user_id_fkey(username, avatar_url),
+          publisher:profiles!quotes_publisher_id_fkey(id, username, avatar_url),
+          quoted_user:profiles!quotes_quoted_user_id_fkey(id, username, avatar_url),
           template:templates(style_config, image_url),
           reactions(reaction_type, user_id, comment_id),
           favorites(user_id),
@@ -174,7 +182,11 @@ function FeedContent() {
         const formattedQuotes = rawData.map(q => formatQuote(q, user?.id || null))
 
         if (page === 0) setQuotes(formattedQuotes)
-        else setQuotes((prev) => [...prev, ...formattedQuotes])
+        else setQuotes((prev) => {
+          // Prevent duplicates on strict mode hot reloads by checking IDs
+          const newQuotes = formattedQuotes.filter(newQ => !prev.some(existingQ => existingQ.id === newQ.id))
+          return [...prev, ...newQuotes]
+        })
 
         if (formattedQuotes.length < ITEMS_PER_PAGE) setHasMore(false)
       }
@@ -209,7 +221,6 @@ function FeedContent() {
 
   useEffect(() => {
     let active = true
-
     const searchUsers = async () => {
       if (searchQuery.trim().length < 2) {
         setSearchResults([])
@@ -225,21 +236,13 @@ function FeedContent() {
         .limit(5)
 
       if (active) {
-        if (data && !error) {
-          setSearchResults(data as SearchProfile[])
-        }
+        if (data && !error) setSearchResults(data as SearchProfile[])
         setIsSearching(false)
       }
     }
 
-    const delayDebounceFn = setTimeout(() => {
-      void searchUsers()
-    }, 300)
-
-    return () => {
-      active = false
-      clearTimeout(delayDebounceFn)
-    }
+    const delayDebounceFn = setTimeout(() => { void searchUsers() }, 300)
+    return () => { active = false; clearTimeout(delayDebounceFn) }
   }, [searchQuery, supabase])
 
   useEffect(() => {
@@ -264,7 +267,7 @@ function FeedContent() {
     const emoji = emojiObj.emoji
     if (type === 'comment') setActiveCommentEmojiPicker(null)
 
-       let isRemoving = false
+    let isRemoving = false
     if (type === 'quote') {
        const quote = quotes.find(q => q.id === targetId) || (expandedQuote?.id === targetId ? expandedQuote : undefined)
        isRemoving = quote?.groupedReactions.find(r => r.emoji === emoji)?.hasReacted || false
@@ -312,8 +315,6 @@ function FeedContent() {
          })
       }
     }
-
-    
 
     if (type === 'comment' && expandedQuote) {
       const { data } = await supabase.from('comments').select(`*, user:profiles(id, username, avatar_url), reactions(reaction_type, user_id)`).eq('quote_id', expandedQuote.id).order('created_at', { ascending: true })
@@ -363,91 +364,104 @@ function FeedContent() {
   }
 
   return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50/50 pb-24 relative">
+    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50/50 pb-24 relative px-4 mt-4">
       
-      <div className="px-4 mt-4">
-        
-        {/* Search Bar */}
-        <div className="mb-6 relative z-30" ref={searchContainerRef}>
-          <div className="relative flex items-center bg-white border border-slate-200 rounded-full px-4 py-3 shadow-[0_2px_10px_rgb(0,0,0,0.02)] focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all">
-            <Search className="w-5 h-5 text-slate-400 mr-2 shrink-0" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value)
-                setShowSearchDropdown(true)
-              }}
-              onFocus={() => setShowSearchDropdown(true)}
-              placeholder="Search users..."
-              className="flex-1 bg-transparent border-none outline-none text-sm font-medium text-slate-800 placeholder:text-slate-400"
-            />
-            {isSearching && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
-            {searchQuery && !isSearching && (
-              <button 
-                onClick={() => { setSearchQuery(''); setSearchResults([]); setShowSearchDropdown(false); }} 
-                className="p-1 hover:bg-slate-100 rounded-full transition"
-              >
-                <X className="w-4 h-4 text-slate-400" />
-              </button>
-            )}
-          </div>
-
-          {/* Search Dropdown */}
-          {showSearchDropdown && searchQuery.trim().length >= 2 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50">
-              {searchResults.length > 0 ? (
-                <div className="flex flex-col">
-                  {searchResults.map((user) => (
-                    <Link 
-                      key={user.id} 
-                      href={`/${user.username}`}
-                      onClick={() => setShowSearchDropdown(false)}
-                      className="flex items-center gap-3 p-3 hover:bg-slate-50 transition border-b border-slate-50 last:border-none"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden shrink-0 border border-slate-200">
-                        {user.avatar_url ? (
-                          <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <User className="w-full h-full p-2 text-slate-400" />
-                        )}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-800">{user.username}</span>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : !isSearching ? (
-                <div className="p-4 text-center text-slate-500 text-sm font-medium">No users found.</div>
-              ) : null}
-            </div>
+      {/* Search Bar */}
+      <div className="mb-6 relative z-30" ref={searchContainerRef}>
+        <div className="relative flex items-center bg-white border border-slate-200 rounded-full px-4 py-3 shadow-[0_2px_10px_rgb(0,0,0,0.02)] focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all">
+          <Search className="w-5 h-5 text-slate-400 mr-2 shrink-0" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              setShowSearchDropdown(true)
+            }}
+            onFocus={() => setShowSearchDropdown(true)}
+            placeholder="Search users..."
+            className="flex-1 bg-transparent border-none outline-none text-sm font-medium text-slate-800 placeholder:text-slate-400"
+          />
+          {isSearching && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+          {searchQuery && !isSearching && (
+            <button 
+              onClick={() => { setSearchQuery(''); setSearchResults([]); setShowSearchDropdown(false); }} 
+              className="p-1 hover:bg-slate-100 rounded-full transition"
+            >
+              <X className="w-4 h-4 text-slate-400" />
+            </button>
           )}
         </div>
 
-        {isLoading ? (
-          <div className="flex justify-center mt-20"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
-        ) : (
-          <div className="flex flex-col gap-6">
-            {/* Feed Cards */}
-            {quotes.map((quote) => (
-              <QuoteCard 
-                key={quote.id} 
-                quote={quote} 
-                onReact={handleDynamicReaction} 
-                onExpand={setExpandedQuote} 
-                onFavorite={toggleFavorite} 
-              />
-            ))}
-            
-            {hasMore && (
-              <button onClick={() => setPage((p) => p + 1)} disabled={isPaginationLoading} className="w-full py-4 bg-white border-2 border-slate-200/60 rounded-3xl font-black text-slate-600 hover:text-black transition">
-                {isPaginationLoading ? 'Loading...' : 'Load More Quotes'}
-              </button>
-            )}
+        {/* Search Dropdown */}
+        {showSearchDropdown && searchQuery.trim().length >= 2 && (
+          <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50">
+            {searchResults.length > 0 ? (
+              <div className="flex flex-col">
+                {searchResults.map((user) => (
+                  <Link 
+                    key={user.id} 
+                    href={`/${user.username}`}
+                    onClick={() => setShowSearchDropdown(false)}
+                    className="flex items-center gap-3 p-3 hover:bg-slate-50 transition border-b border-slate-50 last:border-none"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden shrink-0 border border-slate-200">
+                      {user.avatar_url ? (
+                        <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-full h-full p-2 text-slate-400" />
+                      )}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-800">{user.username}</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : !isSearching ? (
+              <div className="p-4 text-center text-slate-500 text-sm font-medium">No users found.</div>
+            ) : null}
           </div>
         )}
       </div>
+
+      {isLoading ? (
+        <div className="flex justify-center mt-20"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          
+          {/* Feed Cards */}
+          {quotes.map((quote) => (
+            <QuoteCard 
+              key={quote.id} 
+              quote={quote} 
+              onReact={handleDynamicReaction} 
+              onExpand={setExpandedQuote} 
+              onFavorite={toggleFavorite} 
+            />
+          ))}
+          
+          {/* 
+            THE INVISIBLE INFINITE SCROLL TRIGGER 
+            When this div enters the screen, the Observer automatically bumps the page!
+          */}
+          {hasMore && (
+            <div ref={bottomBoundaryRef} className="w-full flex justify-center py-10 mt-4">
+              {isPaginationLoading ? (
+                <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+              ) : (
+                <div className="w-2 h-2 bg-slate-300 rounded-full"></div>
+              )}
+            </div>
+          )}
+          
+          {!hasMore && quotes.length > 0 && (
+            <div className="w-full flex justify-center py-10 mt-4">
+               <span className="text-sm font-bold text-slate-400">You're all caught up!</span>
+            </div>
+          )}
+
+        </div>
+      )}
 
       {/* Expanded Modal */}
       {expandedQuote && (
@@ -530,7 +544,7 @@ function FeedContent() {
                </div>
             </div>
 
-            {/* Comment Input (Redesigned for Premium Feel) */}
+            {/* Comment Input */}
             <div className="p-3 sm:p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-white border-t border-slate-100 shrink-0 z-20 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
                <div className="relative flex items-center max-w-2xl mx-auto">
                  <input 
