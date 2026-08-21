@@ -32,8 +32,8 @@ type RawQuoteData = {
   created_at: string
   quoted_email: string | null
   custom_author_name: string | null
-  publisher: { id: string, username: string } | null
-  quoted_user: { username: string, avatar_url: string | null } | null
+  publisher: { id: string, username: string, avatar_url: string | null } | null
+  quoted_user: { id: string, username: string, avatar_url: string | null } | null
   template: { style_config: { gradient?: string, baseColor?: string }, image_url: string | null } | null
   reactions: { reaction_type: string, user_id: string, comment_id: string | null }[] | null
   favorites: { user_id: string }[] | null
@@ -110,13 +110,13 @@ export default function FavouritesPage() {
           quote_id,
           created_at,
           quotes (
-            id, content, created_at, quoted_email, custom_author_name,
-            publisher:profiles!quotes_publisher_id_fkey(id, username),
-            quoted_user:profiles!quotes_quoted_user_id_fkey(username, avatar_url),
-            template:templates(style_config, image_url),
-            reactions(reaction_type, user_id, comment_id),
-            favorites(user_id),
-            comments(count)
+          id, content, created_at, quoted_email, custom_author_name,
+          publisher:profiles!quotes_publisher_id_fkey(id, username, avatar_url),
+          quoted_user:profiles!quotes_quoted_user_id_fkey(id, username, avatar_url),
+          template:templates(style_config, image_url),
+          reactions(reaction_type, user_id, comment_id),
+          favorites(user_id),
+          comments(count)
           )
         `)
         .eq('user_id', user.id)
@@ -156,7 +156,7 @@ export default function FavouritesPage() {
         .select(`
           id, content, created_at,
           user:profiles!comments_user_id_fkey(id, username, avatar_url),
-          reactions(reaction_type, user_id)
+          reactions(reaction_type, user_id,)
         `)
         .eq('quote_id', expandedQuote.id)
         .order('created_at', { ascending: true })
