@@ -35,7 +35,12 @@ function PreviewQuoteForm() {
   const [targetAvatarUrl, setTargetAvatarUrl] = useState<string | null>(null)
 
   const displayTarget = targetUsername || customName || inviteEmail || 'Unknown'
-  const displayHandle = targetUsername || inviteEmail ? `@${displayTarget.toLowerCase().replace(/[^a-z0-9]/g, '')}` : null
+  const isRegisteredUser = !!targetUsername
+
+  // 1. The Sanitizer (Strips manual quotes and hidden newlines)
+  const cleanQuoteContent = quoteText
+    .replace(/^["'“”«»]+|["'“”«»]+$/g, '')
+    .trim()
 
   useEffect(() => {
     let isMounted = true
@@ -164,65 +169,82 @@ function PreviewQuoteForm() {
 
       <div className="flex-1 flex flex-col items-center justify-start w-full">
         
-        {/* Info Pill (Replaces the massive text lines) */}
+        {/* Info Pill */}
         <div className="flex items-center gap-1.5 mb-6 text-xs font-bold text-slate-500 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100">
           <span className="text-slate-800">{displayTarget}</span>
           <span className="text-slate-400 font-medium">quoted by</span>
           <span className="text-slate-800">{currentUsername}</span>
         </div>
 
-        {/* The Quote Card - 1:1 Match with the Feed Component */}
-        <div className="w-full max-w-[420px] bg-white rounded-[32px] shadow-xl overflow-hidden flex flex-col border border-slate-100 mb-8 relative">
+        {/* FULL-BLEED CINEMATIC PREVIEW CARD */}
+        <div className="w-full max-w-[420px] bg-slate-900 rounded-[32px] overflow-hidden flex flex-col relative aspect-square shadow-2xl mb-8 border border-slate-200/50">
           
-          <div className="relative w-full h-48 shrink-0 pointer-events-none">
-            {/* 1. Bucket Image */}
-            {bgType === 'template' && templateImageUrl && (
-              <img src={templateImageUrl} alt="Background" className="absolute inset-0 w-full h-full object-cover" />
-            )}
+          {/* The Watermark Logo */}
+          <img 
+            src="/PinQuote-Logo.png" 
+            alt="PinQuo" 
+            className="absolute top-5 left-5 h-5 sm:h-6 w-auto opacity-60 drop-shadow-md z-20 pointer-events-none select-none"
+          />
 
-            {/* 2. Dynamic Cinematic Filters */}
-            {bgType === 'template' && templateImageUrl && (
-               <>
-                 <div className="absolute inset-0 bg-slate-900/30 mix-blend-multiply"></div>
-                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/10 to-black/60"></div>
-               </>
-            )}
+          {/* Base Image with Filters */}
+          {bgType === 'template' && templateImageUrl ? (
+            <img 
+              src={templateImageUrl} 
+              alt="Quote Background" 
+              crossOrigin="anonymous" 
+              className="absolute inset-0 w-full h-full object-cover" 
+              style={{ filter: 'contrast(1.15) saturate(1.2) sepia(0.15) brightness(0.85)' }}
+            />
+          ) : bgType === 'template' ? (
+            <div className={`absolute inset-0 bg-linear-to-br ${templateGradient}`}></div>
+          ) : null}
 
-            {/* 3. Fallback CSS Gradient */}
-            {bgType === 'template' && !templateImageUrl && (
-              <div className={`absolute inset-0 bg-linear-to-br ${templateGradient}`}></div>
-            )}
-
-            {/* 4. Avatar Mode */}
-            {bgType === 'avatar' && (
-              <div className={`absolute inset-0 ${targetAvatarUrl ? '' : 'bg-black/20'} mix-blend-overlay`}>
-                {targetAvatarUrl && <img src={targetAvatarUrl} alt="" className="w-full h-full object-cover opacity-80" />}
-              </div>
-            )}
-            
-            {/* Soft Text Blend */}
-            <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-white via-white/95 to-transparent"></div>
-          </div>
-
-          <div className="relative bg-white px-6 pb-8 pt-2 flex flex-col items-center text-center -mt-10 z-10 pointer-events-none">
-            <div className="text-[50px] font-serif font-black text-slate-800 leading-none mb-2 select-none">“ ”</div>
-            
-            <p className={`font-medium text-slate-900 leading-snug wrap-break-words whitespace-pre-wrap px-2 ${getQuoteFontSize(quoteText)}`}>
-              {quoteText}
-            </p>
-            
-            <div className="w-full mt-6 flex flex-col items-center relative">
-              <div className="w-10 h-[3px] bg-slate-800 mb-3 rounded-full"></div>
-              
-              <p className={`text-lg font-bold tracking-wide ${customName ? 'text-slate-400 italic font-medium' : 'text-slate-900'}`}>
-                {displayTarget}
-              </p>
-              
-              {displayHandle && !customName && (
-                <p className="text-slate-400 font-medium text-xs mt-0.5">
-                  {displayHandle}
-                </p>
+          {/* Avatar Mode Fallback */}
+          {bgType === 'avatar' && (
+            <div className="absolute inset-0 mix-blend-overlay opacity-80">
+              {targetAvatarUrl ? (
+                <img src={targetAvatarUrl} alt="Bg" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 bg-slate-800"></div>
               )}
+            </div>
+          )}
+
+          {/* Cinematic Vignettes */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/60 mix-blend-multiply pointer-events-none"></div>
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(0,0,0,0)_0%,_rgba(0,0,0,0.4)_100%)] pointer-events-none"></div>
+
+          {/* Content Overlay */}
+          <div className="relative z-10 flex flex-col items-center justify-center h-full p-6 sm:p-10 text-center pointer-events-none select-none">
+            
+            {/* THE "INVISIBLE RECTANGLE" WRAPPER */}
+            <div className="relative inline-block max-w-[75%] mx-auto mt-4">
+              
+              {/* Top-Left Floating Quote */}
+              <span className="absolute top-0 left-0 -translate-x-[110%] -translate-y-[40%] text-5xl sm:text-7xl font-serif font-black text-white/50 drop-shadow-lg leading-none pointer-events-none select-none">
+                &ldquo;
+              </span>
+              
+              <p 
+                className={`font-black text-white leading-snug whitespace-pre-wrap relative z-10 ${getQuoteFontSize(cleanQuoteContent)}`}
+                style={{ textShadow: '0 4px 24px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,1)' }}
+              >
+                {cleanQuoteContent}
+              </p>
+
+              {/* Bottom-Right Floating Quote */}
+              <span className="absolute bottom-0 right-0 translate-x-[110%] translate-y-[30%] text-5xl sm:text-7xl font-serif font-black text-white/50 drop-shadow-lg leading-none pointer-events-none select-none">
+                &rdquo;
+              </span>
+            </div>
+            
+            <div className="mt-8 sm:mt-10 flex flex-col items-center relative z-10">
+              <p 
+                className={`font-bold tracking-wide text-lg text-white/90 ${(!isRegisteredUser && !customName) ? 'italic font-medium' : ''}`}
+                style={{ textShadow: '0 2px 10px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,1)' }}
+              >
+                &mdash; {displayTarget}
+              </p>
             </div>
           </div>
         </div>
