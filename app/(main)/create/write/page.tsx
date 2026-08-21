@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 
 const TAILWIND_SAFELIST = "bg-orange-200 bg-yellow-200 bg-slate-300 bg-slate-200 from-orange-200 to-red-200 from-yellow-200 to-amber-200 from-slate-300 to-slate-400"
 
-type AccessTier = 'free' | 'pro' | 'premium'
+type AccessTier = 'free' | 'pro'
 type FilterState = 'all' | 'favorites' | 'packs'
 
 type Template = {
@@ -18,7 +18,6 @@ type Template = {
     gradient: string
   }
   access_tier?: AccessTier 
-  is_pro_only?: boolean 
   image_url?: string 
   category?: string 
   computed_tier?: AccessTier
@@ -28,21 +27,15 @@ type Template = {
 type DerivedPack = {
   name: string
   cover_image_url: string | null
-  price_tier: AccessTier
+  is_pro: boolean
   templates: Template[]
 }
 
-const TIER_WEIGHTS: Record<AccessTier, number> = {
-  free: 0,
-  pro: 1,
-  premium: 2
+// SIMPLIFIED ACCESS CHECK
+const canAccessTemplate = (isProUser: boolean, itemTier: AccessTier) => {
+  return itemTier === 'pro' ? isProUser : true
 }
 
-const canAccessPack = (userTier: AccessTier, itemTier: AccessTier) => {
-  return TIER_WEIGHTS[userTier] >= TIER_WEIGHTS[itemTier]
-}
-
-// SMART PARSER: Extracts "Cyberpunk Pack" from ".../paid_templates/cyberpunk-pack/bg.jpg"
 const extractPackNameFromUrl = (url: string | undefined): string | null => {
   if (!url) return null
   const match = url.match(/(?:paid_templates|free_templates)\/([^\/]+)/)
@@ -77,8 +70,8 @@ function WriteQuoteForm() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<FilterState>('all')
 
-  // Core Data State
-  const [userTier, setUserTier] = useState<AccessTier>('free')
+  // Core Data State (Binary Pro Check)
+  const [isProUser, setIsProUser] = useState(false)
   const [allTemplates, setAllTemplates] = useState<Template[]>([])
   const [packs, setPacks] = useState<DerivedPack[]>([])
   const [favorites, setFavorites] = useState<Template[]>([])
@@ -95,10 +88,10 @@ function WriteQuoteForm() {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (user) {
-        const { data: profile } = await supabase.from('profiles').select('access_tier, is_pro').eq('id', user.id).single()
+        // ONLY check access_tier
+        const { data: profile } = await supabase.from('profiles').select('access_tier').eq('id', user.id).single()
         if (isMounted && profile) {
-          const mappedTier = profile.access_tier ? (profile.access_tier as AccessTier) : (profile.is_pro ? 'pro' : 'free')
-          setUserTier(mappedTier)
+          setIsProUser(profile.access_tier === 'pro')
         }
 
         const { data: favData } = await supabase
@@ -121,9 +114,8 @@ function WriteQuoteForm() {
 
         ;(templatesData as Template[]).forEach((t) => {
           const isPaidFolder = t.image_url?.includes('paid_templates')
-          const computedTier = isPaidFolder ? 'pro' : (t.access_tier || (t.is_pro_only ? 'pro' : 'free'))
+          const computedTier: AccessTier = isPaidFolder ? 'pro' : (t.access_tier === 'pro' ? 'pro' : 'free')
           
-          // Use the URL parser first, fallback to DB category, then to defaults
           const parsedFolderName = extractPackNameFromUrl(t.image_url)
           let packName = parsedFolderName || t.category
 
@@ -139,13 +131,12 @@ function WriteQuoteForm() {
             packMap.set(packName, {
               name: packName,
               cover_image_url: t.image_url || null, 
-              price_tier: computedTier, 
+              is_pro: computedTier === 'pro', 
               templates: []
             })
-          }
-          
-          if (TIER_WEIGHTS[computedTier] > TIER_WEIGHTS[packMap.get(packName)!.price_tier]) {
-             packMap.get(packName)!.price_tier = computedTier
+          } else if (computedTier === 'pro') {
+            // If any template in the pack is pro, lock the whole pack
+            packMap.get(packName)!.is_pro = true
           }
           
           packMap.get(packName)!.templates.push(t)
@@ -162,7 +153,7 @@ function WriteQuoteForm() {
     return () => { isMounted = false }
   }, [supabase])
 
-  // 2. Compute Filtered & SMART SORTED Data
+  // 2. Sorting & Filtering using binary logic
   const lowercaseQuery = searchQuery.toLowerCase().trim()
   
   const sortUnlockedFirst = (aAccess: boolean, bAccess: boolean) => {
@@ -173,11 +164,11 @@ function WriteQuoteForm() {
 
   const sortedTemplates = allTemplates
     .filter(t => t.name.toLowerCase().includes(lowercaseQuery) || (t.computed_pack_name?.toLowerCase().includes(lowercaseQuery)))
-    .sort((a, b) => sortUnlockedFirst(canAccessPack(userTier, a.computed_tier || 'free'), canAccessPack(userTier, b.computed_tier || 'free')))
+    .sort((a, b) => sortUnlockedFirst(canAccessTemplate(isProUser, a.computed_tier || 'free'), canAccessTemplate(isProUser, b.computed_tier || 'free')))
 
   const sortedPacks = packs
     .filter(p => p.name.toLowerCase().includes(lowercaseQuery))
-    .sort((a, b) => sortUnlockedFirst(canAccessPack(userTier, a.price_tier), canAccessPack(userTier, b.price_tier)))
+    .sort((a, b) => sortUnlockedFirst(!a.is_pro || isProUser, !b.is_pro || isProUser))
 
   const filteredFavorites = favorites.filter(t => t.name.toLowerCase().includes(lowercaseQuery))
 
@@ -212,12 +203,12 @@ function WriteQuoteForm() {
   }
 
   const isFormValid = quoteText.trim().length > 0 && (bgType !== 'template' || !!selectedTemplate)
-  const isPackLocked = activePack && !canAccessPack(userTier, activePack.price_tier)
+  const isPackLocked = activePack && activePack.is_pro && !isProUser
 
   const renderTemplateCard = (template: Template) => {
     const isSelected = bgType === 'template' && selectedTemplate?.id === template.id
     const itemTier = template.computed_tier || 'free'
-    const isLocked = !canAccessPack(userTier, itemTier)
+    const isLocked = !canAccessTemplate(isProUser, itemTier)
 
     return (
       <button
@@ -325,17 +316,17 @@ function WriteQuoteForm() {
             ))}
           </div>
           
-          {/* HORIZONTAL CAROUSEL (Flattened & Scrolling naturally) */}
+          {/* HORIZONTAL CAROUSEL */}
           <div className="relative w-full flex overflow-x-auto snap-x snap-mandatory pt-4 pb-8 px-4 gap-3 no-scrollbar items-center">
             
-            {/* 1. Live Snap (Locked) */}
+            {/* Live Snap (Locked) */}
             <div className="relative shrink-0 w-[100px] h-[130px] rounded-[20px] border-2 border-dashed border-slate-300 bg-white/50 flex flex-col items-center justify-center opacity-60 snap-start cursor-not-allowed">
               <Camera className="w-6 h-6 text-slate-400 mb-2" strokeWidth={2.5} />
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center leading-tight">Live<br/>Snap</span>
               <div className="absolute -top-2 right-0 bg-slate-300 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-white">v2.0</div>
             </div>
 
-            {/* 2. Quoted User Avatar */}
+            {/* Quoted User Avatar */}
             {isExistingUser && (
               <button
                 onClick={() => setBgType('avatar')}
@@ -350,7 +341,6 @@ function WriteQuoteForm() {
               </button>
             )}
 
-            {/* The Vertical Divider */}
             <div className="shrink-0 w-[2px] h-20 bg-slate-200 mx-1 rounded-full"></div>
 
             {/* Scrolling Dynamic Assets */}
@@ -360,18 +350,15 @@ function WriteQuoteForm() {
               </div>
             ) : (
               <>
-                {/* RENDER ALL TEMPLATES */}
                 {activeFilter === 'all' && sortedTemplates.map(renderTemplateCard)}
                 
-                {/* RENDER FAVORITES */}
                 {activeFilter === 'favorites' && filteredFavorites.length === 0 && (
                   <div className="w-[200px] text-sm font-bold text-slate-400 text-center flex items-center justify-center">No favorites pinned yet.</div>
                 )}
                 {activeFilter === 'favorites' && filteredFavorites.map(renderTemplateCard)}
 
-                {/* RENDER PACKS */}
                 {activeFilter === 'packs' && sortedPacks.map(pack => {
-                  const isLocked = !canAccessPack(userTier, pack.price_tier)
+                  const isLocked = pack.is_pro && !isProUser
                   return (
                     <button
                       key={`pack-${pack.name}`}
@@ -405,20 +392,18 @@ function WriteQuoteForm() {
             )}
           </div>
         </div>
-
       </div>
       
-      {/* Native Action Button (Sits at bottom, perfectly scrollable) */}
-        <div className="mt-auto w-full px-4 pt-6 pb-8">
-          <button
-            onClick={handlePreview}
-            disabled={!isFormValid}
-            className="w-full bg-[#bbf7d0] text-emerald-950 hover:bg-[#86efac] active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-[#bbf7d0] disabled:active:scale-100 font-black text-xl py-4 px-6 rounded-full transition-all duration-200 shadow-lg shadow-emerald-200/50 border-4 border-emerald-200 flex items-center justify-center"
-          >
-            Preview & Publish
-          </button>
-            
-        </div>
+      {/* Native Action Button */}
+      <div className="mt-auto w-full px-4 pt-6 pb-8">
+        <button
+          onClick={handlePreview}
+          disabled={!isFormValid}
+          className="w-full bg-[#bbf7d0] text-emerald-950 hover:bg-[#86efac] active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-[#bbf7d0] disabled:active:scale-100 font-black text-xl py-4 px-6 rounded-full transition-all duration-200 shadow-lg shadow-emerald-200/50 border-4 border-emerald-200 flex items-center justify-center"
+        >
+          Preview & Publish
+        </button>
+      </div>
 
       {/* BOTTOM SHEET DRAWER */}
       <div 
@@ -432,7 +417,7 @@ function WriteQuoteForm() {
           <div className="flex flex-col">
             <h2 className="text-xl font-black text-slate-900">{activePack?.name}</h2>
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              {activePack?.price_tier === 'free' ? 'Free Collection' : `${activePack?.price_tier} Collection`}
+              {activePack?.is_pro ? 'Pro Collection' : 'Free Collection'}
             </span>
           </div>
           <button onClick={() => setActivePack(null)} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full transition text-slate-600">
@@ -448,13 +433,13 @@ function WriteQuoteForm() {
                 <Lock className="w-8 h-8" />
               </div>
               <h3 className="text-2xl font-black text-slate-900 mb-2">Unlock {activePack?.name}</h3>
-              <p className="text-slate-500 font-medium mb-8">Upgrade to <span className="font-bold text-slate-700 capitalize">{activePack?.price_tier}</span> to use this template and 100+ more.</p>
+              <p className="text-slate-500 font-medium mb-8">Upgrade to <span className="font-bold text-slate-700">Pro</span> to use this template and 100+ more.</p>
               
               <button 
                 onClick={() => router.push('/settings')} 
                 className="w-full max-w-[250px] bg-[#ffcc00] text-yellow-950 font-black py-4 px-6 rounded-full shadow-sm hover:scale-105 transition-transform uppercase tracking-wide mb-5"
               >
-                Upgrade to {activePack?.price_tier}
+                Upgrade to Pro
               </button>
 
               <div className="h-px w-3/4 bg-slate-100 mb-4"></div>
