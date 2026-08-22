@@ -8,8 +8,6 @@ import {
   ArrowLeft, Edit3, Camera, Star, 
   Crown, LayoutTemplate, User, Loader2, Check, X, ChevronRight, LogOut
 } from 'lucide-react'
-import Image from 'next/image'
-import NotificationBell from '@/components/NotificationBell'
 
 type Profile = {
   id: string
@@ -51,7 +49,6 @@ export default function ProfilePage() {
   const [editBio, setEditBio] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   
-  // ADDED: Logout state
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
@@ -179,7 +176,6 @@ export default function ProfilePage() {
     setIsUploading(false)
   }
 
-  // ADDED: Secure Logout Handler
   const handleLogout = async () => {
     setIsLoggingOut(true)
     const { error } = await supabase.auth.signOut()
@@ -193,7 +189,6 @@ export default function ProfilePage() {
   }
 
   const renderMiniGrid = (quotesToRender: MiniQuote[], onClick: () => void) => {
-    // We always want exactly 4 slots to maintain the perfect 2x2 grid UI
     const slots = [0, 1, 2, 3];
 
     return (
@@ -204,16 +199,13 @@ export default function ProfilePage() {
         {slots.map((index) => {
           const quote = quotesToRender[index];
           
-          // If the user doesn't have enough quotes to fill the grid, render a sleek placeholder
           if (!quote) {
             return <div key={`empty-${index}`} className="aspect-square bg-slate-100 rounded-[20px]"></div>;
           }
 
-          // If they do have a quote, render the dynamic thumbnail!
           return (
             <div key={quote.id} className="relative aspect-square rounded-[20px] overflow-hidden bg-slate-200">
               
-              {/* 1. The Bucket Image */}
               {quote.template?.image_url && (
                 <img 
                   src={quote.template.image_url} 
@@ -222,7 +214,6 @@ export default function ProfilePage() {
                 />
               )}
               
-              {/* 2. Fallback CSS Gradient */}
               {!quote.template?.image_url && (
                 <div className={`absolute inset-0 bg-linear-to-br ${quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
               )}
@@ -381,7 +372,6 @@ export default function ProfilePage() {
             <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-black transition" />
           </button>
           
-          {/* ADDED: Logout Button */}
           <button 
             onClick={handleLogout} 
             disabled={isLoggingOut}
