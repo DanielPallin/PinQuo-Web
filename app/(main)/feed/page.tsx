@@ -95,11 +95,10 @@ function FeedContent() {
   const [searchResults, setSearchResults] = useState<SearchProfile[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
+  
   const searchContainerRef = useRef<HTMLDivElement>(null)
+  const commentInputRef = useRef<HTMLInputElement>(null)
 
-  // ==========================================
-  // THE INFINITE SCROLL OBSERVER LOGIC
-  // ==========================================
   const observer = useRef<IntersectionObserver | null>(null)
   
   const bottomBoundaryRef = useCallback((node: HTMLDivElement | null) => {
@@ -107,16 +106,17 @@ function FeedContent() {
     if (observer.current) observer.current.disconnect()
 
     observer.current = new IntersectionObserver((entries) => {
-      // If the boundary enters the screen, fetch the next page!
-      // rootMargin '200px' ensures it triggers just before the user hits the absolute bottom
-      if (entries[0].isIntersecting && hasMore) {
-        setPage((prev) => prev + 1)
-      }
+      if (entries[0].isIntersecting && hasMore) setPage((prev) => prev + 1)
     }, { rootMargin: '200px' })
 
     if (node) observer.current.observe(node)
   }, [isPaginationLoading, hasMore])
-  // ==========================================
+
+  useEffect(() => {
+    if (expandedQuote && commentInputRef.current) {
+      setTimeout(() => commentInputRef.current?.focus(), 150)
+    }
+  }, [expandedQuote])
 
   useEffect(() => {
     document.body.style.overflow = expandedQuote ? 'hidden' : 'unset'
@@ -185,7 +185,6 @@ function FeedContent() {
 
         if (page === 0) setQuotes(formattedQuotes)
         else setQuotes((prev) => {
-          // Prevent duplicates on strict mode hot reloads by checking IDs
           const newQuotes = formattedQuotes.filter(newQ => !prev.some(existingQ => existingQ.id === newQ.id))
           return [...prev, ...newQuotes]
         })
@@ -264,24 +263,13 @@ function FeedContent() {
     }
   }
 
-  // 2. ADD THIS SCROLL LISTENER EFFECT
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY
-      
-      // If scrolling down AND past the top threshold (to prevent bouncy behavior), hide it
-      if (currentScrollY > lastScrollY.current && currentScrollY > 60) {
-        setIsSearchVisible(false)
-      } 
-      // If scrolling up, show it immediately
-      else if (currentScrollY < lastScrollY.current) {
-        setIsSearchVisible(true)
-      }
-      
+      if (currentScrollY > lastScrollY.current && currentScrollY > 60) setIsSearchVisible(false)
+      else if (currentScrollY < lastScrollY.current) setIsSearchVisible(true)
       lastScrollY.current = currentScrollY
     }
-
-    // Passive listener makes it lightning fast without blocking rendering
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
@@ -291,14 +279,11 @@ function FeedContent() {
     const emoji = emojiObj.emoji
     if (type === 'comment') setActiveCommentEmojiPicker(null)
 
-    // The State Machine Logic
     let action: 'ADD' | 'REMOVE' | 'SWAP' = 'ADD'
     let previousEmoji: string | null = null
 
-    // 1. Optimistic UI Updates
     if (type === 'quote') {
       const quote = quotes.find(q => q.id === targetId) || (expandedQuote?.id === targetId ? expandedQuote : undefined)
-      // Check if user has ANY reaction on this quote
       const existingReact = quote?.groupedReactions.find(r => r.hasReacted)
       
       if (existingReact) {
@@ -309,7 +294,6 @@ function FeedContent() {
       const updateQuoteState = (q: FeedQuote) => {
         let newReactions = [...q.groupedReactions]
         
-        // Step A: Clear the old reaction if removing or swapping
         if (action === 'REMOVE' || action === 'SWAP') {
           const old = newReactions.find(r => r.emoji === previousEmoji)
           if (old) {
@@ -319,7 +303,6 @@ function FeedContent() {
           }
         }
         
-        // Step B: Apply the new reaction if adding or swapping
         if (action === 'SWAP' || action === 'ADD') {
           const newR = newReactions.find(r => r.emoji === emoji)
           if (newR) {
@@ -337,9 +320,7 @@ function FeedContent() {
       if (expandedQuote?.id === targetId) setExpandedQuote(updateQuoteState(expandedQuote))
       
     } else {
-      // Find comment state
       const comment = comments.find(c => c.id === targetId)
-      // Check if user has ANY reaction on this comment
       const existingReact = comment?.reactions.find(r => r.user_id === currentUserId)
       
       if (existingReact) {
@@ -347,7 +328,6 @@ function FeedContent() {
         action = existingReact.reaction_type === emoji ? 'REMOVE' : 'SWAP'
       }
 
-      // Optimistic UI for comments (Instantly snaps without waiting for DB!)
       setComments(prev => prev.map(c => {
         if (c.id !== targetId) return c
         let newReactions = [...c.reactions]
@@ -362,25 +342,17 @@ function FeedContent() {
       }))
     }
 
-    // 2. Database Sync Logic (Cleaned up for maximum efficiency)
-    const matchCriteria = type === 'quote' 
-      ? { quote_id: targetId, user_id: currentUserId }
-      : { comment_id: targetId, user_id: currentUserId }
-
-    // Always delete any existing reaction first to guarantee the "max 1" rule is strictly enforced
+    const matchCriteria = type === 'quote' ? { quote_id: targetId, user_id: currentUserId } : { comment_id: targetId, user_id: currentUserId }
     await supabase.from('reactions').delete().match(matchCriteria)
 
     if (action !== 'REMOVE') {
-      // Insert the new reaction
       await supabase.from('reactions').insert({ ...matchCriteria, reaction_type: emoji })
-      
-      // Only send a notification if it's a brand new ADD (avoids spamming the user if someone keeps swapping emojis)
       if (action === 'ADD' && targetOwnerId && targetOwnerId !== currentUserId) {
          await supabase.from('notifications').insert({
-            receiver_id: targetOwnerId,
-            actor_id: currentUserId,
-            type: 'reaction',
-            quote_id: type === 'quote' ? targetId : expandedQuote?.id
+           receiver_id: targetOwnerId,
+           actor_id: currentUserId,
+           type: 'reaction',
+           quote_id: type === 'quote' ? targetId : expandedQuote?.id
          })
       }
     }
@@ -399,7 +371,9 @@ function FeedContent() {
     if (data) {
       setComments(prev => [...prev, data as unknown as CommentType])
       setNewComment('')
+      
       setQuotes(prev => prev.map(q => q.id === expandedQuote.id ? { ...q, commentCount: q.commentCount + 1 } : q))
+      setExpandedQuote(prev => prev ? { ...prev, commentCount: prev.commentCount + 1 } : null)
 
       if (expandedQuote.publisher && expandedQuote.publisher.id !== currentUserId) {
         await supabase.from('notifications').insert({
@@ -430,56 +404,33 @@ function FeedContent() {
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50/50 pb-24 relative px-4 mt-4">
       
-      {/* Search Bar */}
-      <div 
-        className={`sticky top-4 z-40 mb-6 transition-transform duration-300 ease-in-out will-change-transform ${
-          isSearchVisible ? 'translate-y-0 opacity-100' : '-translate-y-[150%] opacity-0 pointer-events-none'
-        }`} 
-        ref={searchContainerRef}
-      >
-        {/* Safe background: Solid white on mobile, frosted glass on desktop! */}
+      <div className={`sticky top-4 z-40 mb-6 transition-transform duration-300 ease-in-out will-change-transform ${isSearchVisible ? 'translate-y-0 opacity-100' : '-translate-y-[150%] opacity-0 pointer-events-none'}`} ref={searchContainerRef}>
         <div className="relative flex items-center bg-white md:bg-white/90 md:backdrop-blur-md border border-slate-200 rounded-full px-4 py-3 shadow-[0_4px_20px_rgb(0,0,0,0.05)] focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all">
           <Search className="w-5 h-5 text-slate-400 mr-2 shrink-0" />
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value)
-              setShowSearchDropdown(true)
-            }}
+            onChange={(e) => { setSearchQuery(e.target.value); setShowSearchDropdown(true) }}
             onFocus={() => setShowSearchDropdown(true)}
             placeholder="Search users..."
             className="flex-1 bg-transparent border-none outline-none text-sm font-bold text-slate-800 placeholder:text-slate-400"
           />
           {isSearching && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
           {searchQuery && !isSearching && (
-            <button 
-              onClick={() => { setSearchQuery(''); setSearchResults([]); setShowSearchDropdown(false); }} 
-              className="p-1 hover:bg-slate-100 rounded-full transition"
-            >
+            <button onClick={() => { setSearchQuery(''); setSearchResults([]); setShowSearchDropdown(false); }} className="p-1 hover:bg-slate-100 rounded-full transition">
               <X className="w-4 h-4 text-slate-400" />
             </button>
           )}
         </div>
 
-        {/* Search Dropdown */}
         {showSearchDropdown && searchQuery.trim().length >= 2 && (
           <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50">
             {searchResults.length > 0 ? (
               <div className="flex flex-col">
                 {searchResults.map((user) => (
-                  <Link 
-                    key={user.id} 
-                    href={`/${user.username}`}
-                    onClick={() => setShowSearchDropdown(false)}
-                    className="flex items-center gap-3 p-3 hover:bg-slate-50 transition border-b border-slate-50 last:border-none"
-                  >
+                  <Link key={user.id} href={`/${user.username}`} onClick={() => setShowSearchDropdown(false)} className="flex items-center gap-3 p-3 hover:bg-slate-50 transition border-b border-slate-50 last:border-none">
                     <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden shrink-0 border border-slate-200">
-                      {user.avatar_url ? (
-                        <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <User className="w-full h-full p-2 text-slate-400" />
-                      )}
+                      {user.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" /> : <User className="w-full h-full p-2 text-slate-400" />}
                     </div>
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-800">{user.username}</span>
@@ -499,7 +450,6 @@ function FeedContent() {
       ) : (
         <div className="flex flex-col gap-6">
           
-          {/* Feed Cards */}
           {quotes.map((quote) => (
             <QuoteCard 
               key={quote.id} 
@@ -510,17 +460,9 @@ function FeedContent() {
             />
           ))}
           
-          {/* 
-            THE INVISIBLE INFINITE SCROLL TRIGGER 
-            When this div enters the screen, the Observer automatically bumps the page!
-          */}
           {hasMore && (
             <div ref={bottomBoundaryRef} className="w-full flex justify-center py-10 mt-4">
-              {isPaginationLoading ? (
-                <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-              ) : (
-                <div className="w-2 h-2 bg-slate-300 rounded-full"></div>
-              )}
+              {isPaginationLoading ? <Loader2 className="w-8 h-8 animate-spin text-slate-400" /> : <div className="w-2 h-2 bg-slate-300 rounded-full"></div>}
             </div>
           )}
           
@@ -533,30 +475,21 @@ function FeedContent() {
         </div>
       )}
 
-      {/* Expanded Modal */}
       {expandedQuote && (
         <div onClick={handleCloseModal} className="fixed inset-0 z-[100] bg-black md:bg-black/90 md:backdrop-blur-sm flex flex-col items-center justify-start sm:justify-center p-0 sm:p-8 animate-in fade-in duration-200 cursor-pointer overflow-hidden will-change-transform">
           
           <div onClick={(e) => e.stopPropagation()} className="w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] max-w-[550px] bg-slate-50 sm:rounded-[40px] flex flex-col overflow-hidden cursor-default shadow-2xl relative">
             
-            {/* Safe Close Button: Solid gray on mobile, frosted glass on desktop! */}
             <button onClick={handleCloseModal} className="absolute top-4 right-4 z-50 p-2 bg-slate-200 md:bg-black/10 hover:bg-slate-300 md:hover:bg-black/20 rounded-full transition text-slate-700 md:backdrop-blur-md shadow-sm md:shadow-none will-change-transform">
               <X className="w-6 h-6" />
             </button>
 
-            {/* Scrollable Container */}
             <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col bg-slate-50/50">
                
                <div className="shrink-0 bg-white shadow-sm z-10 rounded-b-[40px]">
-                 <QuoteCard 
-                   quote={expandedQuote} 
-                   isExpanded={true} 
-                   onReact={handleDynamicReaction} 
-                   onFavorite={toggleFavorite} 
-                 />
+                 <QuoteCard quote={expandedQuote} isExpanded={true} onReact={handleDynamicReaction} onFavorite={toggleFavorite} />
                </div>
 
-               {/* Comments Thread (Flat Inline Design) */}
                <div className="p-4 sm:p-6 space-y-6 flex-1 bg-white">
                   {comments.length === 0 ? (
                     <div className="text-center text-slate-400 font-medium mt-10">No comments yet. Start the conversation!</div>
@@ -572,19 +505,16 @@ function FeedContent() {
 
                         return (
                           <div key={comment.id} className="flex gap-3 items-start group">
-                            {/* Avatar */}
                             <div className="w-9 h-9 rounded-full bg-slate-100 shrink-0 border border-slate-200 overflow-hidden flex items-center justify-center mt-0.5">
                               {comment.user.avatar_url ? <img src={comment.user.avatar_url} alt="" className="w-full h-full object-cover"/> : <User className="w-5 h-5 text-slate-400"/>}
                             </div>
                             
-                            {/* Flat Comment Body */}
                             <div className="flex-1 flex flex-col min-w-0">
                                 <div className="text-[14px] sm:text-[15px] leading-snug text-slate-800 break-words">
                                   <span className="font-bold text-slate-900 mr-2">{comment.user.username}</span>
                                   {comment.content}
                                 </div>
                                 
-                                {/* Meta & Reactions Row */}
                                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-1.5">
                                   <span className="text-[12px] text-slate-400 font-medium">{timeAgo(comment.created_at)}</span>
                                   
@@ -615,10 +545,10 @@ function FeedContent() {
                </div>
             </div>
 
-            {/* Comment Input */}
             <div className="p-3 sm:p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-white border-t border-slate-100 shrink-0 z-20 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
                <div className="relative flex items-center max-w-2xl mx-auto">
                  <input 
+                   ref={commentInputRef}
                    type="text" 
                    value={newComment}
                    onChange={e => setNewComment(e.target.value)}
