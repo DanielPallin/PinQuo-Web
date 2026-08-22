@@ -251,8 +251,8 @@ function PreviewQuoteForm() {
 
         {errorMsg && <p className="text-red-500 font-bold text-center text-sm mb-4 px-4">{errorMsg}</p>}
 
-        {/* Sleek, Modern Publish Button */}
-        <div className="w-full max-w-[420px] mt-auto">
+        {/* Publish Button */}
+        <div className="mt-8 w-full">
           <button
             onClick={handlePublish}
             disabled={isPublishing}
@@ -262,7 +262,7 @@ function PreviewQuoteForm() {
               <Loader2 className="w-6 h-6 animate-spin" />
             ) : (
               <>
-                Publish to Feed <CheckCircle2 className="w-6 h-6 stroke-[2.5px]" />
+                Publish <CheckCircle2 className="w-6 h-6 stroke-[2.5px]" />
               </>
             )}
           </button>

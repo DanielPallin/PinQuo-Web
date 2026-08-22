@@ -268,7 +268,7 @@ function WriteQuoteForm() {
         <div className="w-10"></div>
       </div>
 
-      <div className="flex-1 flex flex-col w-full z-10">
+      <div className="flex flex-col w-full z-10">
         
         {/* Quote Input Area */}
         <div className="px-4 mb-8">
@@ -406,13 +406,13 @@ function WriteQuoteForm() {
         </div>
       </div>
       
-      <div className="mt-auto w-full px-4 pt-6 pb-8">
+      <div className="mt-8 w-full px-4 pt-8">
         <button
           onClick={handlePreview}
           disabled={!isFormValid}
           className="w-full bg-[#bbf7d0] text-emerald-950 hover:bg-[#86efac] active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-[#bbf7d0] disabled:active:scale-100 font-black text-xl py-4 px-6 rounded-full transition-all duration-200 shadow-lg shadow-emerald-200/50 border-4 border-emerald-200 flex items-center justify-center"
         >
-          Preview & Publish
+          Preview
         </button>
       </div>
 
