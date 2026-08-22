@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Camera, ArrowLeft, Loader2, Sparkles, User as UserIcon, X, Lock, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -31,7 +31,6 @@ type DerivedPack = {
   templates: Template[]
 }
 
-// SIMPLIFIED ACCESS CHECK
 const canAccessTemplate = (isProUser: boolean, itemTier: AccessTier) => {
   return itemTier === 'pro' ? isProUser : true
 }
@@ -53,7 +52,6 @@ function WriteQuoteForm() {
   const searchParams = useSearchParams()
   const supabase = createClient()
 
-  // Routing Params
   const targetId = searchParams.get('targetId')
   const targetUsername = searchParams.get('targetUsername')
   const inviteEmail = searchParams.get('inviteEmail')
@@ -61,26 +59,22 @@ function WriteQuoteForm() {
   const isExistingUser = !!targetId
   const displayTarget = targetUsername || customName || inviteEmail || 'Unknown'
 
-  // Form State
   const [quoteText, setQuoteText] = useState('')
   const [bgType, setBgType] = useState<'avatar' | 'template' | 'snap'>(isExistingUser ? 'avatar' : 'template')
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
 
-  // UX Navigation State
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeFilter, setActiveFilter] = useState<FilterState>('all')
+  const [activeFilter, setActiveFilter] = useState<FilterState>('packs')
 
-  // Core Data State (Binary Pro Check)
   const [isProUser, setIsProUser] = useState(false)
   const [allTemplates, setAllTemplates] = useState<Template[]>([])
   const [packs, setPacks] = useState<DerivedPack[]>([])
   const [favorites, setFavorites] = useState<Template[]>([])
   const [isLoadingCore, setIsLoadingCore] = useState(true)
+  const carouselRef = useRef<HTMLDivElement>(null)
 
-  // Bottom Sheet State
   const [activePack, setActivePack] = useState<DerivedPack | null>(null)
 
-  // 1. Fetch ALL Data & Build Smart Packs
   useEffect(() => {
     let isMounted = true
     const fetchCoreData = async () => {
@@ -88,7 +82,6 @@ function WriteQuoteForm() {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (user) {
-        // ONLY check access_tier
         const { data: profile } = await supabase.from('profiles').select('access_tier').eq('id', user.id).single()
         if (isMounted && profile) {
           setIsProUser(profile.access_tier === 'pro')
@@ -135,7 +128,6 @@ function WriteQuoteForm() {
               templates: []
             })
           } else if (computedTier === 'pro') {
-            // If any template in the pack is pro, lock the whole pack
             packMap.get(packName)!.is_pro = true
           }
           
@@ -153,7 +145,7 @@ function WriteQuoteForm() {
     return () => { isMounted = false }
   }, [supabase])
 
-  // 2. Sorting & Filtering using binary logic
+  // Sorting & Filtering
   const lowercaseQuery = searchQuery.toLowerCase().trim()
   
   const sortUnlockedFirst = (aAccess: boolean, bAccess: boolean) => {
@@ -162,9 +154,17 @@ function WriteQuoteForm() {
     return 0
   }
 
-  const sortedTemplates = allTemplates
+  const baseSortedTemplates = allTemplates
     .filter(t => t.name.toLowerCase().includes(lowercaseQuery) || (t.computed_pack_name?.toLowerCase().includes(lowercaseQuery)))
     .sort((a, b) => sortUnlockedFirst(canAccessTemplate(isProUser, a.computed_tier || 'free'), canAccessTemplate(isProUser, b.computed_tier || 'free')))
+
+  const sortedTemplates = (() => {
+    if (bgType === 'template' && selectedTemplate) {
+      const filtered = baseSortedTemplates.filter(t => t.id !== selectedTemplate.id)
+      return [selectedTemplate, ...filtered]
+    }
+    return baseSortedTemplates
+  })()
 
   const sortedPacks = packs
     .filter(p => p.name.toLowerCase().includes(lowercaseQuery))
@@ -172,11 +172,17 @@ function WriteQuoteForm() {
 
   const filteredFavorites = favorites.filter(t => t.name.toLowerCase().includes(lowercaseQuery))
 
-  // 3. Action Handlers
   const handleSelectTemplate = (template: Template) => {
     setBgType('template')
     setSelectedTemplate(template)
     setActivePack(null)
+    setActiveFilter('all') 
+    
+    if (carouselRef.current) {
+      setTimeout(() => {
+        carouselRef.current?.scrollTo({ left: 0, behavior: 'smooth' })
+      }, 50)
+    }
   }
 
   const handleLockedClick = (template: Template) => {
@@ -205,16 +211,20 @@ function WriteQuoteForm() {
   const isFormValid = quoteText.trim().length > 0 && (bgType !== 'template' || !!selectedTemplate)
   const isPackLocked = activePack && activePack.is_pro && !isProUser
 
-  const renderTemplateCard = (template: Template) => {
+  const renderTemplateCard = (template: Template, isGrid: boolean = false) => {
     const isSelected = bgType === 'template' && selectedTemplate?.id === template.id
     const itemTier = template.computed_tier || 'free'
     const isLocked = !canAccessTemplate(isProUser, itemTier)
+
+    const sizingClasses = isGrid 
+      ? 'w-full aspect-[3/4]' 
+      : 'shrink-0 w-[100px] h-[130px] snap-start'
 
     return (
       <button
         key={template.id}
         onClick={() => isLocked ? handleLockedClick(template) : handleSelectTemplate(template)}
-        className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] overflow-hidden snap-start transition-all duration-200 group ${
+        className={`relative rounded-[20px] overflow-hidden transition-all duration-200 group ${sizingClasses} ${
           isSelected 
             ? 'ring-4 ring-emerald-400 scale-[1.02] shadow-lg z-10' 
             : isLocked 
@@ -236,7 +246,7 @@ function WriteQuoteForm() {
           </div>
         )}
 
-        <div className="absolute bottom-0 left-0 w-full p-2 text-center text-[9px] font-black uppercase tracking-wide text-white truncate drop-shadow-md">
+        <div className="absolute bottom-0 left-0 w-full p-2 text-center text-[10px] sm:text-xs font-black uppercase tracking-wide text-white truncate drop-shadow-md">
           {template.name}
         </div>
       </button>
@@ -271,7 +281,7 @@ function WriteQuoteForm() {
               value={quoteText}
               onChange={(e) => setQuoteText(e.target.value)}
               placeholder="Type the quote here..."
-              className="w-full h-28 bg-transparent text-slate-900 text-xl md:text-2xl font-medium resize-none focus:outline-none placeholder:text-slate-300 px-6 py-2 leading-snug"
+              className="w-full h-28 bg-transparent text-slate-900 text-xl md:text-2xl font-medium resize-none focus:outline-none placeholder:text-slate-300 px-6 py-2 leading-snug font-serif"
             />
             <span className="absolute bottom-2 right-4 text-4xl font-serif font-black text-slate-200 select-none">”</span>
           </div>
@@ -316,8 +326,11 @@ function WriteQuoteForm() {
             ))}
           </div>
           
-          {/* HORIZONTAL CAROUSEL */}
-          <div className="relative w-full flex overflow-x-auto snap-x snap-mandatory pt-4 pb-8 px-4 gap-3 no-scrollbar items-center">
+          {/* Carousel */}
+          <div 
+            ref={carouselRef} 
+            className="relative w-full flex overflow-x-auto snap-x snap-mandatory pt-4 pb-8 px-4 gap-3 no-scrollbar items-center"
+          >
             
             {/* Live Snap (Locked) */}
             <div className="relative shrink-0 w-[100px] h-[130px] rounded-[20px] border-2 border-dashed border-slate-300 bg-white/50 flex flex-col items-center justify-center opacity-60 snap-start cursor-not-allowed">
@@ -343,19 +356,18 @@ function WriteQuoteForm() {
 
             <div className="shrink-0 w-[2px] h-20 bg-slate-200 mx-1 rounded-full"></div>
 
-            {/* Scrolling Dynamic Assets */}
             {isLoadingCore ? (
               <div className="w-[100px] h-[130px] flex items-center justify-center shrink-0">
                 <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
               </div>
             ) : (
               <>
-                {activeFilter === 'all' && sortedTemplates.map(renderTemplateCard)}
+                {activeFilter === 'all' && sortedTemplates.map(t => renderTemplateCard(t, false))}
                 
                 {activeFilter === 'favorites' && filteredFavorites.length === 0 && (
                   <div className="w-[200px] text-sm font-bold text-slate-400 text-center flex items-center justify-center">No favorites pinned yet.</div>
                 )}
-                {activeFilter === 'favorites' && filteredFavorites.map(renderTemplateCard)}
+                {activeFilter === 'favorites' && filteredFavorites.map(t => renderTemplateCard(t, false))}
 
                 {activeFilter === 'packs' && sortedPacks.map(pack => {
                   const isLocked = pack.is_pro && !isProUser
@@ -394,7 +406,6 @@ function WriteQuoteForm() {
         </div>
       </div>
       
-      {/* Native Action Button */}
       <div className="mt-auto w-full px-4 pt-6 pb-8">
         <button
           onClick={handlePreview}
@@ -405,7 +416,7 @@ function WriteQuoteForm() {
         </button>
       </div>
 
-      {/* BOTTOM SHEET DRAWER */}
+      {/* Sheet drawer */}
       <div 
         className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300 ${activePack ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setActivePack(null)}
@@ -449,8 +460,8 @@ function WriteQuoteForm() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-3 pb-24">
-              {activePack?.templates.map(renderTemplateCard)}
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 sm:gap-4 pb-24 px-1">
+              {activePack?.templates.map(t => renderTemplateCard(t, true))}
             </div>
           )}
         </div>
