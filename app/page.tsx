@@ -125,7 +125,7 @@ export default function AuthPage() {
         
         <div className="flex flex-col items-center text-center mb-8">
             <Image
-              src="/PinQuote-logo.png" 
+              src="/PinQuote-Logo.png" 
               alt="PinQuo Logo"
               width={130}
               height={40}

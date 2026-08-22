@@ -29,7 +29,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         {/* MOBILE TOP HEADER */}
         <header className="lg:hidden sticky top-0 z-40 bg-white/80 backdrop-blur-md pt-5 pb-3 px-6 flex justify-between items-center border-b border-slate-200/50 shadow-sm">
           <Link href="/feed">
-            <Image src="/PinQuo_logo.png" alt="PinQuo Logo" width={110} height={35} priority className="h-8 w-auto object-contain" />
+            <Image src="/PinQuote-Logo.png" alt="PinQuo Logo" width={110} height={35} priority className="h-8 w-auto object-contain" />
           </Link>
           <NotificationBell />
         </header>
