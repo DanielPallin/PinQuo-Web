@@ -432,12 +432,13 @@ function FeedContent() {
       
       {/* Search Bar */}
       <div 
-        className={`sticky top-4 z-40 mb-6 transition-all duration-300 ease-in-out ${
+        className={`sticky top-4 z-40 mb-6 transition-transform duration-300 ease-in-out will-change-transform ${
           isSearchVisible ? 'translate-y-0 opacity-100' : '-translate-y-[150%] opacity-0 pointer-events-none'
         }`} 
         ref={searchContainerRef}
       >
-        <div className="relative flex items-center bg-white/90 backdrop-blur-md border border-slate-200 rounded-full px-4 py-3 shadow-[0_4px_20px_rgb(0,0,0,0.05)] focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all">
+        {/* Safe background: Solid white on mobile, frosted glass on desktop! */}
+        <div className="relative flex items-center bg-white md:bg-white/90 md:backdrop-blur-md border border-slate-200 rounded-full px-4 py-3 shadow-[0_4px_20px_rgb(0,0,0,0.05)] focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all">
           <Search className="w-5 h-5 text-slate-400 mr-2 shrink-0" />
           <input
             type="text"
@@ -534,11 +535,12 @@ function FeedContent() {
 
       {/* Expanded Modal */}
       {expandedQuote && (
-        <div onClick={handleCloseModal} className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-start sm:justify-center p-0 sm:p-8 animate-in fade-in duration-200 cursor-pointer overflow-hidden">
+        <div onClick={handleCloseModal} className="fixed inset-0 z-[100] bg-black md:bg-black/90 md:backdrop-blur-sm flex flex-col items-center justify-start sm:justify-center p-0 sm:p-8 animate-in fade-in duration-200 cursor-pointer overflow-hidden will-change-transform">
           
           <div onClick={(e) => e.stopPropagation()} className="w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] max-w-[550px] bg-slate-50 sm:rounded-[40px] flex flex-col overflow-hidden cursor-default shadow-2xl relative">
             
-            <button onClick={handleCloseModal} className="absolute top-4 right-4 z-50 p-2 bg-black/10 hover:bg-black/20 rounded-full transition text-slate-700 backdrop-blur-md">
+            {/* Safe Close Button: Solid gray on mobile, frosted glass on desktop! */}
+            <button onClick={handleCloseModal} className="absolute top-4 right-4 z-50 p-2 bg-slate-200 md:bg-black/10 hover:bg-slate-300 md:hover:bg-black/20 rounded-full transition text-slate-700 md:backdrop-blur-md shadow-sm md:shadow-none will-change-transform">
               <X className="w-6 h-6" />
             </button>
 

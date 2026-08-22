@@ -32,7 +32,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
       <div className="w-full max-w-350 flex flex-col lg:flex-row relative">
         
         {/* MOBILE TOP HEADER */}
-        <header className="lg:hidden sticky top-0 z-40 bg-white/80 backdrop-blur-md pt-5 pb-3 px-6 flex justify-between items-center border-b border-slate-200/50 shadow-sm">
+        <header className="lg:hidden sticky top-0 z-40 bg-white md:bg-white/80 md:backdrop-blur-md pt-5 pb-3 px-6 flex justify-between items-center border-b border-slate-200/50 shadow-sm will-change-transform">
           <Link href="/feed">
             <Image src="/PinQuote-Logo.png" alt="PinQuo Logo" width={110} height={35} priority className="h-8 w-auto object-contain" />
           </Link>
@@ -120,7 +120,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         </aside>
 
         {/* MOBILE BOTTOM NAV */}
-        <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-lg border-t border-slate-100 flex items-center justify-around px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+        <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-white md:bg-white/90 md:backdrop-blur-lg border-t border-slate-100 flex items-center justify-around px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] will-change-transform">
           <Link href="/feed" className="p-3 rounded-2xl hover:bg-slate-100 active:scale-95 transition">
             <Home className="w-7 h-7 text-black" />
           </Link>
