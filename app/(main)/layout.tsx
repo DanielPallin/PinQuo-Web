@@ -2,12 +2,18 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Plus_Jakarta_Sans, Playfair_Display } from 'next/font/google'
 import { Home, PlusSquare, User, ShoppingCart, Trophy, Settings } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import SidebarWidgets from '@/components/SidebarWidgets'
 
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta' })
+const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' })
+
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
+
+  
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/')
