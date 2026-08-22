@@ -1,25 +1,29 @@
 @import "tailwindcss";
 
-/* 
-  TAILWIND V4 CONFIGURATION 
-  This maps the Tailwind classes (font-sans and font-serif) 
-  to the Next.js variables we created in layout.tsx 
-*/
-@theme {
-  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-playfair), ui-serif, Georgia, serif;
-}
-
 @layer base {
-  /* Mobile: Standard 16px */
-  html {
-    font-size: 16px;
+  :root {
+    --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+    --font-serif: var(--font-playfair), ui-serif, Georgia, serif;
   }
 
-  /* Tablet & Desktop: */
-  @media (min-width: 768px) {
+  /* 📱 MOBILE: Standard 16px (100%) */
+  /* Keeps text readable and buttons large enough for fat fingers to tap */
+  html {
+    font-size: 16px; 
+  }
+
+  /* 💻 DESKTOP: Scaled down by ~15% */
+  /* 13.5px / 16px = ~84%. Every Tailwind class (w-full, p-4, text-lg) shrinks perfectly! */
+  @media (min-width: 1024px) {
     html {
-      font-size: 17px; 
+      font-size: 14px; 
+    }
+  }
+
+  /* 🖥️ HUGE MONITORS: Scale back up slightly so it doesn't look tiny on ultra-wides */
+  @media (min-width: 1536px) {
+    html {
+      font-size: 16px; 
     }
   }
 }

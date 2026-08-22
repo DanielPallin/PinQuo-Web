@@ -205,7 +205,7 @@ export default function CreateQuotePage() {
         </div>
 
         {/* Action Button */}
-        <div className="mt-auto pt-8">
+        <div className="mt-8 pt-8">
           <button
             type="submit"
             disabled={loading || !isFormValid}
