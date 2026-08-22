@@ -69,6 +69,8 @@ const formatQuote = (q: RawQuoteData, userId: string | null): FeedQuote => {
 }
 
 function FeedContent() {
+  const [isSearchVisible, setIsSearchVisible] = useState(true)
+  const lastScrollY = useRef(0)
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -262,6 +264,28 @@ function FeedContent() {
     }
   }
 
+  // 2. ADD THIS SCROLL LISTENER EFFECT
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      
+      // If scrolling down AND past the top threshold (to prevent bouncy behavior), hide it
+      if (currentScrollY > lastScrollY.current && currentScrollY > 60) {
+        setIsSearchVisible(false)
+      } 
+      // If scrolling up, show it immediately
+      else if (currentScrollY < lastScrollY.current) {
+        setIsSearchVisible(true)
+      }
+      
+      lastScrollY.current = currentScrollY
+    }
+
+    // Passive listener makes it lightning fast without blocking rendering
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
   const handleDynamicReaction = async (emojiObj: EmojiClickData, targetId: string, type: 'quote' | 'comment', targetOwnerId?: string) => {
     if (!currentUserId) return
     const emoji = emojiObj.emoji
@@ -407,8 +431,13 @@ function FeedContent() {
     <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50/50 pb-24 relative px-4 mt-4">
       
       {/* Search Bar */}
-      <div className="mb-6 relative z-30" ref={searchContainerRef}>
-        <div className="relative flex items-center bg-white border border-slate-200 rounded-full px-4 py-3 shadow-[0_2px_10px_rgb(0,0,0,0.02)] focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all">
+      <div 
+        className={`sticky top-4 z-40 mb-6 transition-all duration-300 ease-in-out ${
+          isSearchVisible ? 'translate-y-0 opacity-100' : '-translate-y-[150%] opacity-0 pointer-events-none'
+        }`} 
+        ref={searchContainerRef}
+      >
+        <div className="relative flex items-center bg-white/90 backdrop-blur-md border border-slate-200 rounded-full px-4 py-3 shadow-[0_4px_20px_rgb(0,0,0,0.05)] focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all">
           <Search className="w-5 h-5 text-slate-400 mr-2 shrink-0" />
           <input
             type="text"
@@ -419,7 +448,7 @@ function FeedContent() {
             }}
             onFocus={() => setShowSearchDropdown(true)}
             placeholder="Search users..."
-            className="flex-1 bg-transparent border-none outline-none text-sm font-medium text-slate-800 placeholder:text-slate-400"
+            className="flex-1 bg-transparent border-none outline-none text-sm font-bold text-slate-800 placeholder:text-slate-400"
           />
           {isSearching && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
           {searchQuery && !isSearching && (
