@@ -141,7 +141,7 @@ export default function ProfilePage() {
       {/* Top Right Settings Gear */}
       <Link 
         href="/settings" 
-        className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"
+        className="absolute top-6 right-6 p-2 text-slate-800 shadow shadow-black hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"
         title="Settings"
       >
         <Settings className="w-6 h-6" />
@@ -151,7 +151,7 @@ export default function ProfilePage() {
       <div className="flex flex-col items-center w-full mt-4 mb-8">
         
         {/* Avatar */}
-        <div className="w-28 h-28 rounded-full bg-slate-100 border-[5px] border-slate-50 shadow-sm flex items-center justify-center overflow-hidden mb-4">
+        <div className="w-28 h-28 rounded-full bg-slate-800 border-[2px] border-slate-600 flex items-center justify-center overflow-hidden mb-4">
           {profile?.avatar_url ? (
             <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
           ) : (
@@ -182,16 +182,17 @@ export default function ProfilePage() {
         <div className="flex items-center justify-center gap-3 w-full">
           <button 
             onClick={handleShareProfile}
-            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 py-2.5 px-4 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-full hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition-all"
+            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 py-2.5 px-4 bg-white text-slate-700 font-bold rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] active:translate-y-0 active:scale-95 border border-slate-400 transition-all duration-200 ease-out will-change-transform"
           >
-            <QrCode className="w-4 h-4" />
+            <QrCode className="w-4 h-4 text-slate-500" />
             Share Profile
           </button>
+          
           <Link 
             href="/profile/edit"
-            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 py-2.5 px-4 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-full hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition-all"
+            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 py-2.5 px-4 bg-white text-slate-700 font-bold rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] active:translate-y-0 active:scale-95 border border-slate-400 transition-all duration-200 ease-out will-change-transform"
           >
-            <Edit className="w-4 h-4" />
+            <Edit className="w-4 h-4 text-slate-500" />
             Edit Profile
           </Link>
         </div>

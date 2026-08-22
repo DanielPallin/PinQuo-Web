@@ -17,7 +17,11 @@ export default function EditProfilePage() {
 
   const [username, setUsername] = useState('')
   const [bio, setBio] = useState('')
+  
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  
+  // Track avatar 
+  const [originalAvatar, setOriginalAvatar] = useState<string | null>(null)
   
   const [error, setError] = useState('')
 
@@ -33,6 +37,7 @@ export default function EditProfilePage() {
         setUsername(data.username || '')
         setBio(data.bio || '')
         setAvatarUrl(data.avatar_url)
+        setOriginalAvatar(data.avatar_url)
       }
       setIsLoading(false)
     }
@@ -48,6 +53,7 @@ export default function EditProfilePage() {
     const filePath = `${userId}-${Date.now()}.${fileExt}`
 
     const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file)
+    
     if (uploadError) {
       setError("Failed to upload image.")
       setIsUploading(false)
@@ -55,6 +61,15 @@ export default function EditProfilePage() {
     }
 
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath)
+    
+    // Clean up after picky users
+    if (avatarUrl && avatarUrl !== originalAvatar) {
+      const intermediateFileName = avatarUrl.split('/').pop()
+      if (intermediateFileName) {
+        supabase.storage.from('avatars').remove([intermediateFileName]).catch(console.error)
+      }
+    }
+
     setAvatarUrl(publicUrl)
     setIsUploading(false)
   }
@@ -71,7 +86,6 @@ export default function EditProfilePage() {
       return
     }
 
-    // Check if username is taken by someone else
     const { data: existing } = await supabase
       .from('profiles')
       .select('id')
@@ -92,11 +106,20 @@ export default function EditProfilePage() {
 
     if (updateError) {
       setError('Failed to update profile.')
+      setIsSaving(false)
     } else {
+      
+      // Delete original avatar after save
+      if (originalAvatar && avatarUrl !== originalAvatar) {
+        const oldFileName = originalAvatar.split('/').pop()
+        if (oldFileName) {
+          await supabase.storage.from('avatars').remove([oldFileName]).catch(console.error)
+        }
+      }
+
       router.push('/profile')
       router.refresh()
     }
-    setIsSaving(false)
   }
 
   if (isLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
@@ -104,7 +127,6 @@ export default function EditProfilePage() {
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white">
       
-      {/* App Header */}
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md px-4 py-4 flex items-center justify-between border-b border-slate-100 will-change-transform">
         <button onClick={() => router.back()} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-700 transition">
           <ArrowLeft className="w-6 h-6" />
@@ -121,7 +143,6 @@ export default function EditProfilePage() {
 
       <div className="p-6 flex flex-col items-center">
         
-        {/* Avatar Editor */}
         <div className="relative mb-8 group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
           <div className="w-28 h-28 rounded-full bg-slate-100 border-[4px] border-white shadow-md flex items-center justify-center overflow-hidden transition group-hover:opacity-80">
             {isUploading ? (
@@ -140,7 +161,6 @@ export default function EditProfilePage() {
 
         {error && <div className="mb-4 text-sm font-bold text-red-500 bg-red-50 px-4 py-2 rounded-xl w-full text-center">{error}</div>}
 
-        {/* Username Input */}
         <div className="w-full mb-6">
           <label className="block text-sm font-bold text-slate-500 mb-2 pl-1">Username</label>
           <div className="relative">
@@ -148,14 +168,13 @@ export default function EditProfilePage() {
             <input 
               type="text" 
               value={username}
-              onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))} // Restricts to valid username chars instantly
+              onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
               maxLength={30}
               className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 pl-10 pr-4 font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all"
             />
           </div>
         </div>
 
-        {/* Bio Input */}
         <div className="w-full mb-6">
           <label className="block text-sm font-bold text-slate-500 mb-2 pl-1">Bio</label>
           <textarea 
