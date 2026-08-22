@@ -2,14 +2,19 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Plus_Jakarta_Sans, Playfair_Display } from 'next/font/google'
 import { Home, PlusSquare, User, ShoppingCart, Trophy, Settings } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import SidebarWidgets from '@/components/SidebarWidgets'
 
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta' })
+const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' })
+
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
 
-  // 1. Server-side Security & Auth Check
+  
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/')
 
@@ -66,12 +71,15 @@ export default async function MainLayout({ children }: { children: React.ReactNo
               <span className="text-[19px] font-bold">Settings</span>
             </div>
             
-            <Link href="/create" className="mt-6 flex items-center justify-center gap-2 bg-gradient-to-r from-orange-400 to-pink-500 text-white shadow-lg hover:shadow-xl hover:-translate-y-1 active:translate-y-0 active:scale-95 px-6 py-4 rounded-full transition-all duration-200">
-              <PlusSquare className="w-6 h-6 stroke-3" />
+            <Link 
+              href="/create" 
+              className="scale-90 mt-6 flex items-center justify-center gap-2 bg-gradient-to-r from-orange-400 to-red-500 text-black shadow-xl shadow-black hover:shadow-amber-950 hover:scale-98 active:scale-95 px-6 py-4 rounded-full transition-all duration-50"
+            >
+              <PlusSquare className="w-6 h-6 stroke-[4px] drop-shadow-md" />
               <span className="text-xl font-black tracking-wide">Post Quote</span>
             </Link>
             
-            <span className="text-sm font-serif text-red-600 tracking-wide mt-4">NOTE: Website RECONSTRUCTION. Some features are locked or placeholders.</span>
+            {/*<span className="text-sm font-serif text-red-600 tracking-wide mt-4"></span>*/}
           </nav>
 
           <div className="mt-auto pt-6 text-sm font-bold text-slate-400 pl-4">
@@ -88,7 +96,6 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         <aside className="hidden xl:flex w-[320px] flex-col sticky top-0 h-screen px-4 pt-6 shrink-0 z-40">
           
           {/* User Profile & Notification Cluster */}
-          {/* 3. Added relative z-50 here so the dropdown pops OVER the widgets below it */}
           <div className="relative z-50 flex items-center justify-end gap-3 mb-8 bg-white p-2 pr-3 rounded-full shadow-sm border border-slate-100 shrink-0">
             <Link href="/profile" className="flex items-center gap-2.5 hover:opacity-80 transition cursor-pointer">
               <span className="font-bold text-slate-800 text-[14px]">{profile.username}</span>
@@ -104,7 +111,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             <NotificationBell />
           </div>
 
-          {/* DYNAMIC WIDGETS GO HERE */}
+          {/* DYNAMIC WIDGETS */}
 
           <div className="flex-1 overflow-y-auto no-scrollbar pb-10 relative z-0">
             <SidebarWidgets />

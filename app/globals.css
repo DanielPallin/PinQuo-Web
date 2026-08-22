@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* 
+  TAILWIND V4 CONFIGURATION 
+  This maps the Tailwind classes (font-sans and font-serif) 
+  to the Next.js variables we created in layout.tsx 
+*/
+@theme {
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-playfair), ui-serif, Georgia, serif;
+}
+
 @layer base {
   /* Mobile: Standard 16px */
   html {
