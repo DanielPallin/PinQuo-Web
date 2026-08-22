@@ -267,46 +267,91 @@ function FeedContent() {
     const emoji = emojiObj.emoji
     if (type === 'comment') setActiveCommentEmojiPicker(null)
 
-    let isRemoving = false
-    if (type === 'quote') {
-       const quote = quotes.find(q => q.id === targetId) || (expandedQuote?.id === targetId ? expandedQuote : undefined)
-       isRemoving = quote?.groupedReactions.find(r => r.emoji === emoji)?.hasReacted || false
-    }
+    // The State Machine Logic
+    let action: 'ADD' | 'REMOVE' | 'SWAP' = 'ADD'
+    let previousEmoji: string | null = null
 
+    // 1. Optimistic UI Updates
     if (type === 'quote') {
+      const quote = quotes.find(q => q.id === targetId) || (expandedQuote?.id === targetId ? expandedQuote : undefined)
+      // Check if user has ANY reaction on this quote
+      const existingReact = quote?.groupedReactions.find(r => r.hasReacted)
+      
+      if (existingReact) {
+        previousEmoji = existingReact.emoji
+        action = existingReact.emoji === emoji ? 'REMOVE' : 'SWAP'
+      }
+
       const updateQuoteState = (q: FeedQuote) => {
         let newReactions = [...q.groupedReactions]
-        const existing = newReactions.find(r => r.emoji === emoji)
         
-        if (isRemoving && existing) {
-          existing.count--
-          existing.hasReacted = false
-          if (existing.count === 0) newReactions = newReactions.filter(r => r.emoji !== emoji)
-        } else if (!isRemoving) {
-          if (existing) { existing.count++; existing.hasReacted = true }
-          else newReactions.push({ emoji, count: 1, hasReacted: true })
+        // Step A: Clear the old reaction if removing or swapping
+        if (action === 'REMOVE' || action === 'SWAP') {
+          const old = newReactions.find(r => r.emoji === previousEmoji)
+          if (old) {
+            old.count--
+            old.hasReacted = false
+            if (old.count === 0) newReactions = newReactions.filter(r => r.emoji !== previousEmoji)
+          }
         }
+        
+        // Step B: Apply the new reaction if adding or swapping
+        if (action === 'SWAP' || action === 'ADD') {
+          const newR = newReactions.find(r => r.emoji === emoji)
+          if (newR) {
+            newR.count++
+            newR.hasReacted = true
+          } else {
+            newReactions.push({ emoji, count: 1, hasReacted: true })
+          }
+        }
+        
         return { ...q, groupedReactions: newReactions.sort((a,b) => b.count - a.count) }
       }
+
       setQuotes(prev => prev.map(q => q.id === targetId ? updateQuoteState(q) : q))
       if (expandedQuote?.id === targetId) setExpandedQuote(updateQuoteState(expandedQuote))
+      
+    } else {
+      // Find comment state
+      const comment = comments.find(c => c.id === targetId)
+      // Check if user has ANY reaction on this comment
+      const existingReact = comment?.reactions.find(r => r.user_id === currentUserId)
+      
+      if (existingReact) {
+        previousEmoji = existingReact.reaction_type
+        action = existingReact.reaction_type === emoji ? 'REMOVE' : 'SWAP'
+      }
+
+      // Optimistic UI for comments (Instantly snaps without waiting for DB!)
+      setComments(prev => prev.map(c => {
+        if (c.id !== targetId) return c
+        let newReactions = [...c.reactions]
+        
+        if (action === 'REMOVE' || action === 'SWAP') {
+          newReactions = newReactions.filter(r => !(r.user_id === currentUserId))
+        }
+        if (action === 'SWAP' || action === 'ADD') {
+          newReactions.push({ reaction_type: emoji, user_id: currentUserId })
+        }
+        return { ...c, reactions: newReactions }
+      }))
     }
 
-    if (isRemoving) {
-      if (type === 'quote') {
-        await supabase.from('reactions').delete().match({ quote_id: targetId, user_id: currentUserId, reaction_type: emoji })
-      } else {
-        await supabase.from('reactions').delete().match({ comment_id: targetId, user_id: currentUserId, reaction_type: emoji })
-      }
-    } else {
-      type ReactionPayload = { user_id: string; reaction_type: string; quote_id?: string; comment_id?: string; };
-      const insertData: ReactionPayload = type === 'quote' 
-        ? { quote_id: targetId, user_id: currentUserId, reaction_type: emoji }
-        : { comment_id: targetId, user_id: currentUserId, reaction_type: emoji }
-        
-      await supabase.from('reactions').insert(insertData as any)
+    // 2. Database Sync Logic (Cleaned up for maximum efficiency)
+    const matchCriteria = type === 'quote' 
+      ? { quote_id: targetId, user_id: currentUserId }
+      : { comment_id: targetId, user_id: currentUserId }
 
-      if (targetOwnerId && targetOwnerId !== currentUserId) {
+    // Always delete any existing reaction first to guarantee the "max 1" rule is strictly enforced
+    await supabase.from('reactions').delete().match(matchCriteria)
+
+    if (action !== 'REMOVE') {
+      // Insert the new reaction
+      await supabase.from('reactions').insert({ ...matchCriteria, reaction_type: emoji })
+      
+      // Only send a notification if it's a brand new ADD (avoids spamming the user if someone keeps swapping emojis)
+      if (action === 'ADD' && targetOwnerId && targetOwnerId !== currentUserId) {
          await supabase.from('notifications').insert({
             receiver_id: targetOwnerId,
             actor_id: currentUserId,
@@ -314,11 +359,6 @@ function FeedContent() {
             quote_id: type === 'quote' ? targetId : expandedQuote?.id
          })
       }
-    }
-
-    if (type === 'comment' && expandedQuote) {
-      const { data } = await supabase.from('comments').select(`*, user:profiles(id, username, avatar_url), reactions(reaction_type, user_id)`).eq('quote_id', expandedQuote.id).order('created_at', { ascending: true })
-      if (data) setComments(data as unknown as CommentType[])
     }
   }
 

@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Crown, User, Loader2 } from 'lucide-react'
 
-// Strict Types
 type Profile = {
   id: string
   username: string
@@ -15,7 +14,7 @@ type Profile = {
 
 type MiniQuote = {
   id: string
-  template: { style_config: { gradient: string, baseColor: string } } | null
+  template: { style_config: { gradient?: string, baseColor?: string }, image_url: string | null } | null
 }
 
 export default function PublicProfilePage() {
@@ -81,7 +80,7 @@ export default function PublicProfilePage() {
 
       const { data: pubData } = await supabase
         .from('quotes')
-        .select('id, template:templates(style_config)')
+        .select('id, template:templates(style_config, image_url)')
         .eq('publisher_id', profileData.id)
         .order('created_at', { ascending: false })
         .limit(3)
@@ -90,7 +89,7 @@ export default function PublicProfilePage() {
 
       const { data: quotedData } = await supabase
         .from('quotes')
-        .select('id, template:templates(style_config)')
+        .select('id, template:templates(style_config, image_url)')
         .eq('quoted_user_id', profileData.id)
         .order('created_at', { ascending: false })
         .limit(3)
@@ -155,12 +154,23 @@ export default function PublicProfilePage() {
           className="grid grid-cols-3 gap-3 w-full bg-slate-50/50 p-3 rounded-[28px] border-[3px] border-slate-50 shadow-inner cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform"
         >
           {slots.map((q, i) => {
-            const bgGradient = q?.template?.style_config?.gradient || 'from-slate-200 to-slate-300'
+            // If the slot is completely empty (no quote exists), render the blank skeleton
+            if (!q) {
+              return <div key={i} className="w-full aspect-square rounded-[18px] bg-slate-200/40 shadow-sm" />
+            }
+
+            // If a quote exists, render its image or fallback gradient!
             return (
               <div 
                 key={i} 
-                className={`w-full aspect-square rounded-[18px] shadow-sm ${q ? `bg-linear-to-br ${bgGradient}` : 'bg-slate-200/40'}`}
-              />
+                className="w-full aspect-square rounded-[18px] shadow-sm relative overflow-hidden flex items-center justify-center"
+              >
+                {q.template?.image_url ? (
+                  <img src={q.template.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" crossOrigin="anonymous" />
+                ) : (
+                  <div className={`absolute inset-0 bg-linear-to-br ${q.template?.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
+                )}
+              </div>
             )
           })}
         </div>

@@ -85,10 +85,11 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         </main>
 
         {/* RIGHT SIDEBAR (Desktop Only) */}
-        <aside className="hidden xl:flex w-75 flex-col sticky top-0 h-screen px-4 py-6 overflow-y-auto shrink-0">
+        <aside className="hidden xl:flex w-[320px] flex-col sticky top-0 h-screen px-4 pt-6 shrink-0 z-40">
           
           {/* User Profile & Notification Cluster */}
-          <div className="flex items-center justify-end gap-3 mb-8 bg-white p-2 pr-3 rounded-full shadow-sm border border-slate-100">
+          {/* 3. Added relative z-50 here so the dropdown pops OVER the widgets below it */}
+          <div className="relative z-50 flex items-center justify-end gap-3 mb-8 bg-white p-2 pr-3 rounded-full shadow-sm border border-slate-100 shrink-0">
             <Link href="/profile" className="flex items-center gap-2.5 hover:opacity-80 transition cursor-pointer">
               <span className="font-bold text-slate-800 text-[14px]">{profile.username}</span>
               <div className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden border-2 border-white shadow-sm flex items-center justify-center">
@@ -99,12 +100,15 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                 )}
               </div>
             </Link>
-            <div className="w-1px h-5 bg-slate-200 mx-1"></div>
+            <div className="w-[1px] h-5 bg-slate-200 mx-1"></div>
             <NotificationBell />
           </div>
 
           {/* DYNAMIC WIDGETS GO HERE */}
-          <SidebarWidgets />
+
+          <div className="flex-1 overflow-y-auto no-scrollbar pb-10 relative z-0">
+            <SidebarWidgets />
+          </div>
           
         </aside>
 
