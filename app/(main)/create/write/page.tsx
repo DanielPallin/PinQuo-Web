@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, Suspense, useRef } from 'react'
+import { useState, useEffect, Suspense, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Camera, ArrowLeft, Loader2, Sparkles, User as UserIcon, X, Lock, Search } from 'lucide-react'
+import { Camera, ArrowLeft, Loader2, Sparkles, User as UserIcon, X, Lock, Search, Heart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const TAILWIND_SAFELIST = "bg-orange-200 bg-yellow-200 bg-slate-300 bg-slate-200 from-orange-200 to-red-200 from-yellow-200 to-amber-200 from-slate-300 to-slate-400"
@@ -66,6 +66,14 @@ function WriteQuoteForm() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<FilterState>('packs')
 
+  // PLG State
+  const [isGuest, setIsGuest] = useState(true)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [isLogin, setIsLogin] = useState(false)
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
+
   const [isProUser, setIsProUser] = useState(false)
   const [allTemplates, setAllTemplates] = useState<Template[]>([])
   const [packs, setPacks] = useState<DerivedPack[]>([])
@@ -75,30 +83,39 @@ function WriteQuoteForm() {
 
   const [activePack, setActivePack] = useState<DerivedPack | null>(null)
 
+  // Separated user fetch so we can re-call it after they log in via the Modal!
+  const fetchUserData = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      setIsGuest(false)
+      const { data: profile } = await supabase.from('profiles').select('access_tier').eq('id', user.id).single()
+      if (profile) setIsProUser(profile.access_tier === 'pro')
+
+      const { data: favData } = await supabase
+        .from('user_template_interactions')
+        .select('template_id, templates(*)')
+        .eq('user_id', user.id)
+        .eq('is_favorite', true)
+      
+      if (favData) {
+        const formattedFavs = favData.map(f => f.templates as unknown as Template).filter(Boolean)
+        setFavorites(formattedFavs)
+      }
+    } else {
+      setIsGuest(true)
+      setIsProUser(false)
+      setFavorites([])
+    }
+  }, [supabase])
+
   useEffect(() => {
     let isMounted = true
     const fetchCoreData = async () => {
       setIsLoadingCore(true)
-      const { data: { user } } = await supabase.auth.getUser()
+      
+      await fetchUserData()
 
-      if (user) {
-        const { data: profile } = await supabase.from('profiles').select('access_tier').eq('id', user.id).single()
-        if (isMounted && profile) {
-          setIsProUser(profile.access_tier === 'pro')
-        }
-
-        const { data: favData } = await supabase
-          .from('user_template_interactions')
-          .select('template_id, templates(*)')
-          .eq('user_id', user.id)
-          .eq('is_favorite', true)
-        
-        if (isMounted && favData) {
-          const formattedFavs = favData.map(f => f.templates as unknown as Template).filter(Boolean)
-          setFavorites(formattedFavs)
-        }
-      }
-
+      // Fetch all templates regardless of auth state
       const { data: templatesData } = await supabase.from('templates').select('*').order('created_at', { ascending: true })
 
       if (isMounted && templatesData) {
@@ -143,7 +160,24 @@ function WriteQuoteForm() {
 
     fetchCoreData()
     return () => { isMounted = false }
-  }, [supabase])
+  }, [supabase, fetchUserData])
+
+  const handleInContextAuth = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAuthLoading(true)
+    
+    const { error } = isLogin 
+      ? await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
+      : await supabase.auth.signUp({ email: authEmail, password: authPassword, options: { data: { username: authEmail.split('@')[0] } } })
+
+    if (!error) {
+      setShowAuthModal(false)
+      await fetchUserData() // Boom! Seamlessly unlocks their app state without losing the quote!
+    } else {
+      alert(error.message)
+    }
+    setAuthLoading(false)
+  }
 
   // Sorting & Filtering
   const lowercaseQuery = searchQuery.toLowerCase().trim()
@@ -364,8 +398,17 @@ function WriteQuoteForm() {
               <>
                 {activeFilter === 'all' && sortedTemplates.map(t => renderTemplateCard(t, false))}
                 
-                {activeFilter === 'favorites' && filteredFavorites.length === 0 && (
-                  <div className="w-[200px] text-sm font-bold text-slate-400 text-center flex items-center justify-center">No favorites pinned yet.</div>
+                {/* PLG: Guest Favorites State */}
+                {activeFilter === 'favorites' && isGuest && (
+                  <div className="w-[200px] flex flex-col items-center justify-center text-center px-4 shrink-0 border-2 border-dashed border-slate-200 rounded-[20px] h-[130px]">
+                    <Heart className="w-6 h-6 text-slate-300 mb-2" />
+                    <p className="text-[10px] font-bold text-slate-400 mb-2 leading-tight">Create an account to save templates.</p>
+                    <button onClick={() => setShowAuthModal(true)} className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-full text-[10px] font-black uppercase tracking-wide transition">Sign Up</button>
+                  </div>
+                )}
+
+                {activeFilter === 'favorites' && !isGuest && filteredFavorites.length === 0 && (
+                  <div className="w-[200px] text-sm font-bold text-slate-400 text-center flex items-center justify-center shrink-0">No favorites pinned yet.</div>
                 )}
                 {activeFilter === 'favorites' && filteredFavorites.map(t => renderTemplateCard(t, false))}
 
@@ -445,13 +488,22 @@ function WriteQuoteForm() {
                 <Lock className="w-8 h-8" />
               </div>
               <h3 className="text-2xl font-black text-slate-900 mb-2">Unlock {activePack?.name}</h3>
-              <p className="text-slate-500 font-medium mb-8">Upgrade to <span className="font-bold text-slate-700">Pro</span> to use this template and 100+ more.</p>
+              <p className="text-slate-500 font-medium mb-8">
+                {isGuest ? 'Create a free account to unlock premium templates and features.' : 'Upgrade to Pro to use this template and 100+ more.'}
+              </p>
               
               <button 
-                onClick={() => router.push('/settings')} 
+                onClick={() => {
+                  if (isGuest) {
+                    setActivePack(null)
+                    setShowAuthModal(true)
+                  } else {
+                    router.push('/settings')
+                  }
+                }} 
                 className="w-full max-w-[250px] bg-[#ffcc00] text-yellow-950 font-black py-4 px-6 rounded-full shadow-sm hover:scale-105 transition-transform uppercase tracking-wide mb-5"
               >
-                Upgrade to Pro
+                {isGuest ? 'Sign up to Unlock' : 'Upgrade to Pro'}
               </button>
 
               <div className="h-px w-3/4 bg-slate-100 mb-4"></div>
@@ -467,6 +519,50 @@ function WriteQuoteForm() {
           )}
         </div>
       </div>
+
+      {/* THE CONTEXTUAL AUTH MODAL */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            
+            <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 w-8 h-8 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200 transition">
+              <X className="w-4 h-4" />
+            </button>
+            
+            <h2 className="text-2xl font-black text-slate-800 mb-2">Save your progress</h2>
+            <p className="text-slate-500 text-sm mb-6">Create a free account to unlock features and save your quote.</p>
+            
+            <form onSubmit={handleInContextAuth} className="space-y-4">
+              <input 
+                type="email" 
+                placeholder="Email address" 
+                onChange={e => setAuthEmail(e.target.value)} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all font-medium"
+                required 
+              />
+              <input 
+                type="password" 
+                placeholder="Password" 
+                onChange={e => setAuthPassword(e.target.value)} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all font-medium"
+                required 
+              />
+              <button 
+                type="submit" 
+                disabled={authLoading}
+                className="w-full bg-black text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 active:scale-95 transition disabled:opacity-50 flex items-center justify-center"
+              >
+                {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? 'Log In' : 'Create Account')}
+              </button>
+            </form>
+            
+            <button onClick={() => setIsLogin(!isLogin)} className="w-full text-center mt-5 text-sm font-bold text-slate-400 hover:text-black transition-colors">
+              {isLogin ? "Need an account? Create Account" : "Already have an account? Log in"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="hidden">{TAILWIND_SAFELIST}</div>
     </div>
   )

@@ -1,221 +1,573 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense, useRef, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Camera, ArrowLeft, Loader2, Sparkles, User as UserIcon, X, Lock, Search, Heart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, ArrowLeft, Search, Mail, User as UserIcon, X, CheckCircle2 } from 'lucide-react'
 
-type Profile = {
+const TAILWIND_SAFELIST = "bg-orange-200 bg-yellow-200 bg-slate-300 bg-slate-200 from-orange-200 to-red-200 from-yellow-200 to-amber-200 from-slate-300 to-slate-400"
+
+type AccessTier = 'free' | 'pro'
+type FilterState = 'all' | 'favorites' | 'packs'
+
+type Template = {
   id: string
-  username: string
-  avatar_url: string | null
+  name: string
+  style_config: {
+    baseColor?: string
+    gradient: string
+  }
+  access_tier?: AccessTier 
+  image_url?: string 
+  category?: string 
+  computed_tier?: AccessTier
+  computed_pack_name?: string
 }
 
-export default function CreateQuotePage() {
+type DerivedPack = {
+  name: string
+  cover_image_url: string | null
+  is_pro: boolean
+  templates: Template[]
+}
+
+const canAccessTemplate = (isProUser: boolean, itemTier: AccessTier) => {
+  return itemTier === 'pro' ? isProUser : true
+}
+
+const extractPackNameFromUrl = (url: string | undefined): string | null => {
+  if (!url) return null
+  const match = url.match(/(?:paid_templates|free_templates)\/([^\/]+)/)
+  if (match && match[1]) {
+    return match[1]
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  }
+  return null
+}
+
+function WriteQuoteForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
-  const [searchTerm, setSearchTerm] = useState('')
-  const [results, setResults] = useState<Profile[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<Profile | null>(null)
+  const targetId = searchParams.get('targetId')
+  const targetUsername = searchParams.get('targetUsername')
+  const inviteEmail = searchParams.get('inviteEmail')
+  const customName = searchParams.get('customName') 
+  const isExistingUser = !!targetId
+  const displayTarget = targetUsername || customName || inviteEmail || 'Unknown'
 
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [quoteText, setQuoteText] = useState('')
+  const [bgType, setBgType] = useState<'avatar' | 'template' | 'snap'>(isExistingUser ? 'avatar' : 'template')
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
 
-  // Search logic for Supabase
-  useEffect(() => {
-    const searchUsers = async () => {
-      if (searchTerm.trim().length < 2) {
-        setResults([])
-        return
-      }
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeFilter, setActiveFilter] = useState<FilterState>('packs')
 
-      setIsSearching(true)
+  // PLG State
+  const [isGuest, setIsGuest] = useState(true)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [isLogin, setIsLogin] = useState(false)
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, username, avatar_url')
-        .ilike('username', `%${searchTerm}%`)
-        .limit(4)
+  const [isProUser, setIsProUser] = useState(false)
+  const [allTemplates, setAllTemplates] = useState<Template[]>([])
+  const [packs, setPacks] = useState<DerivedPack[]>([])
+  const [favorites, setFavorites] = useState<Template[]>([])
+  const [isLoadingCore, setIsLoadingCore] = useState(true)
+  const carouselRef = useRef<HTMLDivElement>(null)
 
-      if (!error && data) {
-        setResults(data)
-      }
+  const [activePack, setActivePack] = useState<DerivedPack | null>(null)
+
+  const fetchUserData = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      setIsGuest(false)
+      const { data: profile } = await supabase.from('profiles').select('access_tier').eq('id', user.id).single()
+      if (profile) setIsProUser(profile.access_tier === 'pro')
+
+      const { data: favData } = await supabase
+        .from('user_template_interactions')
+        .select('template_id, templates(*)')
+        .eq('user_id', user.id)
+        .eq('is_favorite', true)
       
-      setIsSearching(false)
-    }
-
-    const delayDebounceFn = setTimeout(() => {
-      searchUsers()
-    }, 300)
-
-    return () => clearTimeout(delayDebounceFn)
-  }, [searchTerm, supabase])
-
-  const handleContinue = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!selectedUser && !inviteEmail && searchTerm.trim().length === 0) return
-    
-    setLoading(true)
-
-    if (selectedUser) {
-      router.push(`/create/write?targetId=${selectedUser.id}&targetUsername=${selectedUser.username}`)
-    } else if (inviteEmail) {
-      router.push(`/create/write?inviteEmail=${encodeURIComponent(inviteEmail)}`)
-    } else if (searchTerm.trim().length > 0) {
-      router.push(`/create/write?customName=${encodeURIComponent(searchTerm.trim())}`)
+      if (favData) {
+        const formattedFavs = favData.map(f => f.templates as unknown as Template).filter(Boolean)
+        setFavorites(formattedFavs)
+      }
     } else {
-      setLoading(false)
+      setIsGuest(true)
+      setIsProUser(false)
+      setFavorites([])
+    }
+  }, [supabase])
+
+  useEffect(() => {
+    let isMounted = true
+    const fetchCoreData = async () => {
+      setIsLoadingCore(true)
+      
+      await fetchUserData()
+
+      const { data: templatesData } = await supabase.from('templates').select('*').order('created_at', { ascending: true })
+
+      if (isMounted && templatesData) {
+        const packMap = new Map<string, DerivedPack>()
+        const processedTemplates: Template[] = []
+
+        ;(templatesData as Template[]).forEach((t) => {
+          const isPaidFolder = t.image_url?.includes('paid_templates')
+          const computedTier: AccessTier = isPaidFolder ? 'pro' : (t.access_tier === 'pro' ? 'pro' : 'free')
+          
+          const parsedFolderName = extractPackNameFromUrl(t.image_url)
+          let packName = parsedFolderName || t.category
+
+          if (!packName || packName.toLowerCase() === 'general') {
+            packName = computedTier === 'free' ? 'Starter Collection' : 'Pro Collection'
+          }
+
+          t.computed_tier = computedTier
+          t.computed_pack_name = packName
+          processedTemplates.push(t)
+
+          if (!packMap.has(packName)) {
+            packMap.set(packName, {
+              name: packName,
+              cover_image_url: t.image_url || null, 
+              is_pro: computedTier === 'pro', 
+              templates: []
+            })
+          } else if (computedTier === 'pro') {
+            packMap.get(packName)!.is_pro = true
+          }
+          
+          packMap.get(packName)!.templates.push(t)
+        })
+
+        setAllTemplates(processedTemplates)
+        setPacks(Array.from(packMap.values()))
+      }
+
+      if (isMounted) setIsLoadingCore(false)
+    }
+
+    fetchCoreData()
+    return () => { isMounted = false }
+  }, [supabase, fetchUserData])
+
+  const handleInContextAuth = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAuthLoading(true)
+    
+    const { error } = isLogin 
+      ? await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
+      : await supabase.auth.signUp({ email: authEmail, password: authPassword, options: { data: { username: authEmail.split('@')[0] } } })
+
+    if (!error) {
+      setShowAuthModal(false)
+      await fetchUserData()
+    } else {
+      alert(error.message)
+    }
+    setAuthLoading(false)
+  }
+
+  const lowercaseQuery = searchQuery.toLowerCase().trim()
+  
+  const sortUnlockedFirst = (aAccess: boolean, bAccess: boolean) => {
+    if (aAccess && !bAccess) return -1
+    if (!aAccess && bAccess) return 1
+    return 0
+  }
+
+  const baseSortedTemplates = allTemplates
+    .filter(t => t.name.toLowerCase().includes(lowercaseQuery) || (t.computed_pack_name?.toLowerCase().includes(lowercaseQuery)))
+    .sort((a, b) => sortUnlockedFirst(canAccessTemplate(isProUser, a.computed_tier || 'free'), canAccessTemplate(isProUser, b.computed_tier || 'free')))
+
+  const sortedTemplates = (() => {
+    if (bgType === 'template' && selectedTemplate) {
+      const filtered = baseSortedTemplates.filter(t => t.id !== selectedTemplate.id)
+      return [selectedTemplate, ...filtered]
+    }
+    return baseSortedTemplates
+  })()
+
+  const sortedPacks = packs
+    .filter(p => p.name.toLowerCase().includes(lowercaseQuery))
+    .sort((a, b) => sortUnlockedFirst(!a.is_pro || isProUser, !b.is_pro || isProUser))
+
+  const filteredFavorites = favorites.filter(t => t.name.toLowerCase().includes(lowercaseQuery))
+
+  const handleSelectTemplate = (template: Template) => {
+    setBgType('template')
+    setSelectedTemplate(template)
+    setActivePack(null)
+    setActiveFilter('all') 
+    
+    if (carouselRef.current) {
+      setTimeout(() => {
+        carouselRef.current?.scrollTo({ left: 0, behavior: 'smooth' })
+      }, 50)
     }
   }
 
-  const clearSelection = () => {
-    setSelectedUser(null)
-    setSearchTerm('')
+  const handleLockedClick = (template: Template) => {
+    const parentPack = packs.find(p => p.name === template.computed_pack_name)
+    if (parentPack) setActivePack(parentPack)
   }
 
-  const isFormValid = selectedUser || inviteEmail.trim().length > 0 || searchTerm.trim().length > 0
+  const handlePreview = () => {
+    if (!quoteText.trim()) return
+    const params = new URLSearchParams({ quote: quoteText, bgType: bgType })
+
+    if (targetId) params.append('targetId', targetId)
+    if (targetUsername) params.append('targetUsername', targetUsername)
+    if (inviteEmail) params.append('inviteEmail', inviteEmail)
+    if (customName) params.append('customName', customName)
+    
+    if (bgType === 'template' && selectedTemplate) {
+      params.append('templateId', selectedTemplate.id)
+      if (selectedTemplate.style_config?.gradient) params.append('templateGradient', selectedTemplate.style_config.gradient)
+      if (selectedTemplate.image_url) params.append('templateImageUrl', selectedTemplate.image_url)
+    }
+
+    router.push(`/create/preview?${params.toString()}`)
+  }
+
+  const isFormValid = quoteText.trim().length > 0 && (bgType !== 'template' || !!selectedTemplate)
+  const isPackLocked = activePack && activePack.is_pro && !isProUser
+
+  const renderTemplateCard = (template: Template, isGrid: boolean = false) => {
+    const isSelected = bgType === 'template' && selectedTemplate?.id === template.id
+    const itemTier = template.computed_tier || 'free'
+    const isLocked = !canAccessTemplate(isProUser, itemTier)
+
+    const sizingClasses = isGrid 
+      ? 'w-full aspect-[3/4]' 
+      : 'shrink-0 w-[100px] h-[130px] snap-start'
+
+    return (
+      <button
+        key={template.id}
+        onClick={() => isLocked ? handleLockedClick(template) : handleSelectTemplate(template)}
+        className={`relative rounded-[20px] overflow-hidden transition-all duration-200 group will-change-transform ${sizingClasses} ${
+          isSelected 
+            ? 'ring-4 ring-emerald-400 scale-[1.02] shadow-lg z-10' 
+            : isLocked 
+              ? 'grayscale opacity-60 hover:opacity-80 border-2 border-slate-200' 
+              : 'opacity-90 hover:opacity-100 border border-slate-200 shadow-sm'
+        }`}
+      >
+        {template.image_url ? (
+          <img src={template.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" crossOrigin="anonymous"/>
+        ) : (
+          <div className={`absolute inset-0 bg-linear-to-br ${template.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
+        )}
+        
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+        
+        {isLocked && (
+          <div className="absolute top-2 right-2 bg-black/80 md:bg-black/50 md:backdrop-blur-md p-1.5 rounded-full border border-white/20 shadow-sm will-change-transform">
+            <Lock className="w-3 h-3 text-white" />
+          </div>
+        )}
+
+        <div className="absolute bottom-0 left-0 w-full p-2 text-center text-[10px] sm:text-xs font-black uppercase tracking-wide text-white truncate drop-shadow-md">
+          {template.name}
+        </div>
+      </button>
+    )
+  }
 
   return (
-    <div className="flex flex-col pt-6 px-4 w-full max-w-md mx-auto min-h-[calc(100vh-100px)] pb-8 bg-slate-50/50">
+    <div className="flex flex-col pt-6 w-full max-w-2xl mx-auto min-h-[100dvh] bg-[#f8fafc] relative">
       
-      {/* Sleek App Header */}
-      <div className="flex items-center justify-between mb-8">
-        <button 
-          onClick={() => router.back()}
-          className="p-2 hover:bg-slate-200 rounded-full transition text-slate-700 -ml-2"
-        >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 px-4">
+        <button onClick={() => router.back()} className="p-2 hover:bg-slate-200 rounded-full transition text-slate-700 -ml-2">
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div className="flex flex-col items-center">
-          <h1 className="text-xl font-black text-slate-900">PinQuote</h1>
-          <p className="text-xs font-bold text-slate-400">CREATE QUOTE</p>
+          <h1 className="text-xl font-black text-slate-900">PinQuo</h1>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Editor</p>
         </div>
-        <div className="w-10"></div> {/* Spacer for perfect centering */}
+        <div className="w-10"></div>
       </div>
 
-      <form onSubmit={handleContinue} className="w-full flex flex-col flex-1">
+      <div className="flex flex-col w-full z-10">
         
-        <div className="bg-white rounded-[32px] shadow-xl shadow-slate-200/40 border border-slate-100 p-6 flex flex-col gap-6 relative z-20">
-          
-          <div className="text-center mb-2">
-            <h2 className="text-xl font-bold text-slate-800">Who are you quoting?</h2>
-            <p className="text-sm font-medium text-slate-500 mt-1">Search a user, write a custom name, or invite via email.</p>
+        {/* Quote Input Area */}
+        <div className="px-4 mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm font-bold text-slate-800 ml-1">What did <span className="text-emerald-600">{displayTarget}</span> say?</label>
           </div>
-
-          {/* Section 1: App Search / Custom Name */}
-          <div className="relative flex flex-col">
-            {selectedUser ? (
-              <div className="flex items-center justify-between bg-[#bbf7d0] border-2 border-emerald-200 rounded-2xl p-4 transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 overflow-hidden border border-emerald-200">
-                    {selectedUser.avatar_url ? (
-                      <img src={selectedUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      <UserIcon className="w-5 h-5 text-emerald-700" />
-                    )}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Selected User</span>
-                    <span className="text-lg font-black text-emerald-950 leading-none">@{selectedUser.username}</span>
-                  </div>
-                </div>
-                <button type="button" onClick={clearSelection} className="p-2 bg-emerald-200/50 hover:bg-emerald-300 rounded-full transition text-emerald-800">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            ) : (
-              <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value)
-                    setInviteEmail('') // Mutually exclusive UX
-                  }}
-                  placeholder="Username or Custom Name"
-                  className="w-full py-4 pl-12 pr-4 bg-slate-50 border border-slate-200 text-slate-900 text-[15px] font-medium rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:bg-white transition-all placeholder:text-slate-400"
-                />
-                {isSearching && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-slate-300" />}
-              </div>
-            )}
-
-            {/* Floating Search Results Dropdown */}
-            {searchTerm.length >= 2 && !selectedUser && results.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
-                {results.map((profile) => (
-                  <button
-                    key={profile.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedUser(profile)
-                      setSearchTerm(profile.username)
-                      setResults([])
-                    }}
-                    className="w-full flex items-center gap-3 p-4 text-left hover:bg-slate-50 transition border-b border-slate-50 last:border-none"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200">
-                       {profile.avatar_url ? (
-                         <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                       ) : (
-                         <UserIcon className="w-4 h-4 text-slate-400" />
-                       )}
-                    </div>
-                    <span className="font-bold text-slate-800 text-[15px]">{profile.username}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            
-            {/* Custom Name Fallback Hint */}
-            {searchTerm.length >= 2 && !selectedUser && !isSearching && results.length === 0 && (
-              <div className="mt-3 text-center">
-                <span className="text-[13px] font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full inline-flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Will be quoted as "{searchTerm}"
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Elegant Divider */}
-          <div className="flex items-center gap-4 my-2">
-            <div className="flex-1 h-px bg-slate-100"></div>
-            <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">OR</span>
-            <div className="flex-1 h-px bg-slate-100"></div>
-          </div>
-
-          {/* Section 2: Email Invite */}
-          <div className="relative group">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-            <input
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => {
-                setInviteEmail(e.target.value)
-                setSearchTerm('')
-                setSelectedUser(null)
-              }}
-              placeholder="Invite via email address"
-              className="w-full py-4 pl-12 pr-4 bg-slate-50 border border-slate-200 text-slate-900 text-[15px] font-medium rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:bg-white transition-all placeholder:text-slate-400"
+          <div className="relative w-full bg-white rounded-[32px] p-6 shadow-[0_2px_15px_rgb(0,0,0,0.03)] border border-slate-100 focus-within:border-emerald-300 focus-within:ring-4 focus-within:ring-emerald-100 transition-all">
+            <span className="absolute top-4 left-4 text-4xl font-serif font-black text-slate-200 select-none">“</span>
+            <textarea
+              value={quoteText}
+              onChange={(e) => setQuoteText(e.target.value)}
+              placeholder="Type the quote here..."
+              className="w-full h-28 bg-transparent text-slate-900 text-xl md:text-2xl font-medium resize-none focus:outline-none placeholder:text-slate-300 px-6 py-2 leading-snug font-serif"
             />
+            <span className="absolute bottom-2 right-4 text-4xl font-serif font-black text-slate-200 select-none">”</span>
           </div>
         </div>
 
-        {/* Action Button */}
-        <div className="mt-8 pt-8">
-          <button
-            type="submit"
-            disabled={loading || !isFormValid}
-            className="w-full bg-[#bbf7d0] text-emerald-950 hover:bg-[#86efac] active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-[#bbf7d0] disabled:active:scale-100 font-black text-xl py-4 px-6 rounded-full transition-all duration-200 shadow-md border-4 border-emerald-200 flex items-center justify-center gap-2"
+        {/* Backgrounds Section */}
+        <div className="w-full flex flex-col">
+          <div className="px-4 flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-slate-800" />
+              <h3 className="text-lg font-black text-slate-900">Backgrounds</h3>
+            </div>
+          </div>
+
+          <div className="px-4 mb-4">
+            <div className="relative w-full group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+              <input 
+                type="text" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search templates, packs, or vibes..." 
+                className="w-full bg-white border border-slate-200 rounded-full py-3 pl-11 pr-4 text-sm font-medium focus:outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 transition-all shadow-sm"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto px-4 pb-2 no-scrollbar">
+            {(['all', 'favorites', 'packs'] as FilterState[]).map(filter => (
+              <button 
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={`shrink-0 px-5 py-2 rounded-full text-sm font-bold transition-all border ${
+                  activeFilter === filter 
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
+                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </button>
+            ))}
+          </div>
+          
+          <div 
+            ref={carouselRef} 
+            className="relative w-full flex overflow-x-auto snap-x snap-mandatory pt-4 pb-8 px-4 gap-3 no-scrollbar items-center"
           >
-            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Continue to Templates'}
+            <div className="relative shrink-0 w-[100px] h-[130px] rounded-[20px] border-2 border-dashed border-slate-300 bg-white/50 flex flex-col items-center justify-center opacity-60 snap-start cursor-not-allowed">
+              <Camera className="w-6 h-6 text-slate-400 mb-2" strokeWidth={2.5} />
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center leading-tight">Live<br/>Snap</span>
+              <div className="absolute -top-2 right-0 bg-slate-300 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-white">Mobile Feature</div>
+            </div>
+
+            {isExistingUser && (
+              <button
+                onClick={() => setBgType('avatar')}
+                className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] flex flex-col items-center justify-center snap-start transition-all duration-200 ${
+                  bgType === 'avatar' ? 'ring-4 ring-emerald-400 scale-[1.02] shadow-md bg-emerald-50 border-none' : 'bg-white border-2 border-slate-200 shadow-sm opacity-90 hover:opacity-100'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${bgType === 'avatar' ? 'bg-emerald-200 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                  <UserIcon className="w-5 h-5" />
+                </div>
+                <span className={`text-[10px] font-black uppercase tracking-widest text-center leading-tight ${bgType === 'avatar' ? 'text-emerald-800' : 'text-slate-500'}`}>Use<br/>Avatar</span>
+              </button>
+            )}
+
+            <div className="shrink-0 w-[2px] h-20 bg-slate-200 mx-1 rounded-full"></div>
+
+            {isLoadingCore ? (
+              <div className="w-[100px] h-[130px] flex items-center justify-center shrink-0">
+                <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+              </div>
+            ) : (
+              <>
+                {activeFilter === 'all' && sortedTemplates.map(t => renderTemplateCard(t, false))}
+                
+                {activeFilter === 'favorites' && isGuest && (
+                  <div className="w-[200px] flex flex-col items-center justify-center text-center px-4 shrink-0 border-2 border-dashed border-slate-200 rounded-[20px] h-[130px]">
+                    <Heart className="w-6 h-6 text-slate-300 mb-2" />
+                    <p className="text-[10px] font-bold text-slate-400 mb-2 leading-tight">Create an account to save templates.</p>
+                    <button onClick={() => setShowAuthModal(true)} className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-full text-[10px] font-black uppercase tracking-wide transition">Sign Up</button>
+                  </div>
+                )}
+
+                {activeFilter === 'favorites' && !isGuest && filteredFavorites.length === 0 && (
+                  <div className="w-[200px] text-sm font-bold text-slate-400 text-center flex items-center justify-center shrink-0">No favorites pinned yet.</div>
+                )}
+                {activeFilter === 'favorites' && filteredFavorites.map(t => renderTemplateCard(t, false))}
+
+                {activeFilter === 'packs' && sortedPacks.map(pack => {
+                  const isLocked = pack.is_pro && !isProUser
+                  return (
+                    <button
+                      key={`pack-${pack.name}`}
+                      onClick={() => setActivePack(pack)}
+                      className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] overflow-hidden snap-start transition-all duration-200 border-2 border-slate-200 group ${isLocked ? 'grayscale opacity-70 hover:opacity-90' : 'shadow-sm hover:shadow-md'}`}
+                    >
+                      {pack.cover_image_url ? (
+                        <img src={pack.cover_image_url} alt="" className="absolute inset-0 w-full h-full object-cover" crossOrigin="anonymous" />
+                      ) : (
+                        <div className="absolute inset-0 bg-slate-200"></div>
+                      )}
+                      <div className="absolute top-1.5 left-1.5 right-1.5 bottom-1.5 border border-white/40 rounded-xl pointer-events-none z-10"></div>
+                      
+                      {isLocked ? (
+                        <div className="absolute inset-0 bg-slate-900/50 flex flex-col items-center justify-center z-20 will-change-transform">
+                          <div className="bg-black/80 md:bg-black/60 md:backdrop-blur-md p-1.5 rounded-full mb-1 border border-white/10 will-change-transform">
+                            <Lock className="w-3 h-3 text-white" />
+                          </div>
+                          <span className="text-[9px] font-black text-white uppercase tracking-widest mt-1 text-center leading-tight drop-shadow-md">{pack.name}</span>
+                        </div>
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col items-center justify-end pb-2 z-20">
+                          <span className="text-[10px] font-black text-white uppercase tracking-widest drop-shadow-md text-center leading-tight px-1">{pack.name}</span>
+                          <span className="text-[7px] font-bold text-slate-300 uppercase mt-0.5">{pack.templates.length} Items</span>
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <div className="mt-8 w-full px-4 pt-8">
+        <button
+          onClick={handlePreview}
+          disabled={!isFormValid}
+          className="w-full bg-[#bbf7d0] text-emerald-950 hover:bg-[#86efac] active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-[#bbf7d0] disabled:active:scale-100 font-black text-xl py-4 px-6 rounded-full transition-all duration-200 shadow-lg shadow-emerald-200/50 border-4 border-emerald-200 flex items-center justify-center"
+        >
+          Preview
+        </button>
+      </div>
+
+      {/* 👇 FIX 2: Sheet drawer backdrop blasted to z-[100] to cover the layout sidebar 👇 */}
+      <div 
+        className={`fixed inset-0 bg-black/60 md:bg-black/40 md:backdrop-blur-sm z-[100] transition-opacity duration-300 ${activePack ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        onClick={() => setActivePack(null)}
+        style={{ willChange: 'opacity' }}
+      ></div>
+      
+      {/* 👇 FIX 2: Sheet drawer body set to z-[110] 👇 */}
+      <div className={`fixed bottom-0 left-0 right-0 ${isPackLocked ? 'h-auto pb-8' : 'h-[70vh]'} bg-white rounded-t-[40px] z-[110] transition-transform duration-300 ease-in-out flex flex-col shadow-2xl ${activePack ? 'translate-y-0' : 'translate-y-full'}`}>
+        
+        <div className="flex items-center justify-between p-6 pb-2 border-b border-slate-100 shrink-0">
+          <div className="flex flex-col">
+            <h2 className="text-xl font-black text-slate-900">{activePack?.name}</h2>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              {activePack?.is_pro ? 'Pro Collection' : 'Free Collection'}
+            </span>
+          </div>
+          <button onClick={() => setActivePack(null)} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full transition text-slate-600">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-      </form>
+        <div className="flex-1 overflow-y-auto p-4 no-scrollbar relative">
+          
+          {isPackLocked ? (
+            <div className="flex flex-col items-center justify-center p-6 text-center">
+              <div className="w-16 h-16 bg-yellow-50 text-yellow-500 rounded-full flex items-center justify-center mb-4 border border-yellow-100">
+                <Lock className="w-8 h-8" />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 mb-2">Unlock {activePack?.name}</h3>
+              
+              {/* 👇 FIX 1: The copy logic is now brutally honest for Pro packs 👇 */}
+              <p className="text-slate-500 font-medium mb-8">
+                {isGuest 
+                  ? 'This is a Pro Collection. Create a free account first to upgrade to Pro.' 
+                  : 'Upgrade to Pro to use this template and 1000+ more.'}
+              </p>
+              
+              <button 
+                onClick={() => {
+                  if (isGuest) {
+                    setActivePack(null)
+                    setShowAuthModal(true)
+                  } else {
+                    router.push('/settings')
+                  }
+                }} 
+                className="w-full max-w-[250px] bg-[#ffcc00] text-yellow-950 font-black py-4 px-6 rounded-full shadow-sm hover:scale-105 transition-transform uppercase tracking-wide mb-5"
+              >
+                {isGuest ? 'Sign up to Upgrade' : 'Upgrade to Pro'}
+              </button>
+
+              <div className="h-px w-3/4 bg-slate-100 mb-4"></div>
+              
+              <p className="text-sm font-bold text-slate-400">
+                Or buy this specific pack in the <button onClick={() => router.push('/store')} className="text-emerald-500 hover:underline">Store</button>
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 sm:gap-4 pb-24 px-1">
+              {activePack?.templates.map(t => renderTemplateCard(t, true))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 👇 FIX 2: Auth Modal blasted to z-[120] 👇 */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            
+            <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 w-8 h-8 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200 transition">
+              <X className="w-4 h-4" />
+            </button>
+            
+            <h2 className="text-2xl font-black text-slate-800 mb-2">Save your progress</h2>
+            <p className="text-slate-500 text-sm mb-6">Create a free account to experience PinQuote features.</p>
+            
+            <form onSubmit={handleInContextAuth} className="space-y-4">
+              <input 
+                type="email" 
+                placeholder="Email address" 
+                onChange={e => setAuthEmail(e.target.value)} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all font-medium"
+                required 
+              />
+              <input 
+                type="password" 
+                placeholder="Password" 
+                onChange={e => setAuthPassword(e.target.value)} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all font-medium"
+                required 
+              />
+              <button 
+                type="submit" 
+                disabled={authLoading}
+                className="w-full bg-black text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 active:scale-95 transition disabled:opacity-50 flex items-center justify-center"
+              >
+                {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? 'Log In' : 'Create Account')}
+              </button>
+            </form>
+            
+            <button onClick={() => setIsLogin(!isLogin)} className="w-full text-center mt-5 text-sm font-bold text-slate-400 hover:text-black transition-colors">
+              {isLogin ? "Need an account? Sign up" : "Already have an account? Log in"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="hidden">{TAILWIND_SAFELIST}</div>
     </div>
+  )
+}
+
+export default function WriteQuotePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-slate-300" /></div>}>
+      <WriteQuoteForm />
+    </Suspense>
   )
 }

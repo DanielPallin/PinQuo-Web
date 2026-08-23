@@ -1,22 +1,38 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 type InviteRequestBody = {
   email: string
-  publisherName: string
   quoteContent: string
 }
 
 export async function POST(request: Request) {
   try {
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const apiKey = process.env.RESEND_API_KEY
     if (!apiKey) return NextResponse.json({ error: 'Resend API key missing.' }, { status: 500 })
 
     const body = (await request.json()) as InviteRequestBody
-    const { email, publisherName, quoteContent } = body
+    const { email, quoteContent } = body
 
-    if (!email || !publisherName || !quoteContent) {
+    if (!email || !quoteContent) {
       return NextResponse.json({ error: 'Missing parameters.' }, { status: 400 })
     }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', user.id)
+      .single()
+
+    const publisherName = profile?.username || 'Someone'
 
     const host = request.headers.get('host') || 'pinquo.app'
     const protocol = host.includes('localhost:') ? 'http' : 'https'

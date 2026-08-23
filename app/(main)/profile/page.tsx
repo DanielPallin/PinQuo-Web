@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Settings, Share2, Edit, User, Loader2, QrCode } from 'lucide-react'
+import { Settings, Edit, User, Loader2, QrCode } from 'lucide-react'
 
 type Profile = {
   id: string
@@ -26,6 +26,7 @@ export default function ProfilePage() {
   const supabase = createClient()
 
   const [isLoading, setIsLoading] = useState(true)
+  const [isGuest, setIsGuest] = useState(false) // 👇 Tracks if they are logged out
   const [profile, setProfile] = useState<Profile | null>(null)
   
   const [followers, setFollowers] = useState(0)
@@ -42,8 +43,13 @@ export default function ProfilePage() {
 
     const fetchProfileData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
+      
+      // 👇 GRACEFUL GUEST HANDLING 👇
       if (!user) {
-        router.push('/')
+        if (isMounted) {
+          setIsGuest(true)
+          setIsLoading(false)
+        }
         return
       }
 
@@ -86,7 +92,7 @@ export default function ProfilePage() {
 
     void fetchProfileData()
     return () => { isMounted = false }
-  }, [supabase, router])
+  }, [supabase])
 
   const handleShareProfile = async () => {
     if (!profile) return
@@ -101,7 +107,6 @@ export default function ProfilePage() {
         })
       } catch (err) { /* User dismissed share sheet */ }
     } else {
-      // Desktop Fallback (Later this can open your QR modal)
       navigator.clipboard.writeText(profileUrl)
       alert('Profile link copied to clipboard!')
     }
@@ -135,23 +140,43 @@ export default function ProfilePage() {
 
   if (isLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
 
+  // non authenticated
+  if (isGuest) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-center p-6 bg-white pb-24">
+        <div className="w-24 h-24 bg-slate-50 shadow-sm border border-slate-100 rounded-full flex items-center justify-center mb-6">
+          <span className="text-5xl">🏡</span>
+        </div>
+        <h2 className="text-3xl font-black text-slate-900 mb-3 tracking-tight">Claim your space</h2>
+        <p className="text-slate-500 font-medium max-w-sm mb-10 leading-relaxed">
+          Join PinQuote to customize your profile, track your quotes, and build your audience.
+        </p>
+        <button 
+          onClick={() => router.push('/')}
+          className="bg-black hover:bg-slate-800 text-white font-bold text-lg py-4 px-10 rounded-full shadow-[0_8px_20px_rgba(0,0,0,0.15)] active:scale-95 transition-all"
+        >
+          Join PinQuote
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white pb-24 pt-8 px-6 relative">
 
       {/* Top Right Settings Gear */}
       <Link 
         href="/settings" 
-        className="absolute top-6 right-6 p-2 text-slate-800 shadow shadow-black hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"
+        className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"
         title="Settings"
       >
         <Settings className="w-6 h-6" />
       </Link>
 
-      {/* HERO SECTION (Centered Identity) */}
+      {/* HERO SECTION */}
       <div className="flex flex-col items-center w-full mt-4 mb-8">
         
-        {/* Avatar */}
-        <div className="w-28 h-28 rounded-full bg-slate-800 border-[2px] border-slate-600 flex items-center justify-center overflow-hidden mb-4">
+        <div className="w-28 h-28 rounded-full bg-slate-100 border-[2px] border-slate-200 flex items-center justify-center overflow-hidden mb-4 shadow-sm">
           {profile?.avatar_url ? (
             <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
           ) : (
@@ -159,30 +184,27 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Username */}
         <h1 className="font-black text-2xl text-slate-900 mb-2">
           @{profile?.username}
         </h1>
 
-        {/* Bio */}
         {profile?.bio && (
           <p className="text-slate-500 font-medium text-center text-[15px] leading-snug max-w-xs mb-4">
             {profile.bio}
           </p>
         )}
 
-        {/* Social Proof (Followers / Following) */}
         <div className="flex items-center gap-3 text-sm text-slate-500 mb-6">
           <span><strong className="text-slate-800">{followers}</strong> Followers</span>
           <span className="text-slate-300">•</span>
           <span><strong className="text-slate-800">{following}</strong> Following</span>
         </div>
 
-        {/* Action Buttons */}
+        {/* Floating Action Buttons */}
         <div className="flex items-center justify-center gap-3 w-full">
           <button 
             onClick={handleShareProfile}
-            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 py-2.5 px-4 bg-white text-slate-700 font-bold rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] active:translate-y-0 active:scale-95 border border-slate-400 transition-all duration-200 ease-out will-change-transform"
+            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 py-2.5 px-4 bg-white text-slate-700 font-bold rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] active:translate-y-0 active:scale-95 border border-slate-200 transition-all duration-200 ease-out will-change-transform"
           >
             <QrCode className="w-4 h-4 text-slate-500" />
             Share Profile
@@ -190,7 +212,7 @@ export default function ProfilePage() {
           
           <Link 
             href="/profile/edit"
-            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 py-2.5 px-4 bg-white text-slate-700 font-bold rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] active:translate-y-0 active:scale-95 border border-slate-400 transition-all duration-200 ease-out will-change-transform"
+            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 py-2.5 px-4 bg-white text-slate-700 font-bold rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] active:translate-y-0 active:scale-95 border border-slate-200 transition-all duration-200 ease-out will-change-transform"
           >
             <Edit className="w-4 h-4 text-slate-500" />
             Edit Profile
