@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { User, MessageCircle, Bookmark, SmilePlus, Share2, Loader2, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { User, MessageCircle, Bookmark, SmilePlus, Share2, Loader2, X, Mail } from 'lucide-react'
 import { EmojiClickData } from 'emoji-picker-react'
 import CustomEmojiPicker from './CustomEmojiPicker'
 import { createClient } from '@/lib/supabase/client'
@@ -46,10 +47,10 @@ const getQuoteFontSize = (text: string) => {
 
 export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand, onFavorite }: QuoteCardProps) {
   const supabase = createClient()
+  const router = useRouter()
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
   
-  // Optimistic UI State
   const [isFav, setIsFav] = useState(quote.isFavorited)
   const [favCount, setFavCount] = useState(quote.favoriteCount)
 
@@ -59,10 +60,12 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const [isLogin, setIsLogin] = useState(false)
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
+  const [authUsername, setAuthUsername] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
+  const [isEmailSent, setIsEmailSent] = useState(false)
 
-  // Check auth state silently on mount so button clicks are instantly responsive
+  // Check auth state silently on mount
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setIsGuest(!data.session)
@@ -100,7 +103,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const targetAvatarUrl = quote.quoted_user?.avatar_url
   const cleanQuoteContent = quote.content.replace(/^["'“”«»]+|["'“”«»]+$/g, '').trim()
 
-  // --- PLG INTERCEPTORS ---
+  // --- PLG FTW ---
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -150,7 +153,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     e.stopPropagation()
     const quoteUrl = `${window.location.origin}/quote/${quote.id}`
     if (navigator.share) {
-      try { await navigator.share({ title: 'PinQuo', text: `Check out this quote by ${targetName} on PinQuo!`, url: quoteUrl }) } 
+      try { await navigator.share({ title: 'PinQuote', text: `Check out this quote by ${targetName} on PinQuote!`, url: quoteUrl }) } 
       catch (err) { /* User dismissed */ }
     } else {
       try {
@@ -165,16 +168,60 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     setAuthLoading(true)
     setAuthError('')
     
-    const { data, error } = isLogin 
-      ? await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
-      : await supabase.auth.signUp({ email: authEmail, password: authPassword, options: { data: { username: authEmail.split('@')[0] } } })
+    let authSuccess = false
 
-    if (!error && data?.user) {
+    if (!isLogin) {
+      const sanitizedUsername = authUsername.trim().toLowerCase()
+      if (sanitizedUsername.length < 3 || sanitizedUsername.includes(' ')) {
+        setAuthError('Username must be at least 3 characters and contain no spaces.')
+        setAuthLoading(false)
+        return
+      }
+
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', sanitizedUsername)
+        .maybeSingle()
+
+      if (existingUser) {
+        setAuthError('This username is already taken.')
+        setAuthLoading(false)
+        return
+      }
+
+      const { data, error } = await supabase.auth.signUp({ 
+        email: authEmail.trim(), 
+        password: authPassword, 
+        options: { data: { username: sanitizedUsername } } 
+      })
+
+      if (error) {
+        setAuthError(error.message)
+      } else if (data?.user && !data.session) {
+        setIsEmailSent(true)
+        setAuthLoading(false)
+        return // Stop here to show the success UI
+      } else if (data?.session) {
+        authSuccess = true
+      }
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email: authEmail.trim(), 
+        password: authPassword 
+      })
+      
+      if (error) setAuthError(error.message)
+      else if (data?.session) authSuccess = true
+    }
+
+    if (authSuccess) {
       setIsGuest(false) 
       setShowAuthModal(false)
-    } else {
-      setAuthError(error?.message || 'Authentication failed')
+      setIsEmailSent(false)
+      window.location.reload()
     }
+    
     setAuthLoading(false)
   }
 
@@ -197,7 +244,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       </div>
 
-      {/* FULL-BLEED CINEMATIC GRAPHIC */}
+      {/* Cinematic Graphic */}
       <div 
         onClick={(e) => { e.stopPropagation(); if (!isExpanded && onExpand) onExpand(quote) }}
         className={`w-full bg-slate-900 rounded-[32px] overflow-hidden flex flex-col relative ${!isExpanded ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-lg aspect-square will-change-transform' : 'shadow-none aspect-square sm:aspect-auto sm:min-h-[400px]'}`}
@@ -236,7 +283,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       </div>
 
-      {/* RENDER THE ACTIVE EMOJIS */}
+      {/* Active Reactions */}
       {quote.groupedReactions && quote.groupedReactions.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-4 px-2 relative z-10">
           {quote.groupedReactions.map((reaction, idx) => (
@@ -254,12 +301,12 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       )}
 
-      {/* MODERN ACTION BAR */}
+      {/* Action BaR */}
       {!isExpanded && (
         <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 px-2 relative z-10">
           
           <div className="flex items-center gap-5">
-            {/* React */}
+            {/* Reactions */}
             <div className="relative" ref={pickerRef}>
               <button onClick={handleReactClick} className="flex items-center gap-1.5 text-slate-500 hover:text-emerald-500 transition-colors group">
                 <SmilePlus className="w-6 h-6 group-active:scale-95 transition-transform" />
@@ -277,14 +324,14 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
               {quote.commentCount > 0 && <span className="text-sm font-bold mt-0.5">{quote.commentCount}</span>}
             </button>
 
-            {/* Save/Favorite */}
+            {/* Favorite */}
             <button onClick={handleFavoriteClick} className={`flex items-center gap-1.5 transition-colors group ${isFav ? 'text-amber-500' : 'text-slate-500 hover:text-amber-500'}`}>
               <Bookmark className={`w-6 h-6 group-active:scale-95 transition-transform ${isFav ? 'fill-amber-500' : ''}`} />
               {favCount > 0 && <span className={`text-sm font-bold mt-0.5 ${isFav ? 'text-amber-500' : ''}`}>{favCount}</span>}
             </button>
           </div>
 
-          {/* Share (GUESTS ALLOWED!) */}
+          {/* Share */}
           <button onClick={handleShare} className="flex items-center text-slate-500 hover:text-slate-800 transition-colors group">
             <Share2 className="w-6 h-6 group-active:scale-95 transition-transform" />
           </button>
@@ -292,56 +339,123 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       )}
 
-      {/* THE CONTEXTUAL AUTH MODAL */}
+      {/* Auth Modal */}
       {showAuthModal && (
         <div 
           onClick={(e) => {
             e.stopPropagation();
-            setShowAuthModal(false); // 👇 Closing modal on backdrop click
+            setShowAuthModal(false);
+            if (isEmailSent) setIsEmailSent(false);
           }} 
           className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 cursor-default"
         >
           <div 
-            onClick={(e) => e.stopPropagation()} // 👇 Stops clicks inside the white card from bubbling to the backdrop
-            className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()} 
+            className="bg-white rounded-[32px] p-6 sm:p-8 max-w-sm w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200"
           >
             
-            <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 w-8 h-8 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200 transition">
+            <button 
+              onClick={() => {
+                setShowAuthModal(false);
+                if (isEmailSent) setIsEmailSent(false);
+              }} 
+              className="absolute top-4 right-4 w-8 h-8 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200 transition"
+            >
               <X className="w-4 h-4" />
             </button>
             
-            <h2 className="text-2xl font-black text-slate-800 mb-2">Join the conversation</h2>
-            <p className="text-slate-500 text-sm mb-6">Create a free account to react, comment, and save your favorite quotes.</p>
-            
-            {authError && <div className="mb-4 p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100">{authError}</div>}
+            {isEmailSent ? (
+              <div className="flex flex-col items-center text-center py-4">
+                <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
+                  <Mail className="w-8 h-8 text-emerald-500" />
+                </div>
+                <h2 className="text-2xl font-black text-slate-800 mb-2">Check your email!</h2>
+                <p className="text-slate-500 text-sm mb-8 px-2">
+                  We sent a secure verification link to <strong className="text-slate-800">{authEmail}</strong>. Click it to activate your account and join the conversation.
+                </p>
+                <button 
+                  onClick={() => {
+                    setShowAuthModal(false);
+                    setIsEmailSent(false);
+                  }} 
+                  className="w-full bg-black text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 active:scale-95 transition"
+                >
+                  Got it
+                </button>
+              </div>
+            ) : (
+              <>
+                <h2 className="text-2xl font-black text-slate-800 mb-2">
+                  {isLogin ? 'Welcome back' : 'Claim your space'}
+                </h2>
+                <p className="text-slate-500 text-sm mb-6">
+                  {isLogin ? 'Log in to continue.' : 'Create a free account to unlock all features.'}
+                </p>
 
-            <form onSubmit={handleInContextAuth} className="space-y-4">
-              <input 
-                type="email" 
-                placeholder="Email address" 
-                onChange={e => setAuthEmail(e.target.value)} 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all font-medium"
-                required 
-              />
-              <input 
-                type="password" 
-                placeholder="Password" 
-                onChange={e => setAuthPassword(e.target.value)} 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all font-medium"
-                required 
-              />
-              <button 
-                type="submit" 
-                disabled={authLoading}
-                className="w-full bg-black text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? 'Log In' : 'Create Account')}
-              </button>
-            </form>
-            
-            <button type="button" onClick={() => setIsLogin(!isLogin)} className="w-full text-center mt-5 text-sm font-bold text-slate-400 hover:text-black transition-colors">
-              {isLogin ? "Need an account? Sign up" : "Already have an account? Log in"}
-            </button>
+                <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
+                  <button
+                    type="button"
+                    onClick={() => setIsLogin(false)}
+                    className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${!isLogin ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    Sign Up
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsLogin(true)}
+                    className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${isLogin ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    Log In
+                  </button>
+                </div>
+                
+                {authError && <div className="mb-4 p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100">{authError}</div>}
+
+                <form onSubmit={handleInContextAuth} className="space-y-3">
+                  
+                  {!isLogin && (
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-4 flex items-center text-slate-400 font-bold">@</span>
+                      <input 
+                        type="text" 
+                        placeholder="username" 
+                        value={authUsername}
+                        onChange={e => setAuthUsername(e.target.value)} 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all font-medium"
+                        required={!isLogin} 
+                        maxLength={20}
+                      />
+                    </div>
+                  )}
+
+                  <input 
+                    type="email" 
+                    placeholder="Email address" 
+                    value={authEmail}
+                    onChange={e => setAuthEmail(e.target.value)} 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all font-medium"
+                    required 
+                  />
+                  
+                  <input 
+                    type="password" 
+                    placeholder="Password" 
+                    value={authPassword}
+                    onChange={e => setAuthPassword(e.target.value)} 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all font-medium"
+                    required 
+                  />
+                  
+                  <button 
+                    type="submit" 
+                    disabled={authLoading}
+                    className="w-full bg-black text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+                  >
+                    {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? 'Log In' : 'Create Account')}
+                  </button>
+                </form>
+              </  >
+            )}
           </div>
         </div>
       )}
