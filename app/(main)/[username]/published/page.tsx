@@ -195,62 +195,47 @@ export default function PublishedPage() {
       if (expandedQuote?.id === targetId) setExpandedQuote(updateQuoteState(expandedQuote))
     }
 
-    if (isRemoving) {
-      if (type === 'quote') {
-        await supabase.from('reactions').delete().match({ quote_id: targetId, user_id: currentUserId, reaction_type: emoji })
-      } else {
-        await supabase.from('reactions').delete().match({ comment_id: targetId, user_id: currentUserId, reaction_type: emoji })
-      }
+    // --- REACTION HANDLER ---
+  if (isRemoving) {
+    if (type === 'quote') {
+      await supabase.from('reactions').delete().match({ quote_id: targetId, user_id: currentUserId, reaction_type: emoji })
     } else {
-      type ReactionPayload = { user_id: string; reaction_type: string; quote_id?: string; comment_id?: string; };
-      const insertData: ReactionPayload = type === 'quote' 
-        ? { quote_id: targetId, user_id: currentUserId, reaction_type: emoji }
-        : { comment_id: targetId, user_id: currentUserId, reaction_type: emoji }
-        
-      await supabase.from('reactions').insert(insertData as any)
-
-      if (targetOwnerId && targetOwnerId !== currentUserId) {
-         await supabase.from('notifications').insert({
-            receiver_id: targetOwnerId,
-            actor_id: currentUserId,
-            type: 'reaction',
-            quote_id: type === 'quote' ? targetId : expandedQuote?.id
-         })
-      }
+      await supabase.from('reactions').delete().match({ comment_id: targetId, user_id: currentUserId, reaction_type: emoji })
     }
-
-    if (type === 'comment' && expandedQuote) {
-      const { data } = await supabase.from('comments').select(`*, user:profiles(id, username, avatar_url), reactions(reaction_type, user_id)`).eq('quote_id', expandedQuote.id).order('created_at', { ascending: true })
-      if (data) setComments(data as unknown as CommentType[])
-    }
+  } else {
+    type ReactionPayload = { user_id: string; reaction_type: string; quote_id?: string; comment_id?: string; };
+    const insertData: ReactionPayload = type === 'quote' 
+      ? { quote_id: targetId, user_id: currentUserId, reaction_type: emoji }
+      : { comment_id: targetId, user_id: currentUserId, reaction_type: emoji }
+      
+    await supabase.from('reactions').insert(insertData as any)
+    
   }
 
-  const handlePostComment = async () => {
-    if (!newComment.trim() || !expandedQuote || !currentUserId) return
-    setIsPostingComment(true)
-
-    const { data } = await supabase.from('comments').insert({
-      quote_id: expandedQuote.id,
-      user_id: currentUserId,
-      content: newComment.trim()
-    }).select('id, content, created_at, user:profiles(id, username, avatar_url), reactions(reaction_type, user_id)').single()
-
-    if (data) {
-      setComments(prev => [...prev, data as unknown as CommentType])
-      setNewComment('')
-      setQuotes(prev => prev.map(q => q.id === expandedQuote.id ? { ...q, commentCount: q.commentCount + 1 } : q))
-
-      if (expandedQuote.publisher && expandedQuote.publisher.id !== currentUserId) {
-        await supabase.from('notifications').insert({
-          receiver_id: expandedQuote.publisher.id,
-          actor_id: currentUserId,
-          type: 'comment',
-          quote_id: expandedQuote.id
-        })
-      }
-    }
-    setIsPostingComment(false)
+  if (type === 'comment' && expandedQuote) {
+    const { data } = await supabase.from('comments').select(`*, user:profiles(id, username, avatar_url), reactions(reaction_type, user_id)`).eq('quote_id', expandedQuote.id).order('created_at', { ascending: true })
+    if (data) setComments(data as unknown as CommentType[])
   }
+}
+
+const handlePostComment = async () => {
+  if (!newComment.trim() || !expandedQuote || !currentUserId) return
+  setIsPostingComment(true)
+
+  const { data } = await supabase.from('comments').insert({
+    quote_id: expandedQuote.id,
+    user_id: currentUserId,
+    content: newComment.trim()
+  }).select('id, content, created_at, user:profiles(id, username, avatar_url), reactions(reaction_type, user_id)').single()
+
+  if (data) {
+    setComments(prev => [...prev, data as unknown as CommentType])
+    setNewComment('')
+    setQuotes(prev => prev.map(q => q.id === expandedQuote.id ? { ...q, commentCount: q.commentCount + 1 } : q))
+    
+  }
+  setIsPostingComment(false)
+}
 
   const toggleFavorite = async (quoteId: string) => {
     if (!currentUserId) return

@@ -347,14 +347,8 @@ function FeedContent() {
 
     if (action !== 'REMOVE') {
       await supabase.from('reactions').insert({ ...matchCriteria, reaction_type: emoji })
-      if (action === 'ADD' && targetOwnerId && targetOwnerId !== currentUserId) {
-         await supabase.from('notifications').insert({
-           receiver_id: targetOwnerId,
-           actor_id: currentUserId,
-           type: 'reaction',
-           quote_id: type === 'quote' ? targetId : expandedQuote?.id
-         })
-      }
+      
+      // 💡 Reaction notifications are handled automatically by the 'on_reaction_created' database trigger[cite: 3]!
     }
   }
 
@@ -375,14 +369,7 @@ function FeedContent() {
       setQuotes(prev => prev.map(q => q.id === expandedQuote.id ? { ...q, commentCount: q.commentCount + 1 } : q))
       setExpandedQuote(prev => prev ? { ...prev, commentCount: prev.commentCount + 1 } : null)
 
-      if (expandedQuote.publisher && expandedQuote.publisher.id !== currentUserId) {
-        await supabase.from('notifications').insert({
-          receiver_id: expandedQuote.publisher.id,
-          actor_id: currentUserId,
-          type: 'comment',
-          quote_id: expandedQuote.id
-        })
-      }
+      // 💡 Comment notifications are handled automatically by your database trigger!
     }
     setIsPostingComment(false)
   }

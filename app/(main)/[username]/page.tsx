@@ -105,41 +105,50 @@ export default function PublicProfilePage() {
   }, [supabase, usernameParam])
 
   const handleToggleFollow = async () => {
-    if (!currentUser || !targetProfile || isTogglingFollow) return
-    if (currentUser.id === targetProfile.id) return
+  if (!currentUser || !targetProfile || isTogglingFollow) return
+  if (currentUser.id === targetProfile.id) return
 
-    setIsTogglingFollow(true)
-    const currentlyFollowing = isFollowing
+  setIsTogglingFollow(true)
+  const currentlyFollowing = isFollowing
 
-    setIsFollowing(!currentlyFollowing)
-    setFollowers(prev => prev + (currentlyFollowing ? -1 : 1))
+  // Optimistic UI update
+  setIsFollowing(!currentlyFollowing)
+  setFollowers(prev => prev + (currentlyFollowing ? -1 : 1))
 
-    if (!currentlyFollowing) {
-      // Execute Follow
-      const { error: followErr } = await supabase.from('follows').insert({ follower_id: currentUser.id, following_id: targetProfile.id })
-      
-      if (followErr) {
-        console.error("DEBUG - Follow Error:", followErr)
-      } else {
-        // Trigger Notification ONLY if follow succeeds
-        const { error: notifErr } = await supabase.from('notifications').insert({
-          receiver_id: targetProfile.id,
-          actor_id: currentUser.id,
-          type: 'follow'
-        })
-
-        if (notifErr) {
-          console.error("DEBUG - Notification failed to send:", notifErr)
-          alert("Debug Error: Follow succeeded but Notification failed! Check console.")
-        }
-      }
+  if (!currentlyFollowing) {
+    // 1. Execute Follow
+    const { error: followErr } = await supabase
+      .from('follows')
+      .insert({ follower_id: currentUser.id, following_id: targetProfile.id })
+    
+    if (followErr) {
+      console.error("DEBUG - Follow Error:", followErr)
+      // Revert optimistic update if it fails
+      setIsFollowing(currentlyFollowing)
+      setFollowers(prev => prev + (currentlyFollowing ? 1 : -1))
     } else {
-      // Execute Unfollow
-      await supabase.from('follows').delete().match({ follower_id: currentUser.id, following_id: targetProfile.id })
+      // 2. SUCCESS! 
+      // The database trigger 'on_follow_created' automatically handles 
+      // the notification securely on the backend. No manual insert needed!
     }
+  } else {
+    // Execute Unfollow
+    const { error: unfollowErr } = await supabase
+      .from('follows')
+      .delete()
+      .eq('follower_id', currentUser.id)
+      .eq('following_id', targetProfile.id)
 
-    setIsTogglingFollow(false)
+    if (unfollowErr) {
+      console.error("DEBUG - Unfollow Error:", unfollowErr)
+      // Revert optimistic update if it fails
+      setIsFollowing(currentlyFollowing)
+      setFollowers(prev => prev + (currentlyFollowing ? 1 : -1))
+    }
   }
+
+  setIsTogglingFollow(false)
+}
 
   const renderHorizontalGrid = (quotes: MiniQuote[], title: string, navigateTo: string) => {
     const slots = [...quotes, ...Array(Math.max(0, 3 - quotes.length)).fill(null)].slice(0, 3)
