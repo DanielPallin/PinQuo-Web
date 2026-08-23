@@ -48,7 +48,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
           {profile ? (
             <NotificationBell />
           ) : (
-            <Link href="/" className="bg-black text-white text-xs font-bold px-4 py-2 rounded-full active:scale-95 transition-transform">
+            <Link href="/login" className="bg-black text-white text-xs font-bold px-4 py-2 rounded-full active:scale-95 transition-transform">
               Join
             </Link>
           )}
@@ -128,7 +128,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             // PLG: Guest CTA for the Desktop Sidebar
             <div className="relative z-50 flex items-center justify-end gap-3 mb-8 shrink-0">
               <Link 
-                href="/" 
+                href="/login" 
                 className="px-6 py-2.5 bg-black text-white font-bold rounded-full hover:bg-slate-800 transition shadow-[0_4px_14px_rgba(0,0,0,0.1)] active:scale-95 text-sm"
               >
                 Log In / Sign Up
