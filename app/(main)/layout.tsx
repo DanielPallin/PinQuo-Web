@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Plus_Jakarta_Sans, Playfair_Display } from 'next/font/google'
-import { Home, PlusSquare, User, ShoppingCart, Trophy, Settings, SettingsIcon } from 'lucide-react'
+import { Home, PlusSquare, User, ShoppingCart, Trophy, SettingsIcon } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import SidebarWidgets from '@/components/SidebarWidgets'
 
@@ -13,18 +13,25 @@ const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfa
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
 
-  
-
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('username, avatar_url')
-    .eq('id', user.id)
-    .maybeSingle() 
+  let profile = null;
 
-  if (!profile?.username) redirect('/setup')
+  // Only fetch the profile and enforce setup IF they are actually logged in
+  if (user) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('username, avatar_url')
+      .eq('id', user.id)
+      .maybeSingle() 
+    
+    profile = data;
+
+    // If they are logged in but have no username, force them to finish onboarding
+    if (!profile?.username) {
+      redirect('/setup')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex justify-center font-sans selection:bg-black selection:text-white">
@@ -36,7 +43,15 @@ export default async function MainLayout({ children }: { children: React.ReactNo
           <Link href="/feed">
             <Image src="/PinQuote-Logo.png" alt="PinQuo Logo" width={110} height={35} priority className="h-8 w-auto object-contain" />
           </Link>
-          <NotificationBell />
+          
+          {/* PLG: Conditionally show Bell or Join button on mobile */}
+          {profile ? (
+            <NotificationBell />
+          ) : (
+            <Link href="/" className="bg-black text-white text-xs font-bold px-4 py-2 rounded-full active:scale-95 transition-transform">
+              Join
+            </Link>
+          )}
         </header>
 
         {/* LEFT SIDEBAR (Desktop Only) */}
@@ -78,8 +93,6 @@ export default async function MainLayout({ children }: { children: React.ReactNo
               <PlusSquare className="w-6 h-6 stroke-[4px] drop-shadow-md" />
               <span className="text-xl font-black tracking-wide">Post Quote</span>
             </Link>
-            
-            {/*<span className="text-sm font-serif text-red-600 tracking-wide mt-4"></span>*/}
           </nav>
 
           <div className="mt-auto pt-6 text-sm font-bold text-slate-800 pl-4">
@@ -96,23 +109,34 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         <aside className="hidden xl:flex w-[320px] flex-col sticky top-0 h-screen px-4 pt-6 shrink-0 z-40">
           
           {/* User Profile & Notification Cluster */}
-          <div className="relative z-50 flex items-center justify-end gap-3 mb-8 bg-white p-2 pr-3 rounded-full shadow-sm border border-slate-100 shrink-0">
-            <Link href="/profile" className="flex items-center gap-2.5 hover:opacity-80 transition cursor-pointer">
-              <span className="font-bold text-slate-800 text-[14px]">{profile.username}</span>
-              <div className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden border-2 border-white shadow-sm flex items-center justify-center">
-                {profile.avatar_url ? (
-                  <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <User className="w-5 h-5 text-slate-400" />
-                )}
-              </div>
-            </Link>
-            <div className="w-[1px] h-5 bg-slate-200 mx-1"></div>
-            <NotificationBell />
-          </div>
+          {profile ? (
+            <div className="relative z-50 flex items-center justify-end gap-3 mb-8 bg-white p-2 pr-3 rounded-full shadow-sm border border-slate-100 shrink-0">
+              <Link href="/profile" className="flex items-center gap-2.5 hover:opacity-80 transition cursor-pointer">
+                <span className="font-bold text-slate-800 text-[14px]">{profile.username}</span>
+                <div className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden border-2 border-white shadow-sm flex items-center justify-center">
+                  {profile.avatar_url ? (
+                    <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-5 h-5 text-slate-400" />
+                  )}
+                </div>
+              </Link>
+              <div className="w-[1px] h-5 bg-slate-200 mx-1"></div>
+              <NotificationBell />
+            </div>
+          ) : (
+            // PLG: Guest CTA for the Desktop Sidebar
+            <div className="relative z-50 flex items-center justify-end gap-3 mb-8 shrink-0">
+              <Link 
+                href="/" 
+                className="px-6 py-2.5 bg-black text-white font-bold rounded-full hover:bg-slate-800 transition shadow-[0_4px_14px_rgba(0,0,0,0.1)] active:scale-95 text-sm"
+              >
+                Log In / Sign Up
+              </Link>
+            </div>
+          )}
 
           {/* DYNAMIC WIDGETS */}
-
           <div className="flex-1 overflow-y-auto no-scrollbar pb-10 relative z-0">
             <SidebarWidgets />
           </div>

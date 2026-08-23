@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Loader2, CheckCircle2, Sparkles } from 'lucide-react'
+import { ArrowLeft, Loader2, CheckCircle2, Sparkles, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const getQuoteFontSize = (text: string) => {
@@ -27,17 +27,25 @@ function PreviewQuoteForm() {
   const bgType = searchParams.get('bgType') || 'template'
   const templateId = searchParams.get('templateId')
   const templateGradient = searchParams.get('templateGradient') || 'from-slate-200 to-slate-300'
-  const templateImageUrl = searchParams.get('templateImageUrl') // Fetches the new bucket URL!
+  const templateImageUrl = searchParams.get('templateImageUrl')
 
   const [isPublishing, setIsPublishing] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [currentUsername, setCurrentUsername] = useState('You')
   const [targetAvatarUrl, setTargetAvatarUrl] = useState<string | null>(null)
 
+  // PLG Auth Modal State
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [isLogin, setIsLogin] = useState(false)
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authError, setAuthError] = useState('')
+
   const displayTarget = targetUsername || customName || inviteEmail || 'Unknown'
   const isRegisteredUser = !!targetUsername
 
-  // 1. The Sanitizer (Strips manual quotes and hidden newlines)
+  // 1. The Sanitizer
   const cleanQuoteContent = quoteText
     .replace(/^["'“”«»]+|["'“”«»]+$/g, '')
     .trim()
@@ -62,16 +70,12 @@ function PreviewQuoteForm() {
     return () => { isMounted = false }
   }, [supabase, targetId])
 
-  const handlePublish = async () => {
+  // --- THE PUBLISH LOGIC SPLIT ---
+
+  // Part 1: The actual database insertion (Runs after auth is confirmed)
+  const executePublish = async (user: any) => {
     setIsPublishing(true)
     setErrorMsg('')
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setErrorMsg("You must be logged in to post a quote.")
-      setIsPublishing(false)
-      return
-    }
 
     const isValidTargetId = targetId && targetId !== 'undefined' && targetId !== 'null' && targetId.trim() !== '';
     const targetUid = isValidTargetId ? targetId : null;
@@ -113,6 +117,7 @@ function PreviewQuoteForm() {
     // Fire-and-forget side effects
     try {
       let publisherName = currentUsername;
+      // If they just signed up via the modal, their state is still "You". We fetch the fresh DB name!
       if (publisherName === "You") {
         const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).single();
         if (profile?.username) publisherName = profile.username;
@@ -152,8 +157,44 @@ function PreviewQuoteForm() {
     router.push('/feed')
   }
 
+  // Part 2: The Gatekeeper (Triggered by the Publish button)
+  const attemptPublish = async () => {
+    setIsPublishing(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      // Pause publish, pop the modal
+      setIsPublishing(false)
+      setShowAuthModal(true)
+      return
+    }
+    
+    // User is logged in, proceed normally
+    await executePublish(user)
+  }
+
+  // Part 3: Modal Submission Handler
+  const handleInContextAuth = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAuthLoading(true)
+    setAuthError('')
+    
+    const { data, error } = isLogin 
+      ? await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
+      : await supabase.auth.signUp({ email: authEmail, password: authPassword, options: { data: { username: authEmail.split('@')[0] } } })
+
+    if (!error && data?.user) {
+      setShowAuthModal(false)
+      // BOOM! Publish it instantly now that they are authenticated!
+      await executePublish(data.user)
+    } else {
+      setAuthError(error?.message || 'Authentication failed')
+    }
+    setAuthLoading(false)
+  }
+
   return (
-    <div className="flex flex-col pt-6 px-4 w-full max-w-lg mx-auto min-h-[100dvh] pb-6 bg-slate-50/50">
+    <div className="flex flex-col pt-6 px-4 w-full max-w-lg mx-auto min-h-[100dvh] pb-6 bg-slate-50/50 relative">
       
       {/* Sleek Modern Header */}
       <div className="relative text-center mb-6 shrink-0 flex items-center justify-center">
@@ -179,7 +220,6 @@ function PreviewQuoteForm() {
         {/* FULL-BLEED CINEMATIC PREVIEW CARD */}
         <div className="w-full max-w-[420px] bg-slate-900 rounded-[32px] overflow-hidden flex flex-col relative aspect-square shadow-2xl mb-8 border border-slate-200/50">
           
-          {/* The Watermark Logo */}
           <img 
             src="/PinQuote-Logo.png" 
             alt="PinQuo" 
@@ -193,7 +233,7 @@ function PreviewQuoteForm() {
               alt="Quote Background" 
               crossOrigin="anonymous" 
               className="absolute inset-0 w-full h-full object-cover" 
-              style={{ filter: 'contrast(1.15) saturate(1.2) sepia(0.15) brightness(0.85)' }}
+              style={{ filter: 'contrast(1.20) saturate(1.2) sepia(0.10) brightness(0.90)' }}
             />
           ) : bgType === 'template' ? (
             <div className={`absolute inset-0 bg-linear-to-br ${templateGradient}`}></div>
@@ -217,10 +257,8 @@ function PreviewQuoteForm() {
           {/* Content Overlay */}
           <div className="relative z-10 flex flex-col items-center justify-center h-full p-6 sm:p-10 text-center pointer-events-none select-none">
             
-            {/* THE "INVISIBLE RECTANGLE" WRAPPER */}
             <div className="relative inline-block max-w-[75%] mx-auto mt-4">
               
-              {/* Top-Left Floating Quote */}
               <span className="absolute top-0 left-0 -translate-x-[110%] -translate-y-[40%] text-5xl sm:text-7xl font-serif font-black text-white/50 drop-shadow-lg leading-none pointer-events-none select-none">
                 &ldquo;
               </span>
@@ -232,7 +270,6 @@ function PreviewQuoteForm() {
                 {cleanQuoteContent}
               </p>
 
-              {/* Bottom-Right Floating Quote */}
               <span className="absolute bottom-0 right-0 translate-x-[110%] translate-y-[30%] text-5xl sm:text-7xl font-serif font-black text-white/50 drop-shadow-lg leading-none pointer-events-none select-none">
                 &rdquo;
               </span>
@@ -254,7 +291,7 @@ function PreviewQuoteForm() {
         {/* Publish Button */}
         <div className="mt-8 w-full">
           <button
-            onClick={handlePublish}
+            onClick={attemptPublish}
             disabled={isPublishing}
             className="w-full bg-[#bbf7d0] text-emerald-950 hover:bg-[#86efac] font-black py-4 px-6 rounded-full transition-all active:scale-[0.98] shadow-lg flex items-center justify-center gap-2 border-[3px] border-emerald-200 disabled:opacity-70 disabled:active:scale-100 text-xl"
           >
@@ -268,6 +305,52 @@ function PreviewQuoteForm() {
           </button>
         </div>
       </div>
+
+      {/* THE CONTEXTUAL AUTH MODAL */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            
+            <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 w-8 h-8 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200 transition">
+              <X className="w-4 h-4" />
+            </button>
+            
+            <h2 className="text-2xl font-black text-slate-800 mb-2">Publish your quote</h2>
+            <p className="text-slate-500 text-sm mb-6">Create a free account to publish quotes.</p>
+            
+            {authError && <div className="mb-4 p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100">{authError}</div>}
+
+            <form onSubmit={handleInContextAuth} className="space-y-4">
+              <input 
+                type="email" 
+                placeholder="Email address" 
+                onChange={e => setAuthEmail(e.target.value)} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all font-medium"
+                required 
+              />
+              <input 
+                type="password" 
+                placeholder="Password" 
+                onChange={e => setAuthPassword(e.target.value)} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all font-medium"
+                required 
+              />
+              <button 
+                type="submit" 
+                disabled={authLoading}
+                className="w-full bg-black text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? 'Log In & Publish' : 'Sign Up & Publish')}
+              </button>
+            </form>
+            
+            <button onClick={() => setIsLogin(!isLogin)} className="w-full text-center mt-5 text-sm font-bold text-slate-400 hover:text-black transition-colors">
+              {isLogin ? "Need an account? Sign up" : "Already have an account? Log in"}
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
