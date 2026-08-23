@@ -27,7 +27,7 @@ export default function SettingsPage() {
   }
 
   const menuItems = [
-    { label: 'Manage Templates', icon: LayoutTemplate, href: '/templates/manage', color: 'text-blue-500', bg: 'bg-blue-50' },
+    { label: 'Manage Templates', icon: LayoutTemplate, href: '/templates', color: 'text-blue-500', bg: 'bg-blue-50' },
     { label: 'Subscription', icon: Crown, href: '/settings/subscription', color: 'text-yellow-500', bg: 'bg-yellow-50' },
     { label: 'Notification Settings', icon: Bell, href: '/settings/notifications', color: 'text-emerald-500', bg: 'bg-emerald-50' },
     { label: 'Blocklist', icon: ShieldBan, href: '/settings/blocklist', color: 'text-slate-500', bg: 'bg-slate-100' },

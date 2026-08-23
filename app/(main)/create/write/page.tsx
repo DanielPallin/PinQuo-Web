@@ -224,7 +224,6 @@ function WriteQuoteForm() {
       <button
         key={template.id}
         onClick={() => isLocked ? handleLockedClick(template) : handleSelectTemplate(template)}
-        // 1. ADDED will-change-transform to the main button to protect the GPU during carousel scrolling
         className={`relative rounded-[20px] overflow-hidden transition-all duration-200 group will-change-transform ${sizingClasses} ${
           isSelected 
             ? 'ring-4 ring-emerald-400 scale-[1.02] shadow-lg z-10' 
@@ -241,7 +240,6 @@ function WriteQuoteForm() {
         
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
         
-        {/* 2. SAFE LOCK BADGE: Solid black on mobile, frosted glass on desktop! */}
         {isLocked && (
           <div className="absolute top-2 right-2 bg-black/80 md:bg-black/50 md:backdrop-blur-md p-1.5 rounded-full border border-white/20 shadow-sm will-change-transform">
             <Lock className="w-3 h-3 text-white" />
@@ -338,7 +336,7 @@ function WriteQuoteForm() {
             <div className="relative shrink-0 w-[100px] h-[130px] rounded-[20px] border-2 border-dashed border-slate-300 bg-white/50 flex flex-col items-center justify-center opacity-60 snap-start cursor-not-allowed">
               <Camera className="w-6 h-6 text-slate-400 mb-2" strokeWidth={2.5} />
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center leading-tight">Live<br/>Snap</span>
-              <div className="absolute -top-2 right-0 bg-slate-300 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-white">v2.0</div>
+              <div className="absolute -top-2 right-0 bg-slate-300 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-white">Mobile Feature</div>
             </div>
 
             {/* Quoted User Avatar */}
@@ -388,7 +386,6 @@ function WriteQuoteForm() {
                       
                       {isLocked ? (
                         <div className="absolute inset-0 bg-slate-900/50 flex flex-col items-center justify-center z-20 will-change-transform">
-                          {/* Safe Lock Badge: Darker solid alpha on mobile, frosted glass on desktop! */}
                           <div className="bg-black/80 md:bg-black/60 md:backdrop-blur-md p-1.5 rounded-full mb-1 border border-white/10 will-change-transform">
                             <Lock className="w-3 h-3 text-white" />
                           </div>
