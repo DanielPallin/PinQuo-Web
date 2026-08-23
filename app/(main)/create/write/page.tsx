@@ -224,7 +224,7 @@ function WriteQuoteForm() {
       <button
         key={template.id}
         onClick={() => isLocked ? handleLockedClick(template) : handleSelectTemplate(template)}
-        className={`relative rounded-[20px] overflow-hidden transition-all duration-200 group ${sizingClasses} ${
+        className={`relative rounded-[20px] overflow-hidden transition-all duration-200 group will-change-transform ${sizingClasses} ${
           isSelected 
             ? 'ring-4 ring-emerald-400 scale-[1.02] shadow-lg z-10' 
             : isLocked 
@@ -241,7 +241,7 @@ function WriteQuoteForm() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
         
         {isLocked && (
-          <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-md p-1.5 rounded-full border border-white/20 shadow-sm">
+          <div className="absolute top-2 right-2 bg-black/80 md:bg-black/50 md:backdrop-blur-md p-1.5 rounded-full border border-white/20 shadow-sm will-change-transform">
             <Lock className="w-3 h-3 text-white" />
           </div>
         )}
@@ -336,7 +336,7 @@ function WriteQuoteForm() {
             <div className="relative shrink-0 w-[100px] h-[130px] rounded-[20px] border-2 border-dashed border-slate-300 bg-white/50 flex flex-col items-center justify-center opacity-60 snap-start cursor-not-allowed">
               <Camera className="w-6 h-6 text-slate-400 mb-2" strokeWidth={2.5} />
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center leading-tight">Live<br/>Snap</span>
-              <div className="absolute -top-2 right-0 bg-slate-300 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-white">v2.0</div>
+              <div className="absolute -top-2 right-0 bg-slate-300 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-white">Mobile Feature</div>
             </div>
 
             {/* Quoted User Avatar */}
@@ -385,8 +385,8 @@ function WriteQuoteForm() {
                       <div className="absolute top-1.5 left-1.5 right-1.5 bottom-1.5 border border-white/40 rounded-xl pointer-events-none z-10"></div>
                       
                       {isLocked ? (
-                        <div className="absolute inset-0 bg-slate-900/50 flex flex-col items-center justify-center z-20">
-                          <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-full mb-1 border border-white/10">
+                        <div className="absolute inset-0 bg-slate-900/50 flex flex-col items-center justify-center z-20 will-change-transform">
+                          <div className="bg-black/80 md:bg-black/60 md:backdrop-blur-md p-1.5 rounded-full mb-1 border border-white/10 will-change-transform">
                             <Lock className="w-3 h-3 text-white" />
                           </div>
                           <span className="text-[9px] font-black text-white uppercase tracking-widest mt-1 text-center leading-tight drop-shadow-md">{pack.name}</span>
@@ -418,8 +418,9 @@ function WriteQuoteForm() {
 
       {/* Sheet drawer */}
       <div 
-        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300 ${activePack ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-black/60 md:bg-black/40 md:backdrop-blur-sm z-40 transition-opacity duration-300 ${activePack ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setActivePack(null)}
+        style={{ willChange: 'opacity' }}
       ></div>
       
       <div className={`fixed bottom-0 left-0 right-0 ${isPackLocked ? 'h-auto pb-8' : 'h-[70vh]'} bg-white rounded-t-[40px] z-50 transition-transform duration-300 ease-in-out flex flex-col shadow-2xl ${activePack ? 'translate-y-0' : 'translate-y-full'}`}>

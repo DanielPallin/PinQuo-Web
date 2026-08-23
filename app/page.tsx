@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
@@ -16,36 +16,10 @@ export default function AuthPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   
-  const [isCheckingSession, setIsCheckingSession] = useState(true) 
-  
   const router = useRouter()
   const supabase = createClient()
 
-  useEffect(() => {
-    let isMounted = true
-
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session && isMounted) {
-        router.push('/feed')
-      } else if (isMounted) {
-        setIsCheckingSession(false)
-      }
-    }
-    
-    checkSession()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session && isMounted) {
-        router.push('/feed')
-      }
-    })
-
-    return () => {
-      isMounted = false
-      subscription.unsubscribe()
-    }
-  }, [router, supabase.auth])
+  // 👇 NOTE: All useEffect session checking is GONE! The Middleware handles it securely now. 👇
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault()
@@ -56,10 +30,14 @@ export default function AuthPage() {
     if (isLogin) {
       // LOG IN FLOW
       const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) setErrorMsg(error.message)
-      setLoading(false)
+      if (error) {
+        setErrorMsg(error.message)
+        setLoading(false)
+      } else {
+        // Success! Push directly to feed!
+        router.push('/feed')
+      }
     } else {
-
       const sanitizedUsername = username.trim().toLowerCase()
 
       // Validate Username Format
@@ -109,14 +87,6 @@ export default function AuthPage() {
       }
       setLoading(false)
     }
-  }
-
-  if (isCheckingSession) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="w-10 h-10 animate-spin text-slate-400" />
-      </div>
-    )
   }
 
   return (

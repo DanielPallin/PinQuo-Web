@@ -1,13 +1,10 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { 
-  ArrowLeft, Edit3, Camera, Star, 
-  Crown, LayoutTemplate, User, Loader2, Check, X, ChevronRight, LogOut
-} from 'lucide-react'
+import { Settings, Share2, Edit, User, Loader2, QrCode } from 'lucide-react'
 
 type Profile = {
   id: string
@@ -27,7 +24,6 @@ type MiniQuote = {
 export default function ProfilePage() {
   const router = useRouter()
   const supabase = createClient()
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [isLoading, setIsLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -41,16 +37,6 @@ export default function ProfilePage() {
   const [quotedIn, setQuotedIn] = useState<MiniQuote[]>([])
   const [quotedInCount, setQuotedInCount] = useState(0)
 
-  const [isEditingUsername, setIsEditingUsername] = useState(false)
-  const [editUsername, setEditUsername] = useState('')
-  const [usernameError, setUsernameError] = useState('')
-
-  const [isEditingBio, setIsEditingBio] = useState(false)
-  const [editBio, setEditBio] = useState('')
-  const [isUploading, setIsUploading] = useState(false)
-  
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
-
   useEffect(() => {
     let isMounted = true
 
@@ -62,11 +48,7 @@ export default function ProfilePage() {
       }
 
       const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-      if (profileData && isMounted) {
-        setProfile(profileData)
-        setEditUsername(profileData.username)
-        setEditBio(profileData.bio || '')
-      }
+      if (profileData && isMounted) setProfile(profileData)
 
       const { count: followerCount } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', user.id)
       const { count: followingCount } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id)
@@ -103,293 +85,138 @@ export default function ProfilePage() {
     }
 
     void fetchProfileData()
-
     return () => { isMounted = false }
   }, [supabase, router])
 
-  const handleUsernameSave = async () => {
+  const handleShareProfile = async () => {
     if (!profile) return
-    setUsernameError('')
-    const cleanUsername = editUsername.trim()
-
-    if (cleanUsername.length < 3) {
-      setUsernameError('At least 3 characters')
-      return
-    }
-    if (cleanUsername.length > 30) {
-      setUsernameError('Max 30 characters')
-      return
-    }
-    if (cleanUsername === profile.username) {
-      setIsEditingUsername(false)
-      return
-    }
-
-    const { data: existing } = await supabase.from('profiles').select('id').eq('username', cleanUsername).neq('id', profile.id).maybeSingle()
-    if (existing) {
-      setUsernameError('Username already taken')
-      return
-    }
-
-    const { error } = await supabase.from('profiles').update({ username: cleanUsername }).eq('id', profile.id)
-    if (!error) {
-      setProfile({ ...profile, username: cleanUsername })
-      setIsEditingUsername(false)
-    } else {
-      setUsernameError('Error updating username')
-    }
-  }
-
-  const handleBioSave = async () => {
-    if (!profile) return
-    const cleanBio = editBio.trim()
-    const { error } = await supabase.from('profiles').update({ bio: cleanBio }).eq('id', profile.id)
-    if (!error) {
-      setProfile({ ...profile, bio: cleanBio })
-      setIsEditingBio(false)
-    }
-  }
-
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0 || !profile) return
+    const profileUrl = `${window.location.origin}/${profile.username}`
     
-    setIsUploading(true)
-    const file = e.target.files[0]
-    const fileExt = file.name.split('.').pop()
-    const filePath = `${profile.id}-${Date.now()}.${fileExt}`
-
-    const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file)
-
-    if (uploadError) {
-      console.error(uploadError)
-      alert("Error uploading file.")
-      setIsUploading(false)
-      return
-    }
-
-    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath)
-    const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id)
-
-    if (!updateError) {
-      setProfile({ ...profile, avatar_url: publicUrl })
-    }
-    setIsUploading(false)
-  }
-
-  const handleLogout = async () => {
-    setIsLoggingOut(true)
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      console.error('Error logging out:', error)
-      setIsLoggingOut(false)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${profile.username} on PinQuo`,
+          text: `Check out ${profile.username}'s quotes on PinQuo!`,
+          url: profileUrl
+        })
+      } catch (err) { /* User dismissed share sheet */ }
     } else {
-      router.push('/')
-      router.refresh()
+      // Desktop Fallback (Later this can open your QR modal)
+      navigator.clipboard.writeText(profileUrl)
+      alert('Profile link copied to clipboard!')
     }
   }
 
   const renderMiniGrid = (quotesToRender: MiniQuote[], onClick: () => void) => {
-    const slots = [0, 1, 2, 3];
+    const slots = [0, 1, 2, 3]
 
     return (
       <div 
         onClick={onClick}
-        className="grid grid-cols-2 gap-2 w-full p-2.5 bg-white border border-slate-100 rounded-[32px] cursor-pointer hover:shadow-md hover:border-slate-200 transition-all active:scale-95 group shadow-sm"
+        className="grid grid-cols-2 gap-2 w-full p-2.5 bg-white border border-slate-100 rounded-[32px] cursor-pointer hover:shadow-md hover:border-slate-200 transition-all active:scale-95 group shadow-sm will-change-transform"
       >
         {slots.map((index) => {
-          const quote = quotesToRender[index];
-          
-          if (!quote) {
-            return <div key={`empty-${index}`} className="aspect-square bg-slate-100 rounded-[20px]"></div>;
-          }
+          const quote = quotesToRender[index]
+          if (!quote) return <div key={`empty-${index}`} className="aspect-square bg-slate-50 border border-slate-100/50 rounded-[20px]"></div>
 
           return (
             <div key={quote.id} className="relative aspect-square rounded-[20px] overflow-hidden bg-slate-200">
-              
-              {quote.template?.image_url && (
-                <img 
-                  src={quote.template.image_url} 
-                  alt="" 
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                />
-              )}
-              
-              {!quote.template?.image_url && (
+              {quote.template?.image_url ? (
+                <img src={quote.template.image_url} alt="" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+              ) : (
                 <div className={`absolute inset-0 bg-linear-to-br ${quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
               )}
-
             </div>
-          );
+          )
         })}
       </div>
-    );
+    )
   }
 
   if (isLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
 
   return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white pb-24 pt-6 px-6">
+    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white pb-24 pt-8 px-6 relative">
 
-      {/* Profilinfo */}
-      <div className="flex gap-6 mb-10 w-full items-start mt-6">
-        <div className="flex flex-col items-center gap-3 w-1/3 shrink-0 pt-1">
-          <div className="flex flex-col items-center w-full">
-            {isEditingUsername ? (
-              <div className="flex flex-col items-center gap-1 w-full bg-slate-100 rounded-lg p-1.5 border border-slate-300">
-                <input 
-                  type="text" 
-                  title="Change Username"
-                  maxLength={30}
-                  value={editUsername} 
-                  onChange={(e) => setEditUsername(e.target.value)} 
-                  className="w-full bg-transparent text-sm font-bold text-slate-800 text-center outline-none px-1"
-                  autoFocus
-                />
-                <div className="flex justify-center gap-2 mt-1 w-full">
-                  <button title="Save" onClick={handleUsernameSave} className="flex-1 py-1 bg-emerald-100 text-emerald-700 rounded-md hover:bg-emerald-200 flex justify-center"><Check className="w-4 h-4" /></button>
-                  <button title="Cancel" onClick={() => { setIsEditingUsername(false); setEditUsername(profile?.username || '') }} className="flex-1 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 flex justify-center"><X className="w-4 h-4" /></button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-start justify-center gap-1 w-full px-1">
-                <span className="font-bold text-lg text-slate-800 wrap-break-words text-center leading-tight">
-                  {profile?.username}
-                </span>
-                <button title="Change Username" onClick={() => setIsEditingUsername(true)} className="text-slate-400 hover:text-black transition shrink-0 mt-1">
-                  <Edit3 className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-            {usernameError && <span className="text-xs text-red-500 font-bold mt-1 text-center leading-tight">{usernameError}</span>}
-          </div>
+      {/* Top Right Settings Gear */}
+      <Link 
+        href="/settings" 
+        className="absolute top-6 right-6 p-2 text-slate-800 shadow shadow-black hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"
+        title="Settings"
+      >
+        <Settings className="w-6 h-6" />
+      </Link>
 
-          <div className="relative">
-            <div className="w-24 h-24 rounded-full bg-slate-200 border-4 border-slate-100 shadow-md flex items-center justify-center overflow-hidden">
-              {isUploading ? (
-                <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
-              ) : profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                <User className="w-10 h-10 text-slate-400" />
-              )}
-            </div>
-            <input type="file" title="Upload Avatar" accept="image/*" ref={fileInputRef} onChange={handleAvatarUpload} className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} title="Upload Avatar" disabled={isUploading} className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md border border-slate-100 hover:bg-slate-50 transition disabled:opacity-50">
-              <Camera className="w-4 h-4 text-black" />
-            </button>
-          </div>
+      {/* HERO SECTION (Centered Identity) */}
+      <div className="flex flex-col items-center w-full mt-4 mb-8">
+        
+        {/* Avatar */}
+        <div className="w-28 h-28 rounded-full bg-slate-800 border-[2px] border-slate-600 flex items-center justify-center overflow-hidden mb-4">
+          {profile?.avatar_url ? (
+            <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+          ) : (
+            <User className="w-12 h-12 text-slate-300" />
+          )}
         </div>
 
-        <div className="flex flex-col flex-1">
-          <div className="flex items-center justify-between mb-3 px-2">
-            <span className="font-black text-lg text-slate-800">Bio</span>
-            {!isEditingBio && (
-              <button title="Change Bio" onClick={() => setIsEditingBio(true)} className="text-slate-400 hover:text-black transition"><Edit3 className="w-4 h-4" /></button>
-            )}
-          </div>
-          <div className={`bg-slate-100 rounded-[28px] rounded-tl-sm p-5 flex-1 shadow-sm transition-all ${isEditingBio ? 'ring-2 ring-emerald-300' : ''}`}>
-            {isEditingBio ? (
-              <div className="flex flex-col h-full gap-2">
-                <textarea value={editBio} onChange={(e) => setEditBio(e.target.value)} className="w-full h-24 bg-transparent text-slate-700 font-medium leading-snug outline-none resize-none" placeholder="Berätta något om dig själv..." autoFocus />
-                <div className="flex justify-end gap-2 mt-auto">
-                  <button onClick={() => { setIsEditingBio(false); setEditBio(profile?.bio || '') }} className="text-sm font-bold text-slate-500 hover:text-slate-700">Cancel</button>
-                  <button onClick={handleBioSave} className="text-sm font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full hover:bg-emerald-200">Save</button>
-                </div>
-              </div>
-            ) : (
-              <p className="text-slate-600 font-medium leading-snug wrap-break-words">
-                {profile?.bio || "Type something here!"}
-              </p>
-            )}
-          </div>
+        {/* Username */}
+        <h1 className="font-black text-2xl text-slate-900 mb-2">
+          @{profile?.username}
+        </h1>
+
+        {/* Bio */}
+        {profile?.bio && (
+          <p className="text-slate-500 font-medium text-center text-[15px] leading-snug max-w-xs mb-4">
+            {profile.bio}
+          </p>
+        )}
+
+        {/* Social Proof (Followers / Following) */}
+        <div className="flex items-center gap-3 text-sm text-slate-500 mb-6">
+          <span><strong className="text-slate-800">{followers}</strong> Followers</span>
+          <span className="text-slate-300">•</span>
+          <span><strong className="text-slate-800">{following}</strong> Following</span>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-center gap-3 w-full">
+          <button 
+            onClick={handleShareProfile}
+            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 py-2.5 px-4 bg-white text-slate-700 font-bold rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] active:translate-y-0 active:scale-95 border border-slate-400 transition-all duration-200 ease-out will-change-transform"
+          >
+            <QrCode className="w-4 h-4 text-slate-500" />
+            Share Profile
+          </button>
+          
+          <Link 
+            href="/profile/edit"
+            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 py-2.5 px-4 bg-white text-slate-700 font-bold rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] active:translate-y-0 active:scale-95 border border-slate-400 transition-all duration-200 ease-out will-change-transform"
+          >
+            <Edit className="w-4 h-4 text-slate-500" />
+            Edit Profile
+          </Link>
         </div>
       </div>
 
-      {/* Grid Click Zones */}
-      <div className="flex gap-6 mb-10">
+      {/* CONTENT GRIDS */}
+      <div className="flex gap-6 w-full">
         <div className="flex-1 flex flex-col items-center gap-3">
           <div className="flex flex-col items-center gap-0.5">
-            <h3 className="font-black text-lg text-slate-800">Published</h3>
-            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full">{publishedCount} Total</span>
+            <h3 className="font-black text-[17px] text-slate-800">Published</h3>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{publishedCount} Total</span>
           </div>
           {renderMiniGrid(published, () => router.push(`/${profile?.username}/published`))}
         </div>
         
         <div className="flex-1 flex flex-col items-center gap-3">
           <div className="flex flex-col items-center gap-0.5">
-            <h3 className="font-black text-lg text-slate-800">Quoted In</h3>
-            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full">{quotedInCount} Total</span>
+            <h3 className="font-black text-[17px] text-slate-800">Quoted In</h3>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{quotedInCount} Total</span>
           </div>
           {renderMiniGrid(quotedIn, () => router.push(`/${profile?.username}/quoted-in`))}
         </div>
       </div>
 
-      {/* Stats & Menyer */}
-      <div className="flex gap-6">
-        <div className="w-1/3 flex flex-col gap-4 items-center shrink-0">
-          <div className="flex flex-col items-center w-full">
-            <div className="bg-slate-100 py-2 px-6 rounded-full text-slate-500 font-bold text-sm w-full text-center">Following</div>
-            <span className="font-black text-xl text-black mt-1">{following}</span>
-          </div>
-          <div className="flex flex-col items-center w-full">
-            <div className="bg-slate-100 py-2 px-6 rounded-full text-slate-500 font-bold text-sm w-full text-center">Followers</div>
-            <span className="font-black text-xl text-black mt-1">{followers}</span>
-          </div>
-          
-          {/* favourites */}
-          <div className="flex flex-col items-center w-full mt-2">
-            <div className="bg-slate-100 py-2 px-6 rounded-full text-slate-500 font-bold text-sm w-full text-center mb-3">Favourites</div>
-            <Link 
-              href="/profile/favourites" 
-              title="My Favourites" 
-              className="hover:scale-110 active:scale-95 transition-transform cursor-pointer"
-            >
-              <Star className="w-10 h-10 fill-yellow-400 text-yellow-500 drop-shadow-sm" />
-            </Link>
-          </div>
-        </div>
-
-        <div className="flex-1 flex flex-col gap-3">
-          <button className="flex items-center justify-between bg-white p-4 rounded-3xl hover:bg-slate-50 active:bg-slate-100 transition group border border-slate-100 shadow-sm cursor-pointer">
-            <div className="flex items-center gap-4">
-              <Crown className="w-6 h-6 text-yellow-500 fill-yellow-500/20" />
-              <span className="font-bold text-slate-700 text-lg">PinQuo Pro(soon)</span>
-            </div>
-            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-black transition" />
-          </button>
-          <button className="flex items-center justify-between bg-white p-4 rounded-3xl hover:bg-slate-50 active:bg-slate-100 transition group border border-slate-100 shadow-sm cursor-pointer">
-            <div className="flex items-center gap-4">
-              <LayoutTemplate className="w-6 h-6 text-slate-400" />
-              <span className="font-bold text-slate-700 text-lg">Templates(soon)</span>
-            </div>
-            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-black transition" />
-          </button>
-          <button className="flex items-center justify-between bg-white p-4 rounded-3xl hover:bg-slate-50 active:bg-slate-100 transition group border border-slate-100 shadow-sm cursor-pointer">
-            <div className="flex items-center gap-4">
-              <User className="w-6 h-6 text-slate-400" />
-              <span className="font-bold text-slate-700 text-lg">Settings(soon)</span>
-            </div>
-            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-black transition" />
-          </button>
-          
-          <button 
-            onClick={handleLogout} 
-            disabled={isLoggingOut}
-            className="flex items-center justify-between bg-white p-4 rounded-3xl hover:bg-red-50 active:bg-red-100 transition group border border-slate-100 hover:border-red-100 shadow-sm cursor-pointer mt-1 disabled:opacity-50"
-          >
-            <div className="flex items-center gap-4">
-              {isLoggingOut ? (
-                <Loader2 className="w-6 h-6 text-red-500 animate-spin" />
-              ) : (
-                <LogOut className="w-6 h-6 text-red-500 group-hover:scale-110 transition-transform" />
-              )}
-              <span className="font-bold text-red-600 text-lg">
-                {isLoggingOut ? 'Logging out...' : 'Log Out'}
-              </span>
-            </div>
-          </button>
-        </div>
-      </div>
     </div>
   )
 }

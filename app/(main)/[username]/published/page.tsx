@@ -350,13 +350,19 @@ export default function PublishedPage() {
 
       {/* Theater Modal with Comments */}
       {expandedQuote && (
-        <div onClick={() => setExpandedQuote(null)} className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-start sm:justify-center p-0 sm:p-8 animate-in fade-in duration-200 cursor-pointer overflow-hidden">
+        <div 
+          onClick={() => setExpandedQuote(null)} 
+          // Safe Background: Solid black on mobile, frosted glass on desktop
+          className="fixed inset-0 z-[100] bg-black md:bg-black/90 md:backdrop-blur-sm flex flex-col items-center justify-start sm:justify-center p-0 sm:p-8 animate-in fade-in duration-200 cursor-pointer overflow-hidden"
+          style={{ willChange: 'opacity' }}
+        >
           
           {/* 👇 Changed h-full to h-[100dvh] right here 👇 */}
           <div onClick={(e) => e.stopPropagation()} className="w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] max-w-[550px] bg-slate-50 sm:rounded-[40px] flex flex-col overflow-hidden cursor-default shadow-2xl relative">
             
             <div className="shrink-0 relative">
-               <button onClick={() => setExpandedQuote(null)} className="absolute top-4 right-4 z-50 p-2 bg-black/10 hover:bg-black/20 rounded-full transition text-slate-700 backdrop-blur-md">
+               {/* Safe Close Button: Solid white on mobile, frosted glass on desktop! */}
+               <button onClick={() => setExpandedQuote(null)} className="absolute top-4 right-4 z-50 p-2 bg-white md:bg-black/10 hover:bg-slate-100 md:hover:bg-black/20 rounded-full transition text-slate-700 md:backdrop-blur-md shadow-sm md:shadow-none will-change-transform">
                  <X className="w-6 h-6" />
                </button>
                <QuoteCard 

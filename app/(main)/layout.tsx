@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Plus_Jakarta_Sans, Playfair_Display } from 'next/font/google'
-import { Home, PlusSquare, User, ShoppingCart, Trophy, Settings } from 'lucide-react'
+import { Home, PlusSquare, User, ShoppingCart, Trophy, Settings, SettingsIcon } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import SidebarWidgets from '@/components/SidebarWidgets'
 
@@ -32,7 +32,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
       <div className="w-full max-w-350 flex flex-col lg:flex-row relative">
         
         {/* MOBILE TOP HEADER */}
-        <header className="lg:hidden sticky top-0 z-40 bg-white/80 backdrop-blur-md pt-5 pb-3 px-6 flex justify-between items-center border-b border-slate-200/50 shadow-sm">
+        <header className="lg:hidden sticky top-0 z-40 bg-white md:bg-white/80 md:backdrop-blur-md pt-5 pb-3 px-6 flex justify-between items-center border-b border-slate-200/50 shadow-sm will-change-transform">
           <Link href="/feed">
             <Image src="/PinQuote-Logo.png" alt="PinQuo Logo" width={110} height={35} priority className="h-8 w-auto object-contain" />
           </Link>
@@ -66,10 +66,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
               <span className="text-[19px] font-bold">Tournament</span>
             </div>
 
-            <div className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 transition-colors text-slate-400 cursor-not-allowed group" title="Coming Soon">
-              <Settings className="w-7 h-7 stroke-[2.5]" />
+            <Link href="/settings" className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 transition-colors text-slate-800 hover:text-black group">
+              <SettingsIcon className="w-7 h-7 stroke-[2.5] group-hover:scale-110 transition-transform" />
               <span className="text-[19px] font-bold">Settings</span>
-            </div>
+            </Link>
             
             <Link 
               href="/create" 
@@ -82,8 +82,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             {/*<span className="text-sm font-serif text-red-600 tracking-wide mt-4"></span>*/}
           </nav>
 
-          <div className="mt-auto pt-6 text-sm font-bold text-slate-400 pl-4">
-            <p>© 2026 PinQuo</p>
+          <div className="mt-auto pt-6 text-sm font-bold text-slate-800 pl-4">
+            <p>© 2026 PinQuote</p>
           </div>
         </aside>
 
@@ -120,7 +120,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         </aside>
 
         {/* MOBILE BOTTOM NAV */}
-        <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-lg border-t border-slate-100 flex items-center justify-around px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+        <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-white md:bg-white/90 md:backdrop-blur-lg border-t border-slate-100 flex items-center justify-around px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] will-change-transform">
           <Link href="/feed" className="p-3 rounded-2xl hover:bg-slate-100 active:scale-95 transition">
             <Home className="w-7 h-7 text-black" />
           </Link>
