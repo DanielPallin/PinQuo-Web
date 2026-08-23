@@ -47,19 +47,27 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         from: 'PinQuo <hello@pinquo.app>',
         to: [email],
-        subject: `${publisherName} just quoted you on PinQuo!`,
+        subject: `✨ ${publisherName} just quoted you on PinQuo!`,
         html: `
-          <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #f1f5f9; border-radius: 24px;">
-            <h1 style="font-size: 24px; font-weight: 900; color: #000; margin-bottom: 8px;">PinQuo</h1>
-            <p style="color: #475569; font-size: 16px; margin-bottom: 24px;">
-              <strong>@${publisherName.toLowerCase()}</strong> just published a quote said by you!
-            </p>
-            <div style="background-color: #f8fafc; border-left: 4px solid #000; padding: 16px; margin-bottom: 28px; font-style: italic; color: #0f172a; font-size: 18px;">
-              “ ${quoteContent} ”
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);">
+            <div style="background-color: #0f172a; padding: 40px 24px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 900; letter-spacing: -1px;">PinQuo</h1>
+              <p style="color: #94a3b8; font-size: 16px; margin-top: 8px; font-weight: 500;">The Platform for Memorable Quotes</p>
             </div>
-            <a href="${siteUrl}" style="display: inline-block; background-color: #000; color: #fff; text-decoration: none; font-weight: bold; padding: 14px 28px; border-radius: 9999px; font-size: 15px;">
-              Join PinQuo!
-            </a>
+            <div style="padding: 40px 32px;">
+              <p style="font-size: 18px; color: #334155; margin-top: 0; font-weight: 600;">Someone is talking about you.</p>
+              <p style="font-size: 16px; color: #475569; line-height: 1.6;"><strong>@${publisherName.toLowerCase()}</strong> Immortalized something you said on PinQuo!</p>
+              
+              <div style="margin: 32px 0; padding: 24px; background-color: #f8fafc; border-left: 4px solid #10b981; border-radius: 0 16px 16px 0;">
+                <p style="font-size: 20px; font-style: italic; color: #0f172a; margin: 0; font-weight: 500;">“${quoteContent}”</p>
+              </div>
+              
+              <p style="font-size: 15px; color: #64748b; margin-bottom: 32px;">See all comments, reactions and laughter at PinQuo.</p>
+              
+              <div style="text-align: center;">
+                <a href="${siteUrl}" style="background-color: #10b981; color: #ffffff; padding: 16px 36px; border-radius: 9999px; text-decoration: none; font-weight: 800; font-size: 16px; display: inline-block; letter-spacing: 0.5px;">Create Account</a>
+              </div>
+            </div>
           </div>
         `,
       }),
