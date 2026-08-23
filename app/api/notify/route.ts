@@ -1,57 +1,70 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
+
+    const supabaseServer = await createServerClient()
+    const { data: { user } } = await supabaseServer.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const apiKey = process.env.RESEND_API_KEY
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    
-    // Aggressively hunt for the admin key, checking modern JSON, modern strings, and legacy formats
     const rawSecretKeys = process.env.SUPABASE_SECRET_KEYS || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
 
     let supabaseAdminKey = ''
-
     if (rawSecretKeys) {
         try {
           const parsedKeys = JSON.parse(rawSecretKeys)
           supabaseAdminKey = Object.values(parsedKeys)[0] as string
         } catch (err) {
-          // Because your key is a plain string, it safely lands right here!
           supabaseAdminKey = rawSecretKeys
         }
-      }
+    }
 
     if (!apiKey || !supabaseUrl || !supabaseAdminKey) {
       return NextResponse.json({ error: 'Server authentication configuration missing.' }, { status: 500 })
     }
 
-    const { quoterUsername, quotedUsername, quoteContent } = await request.json()
+    const { quotedUsername, quoteContent } = await request.json()
 
-    if (!quoterUsername || !quotedUsername || !quoteContent) {
+    if (!quotedUsername || !quoteContent) {
       return NextResponse.json({ error: 'Missing parameters.' }, { status: 400 })
     }
 
-    // Initialize the Admin Client to bypass Row Level Security
-    const supabaseAdmin = createClient(supabaseUrl, supabaseAdminKey, {
+    const { data: profile } = await supabaseServer
+      .from('profiles')
+      .select('username')
+      .eq('id', user.id)
+      .single()
+
+    const quoterUsername = profile?.username
+
+    if (!quoterUsername) {
+      return NextResponse.json({ error: 'Publisher profile invalid.' }, { status: 403 })
+    }
+
+    const supabaseAdmin = createAdminClient(supabaseUrl, supabaseAdminKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
       }
     })
 
-    // Find the target user's profile ID
     const { data: profileData, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('id')
       .eq('username', quotedUsername.toLowerCase())
       .single()
 
-    // If the user doesn't exist, exit quietly (maybe they quoted a non-user)
     if (profileError || !profileData) {
       return NextResponse.json({ message: 'Target user not found, skipping email.' }, { status: 200 })
     }
 
-    // Securely fetch their private email address from the hidden auth schema
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(profileData.id)
 
     if (userError || !userData.user?.email) {
@@ -60,7 +73,6 @@ export async function POST(request: Request) {
 
     const targetEmail = userData.user.email
 
-    // Dispatch the notification via Resend
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
