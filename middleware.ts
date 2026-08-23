@@ -24,19 +24,15 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
-  // 1. THE VIP ROOMS (Blacklist)
-  // Define only the routes that MUST be hidden from unauthenticated guests.
+  if (path === '/') {
+    return NextResponse.redirect(new URL('/feed', request.url))
+  }
+
   const isPrivateRoute = 
     path.startsWith('/settings') || 
     path.startsWith('/profile/edit')
 
-  // 2. Unauthenticated user trying to hit a restricted route -> Kick to Login/Home
   if (!user && isPrivateRoute) {
-    return NextResponse.redirect(new URL('/', request.url))
-  }
-
-  // 3. Authenticated user visiting the login page ('/') -> Kick to feed
-  if (user && path === '/') {
     return NextResponse.redirect(new URL('/feed', request.url))
   }
 
