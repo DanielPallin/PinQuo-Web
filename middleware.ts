@@ -28,12 +28,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/feed', request.url))
   }
 
+  if (user && path === '/login') {
+    return NextResponse.redirect(new URL('/feed', request.url))
+  }
+
   const isPrivateRoute = 
     path.startsWith('/settings') || 
     path.startsWith('/profile/edit')
 
   if (!user && isPrivateRoute) {
-    return NextResponse.redirect(new URL('/feed', request.url))
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   return supabaseResponse

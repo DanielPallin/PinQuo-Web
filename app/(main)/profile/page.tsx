@@ -152,7 +152,7 @@ export default function ProfilePage() {
           Join PinQuote to customize your profile, track your quotes, and build your audience.
         </p>
         <button 
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/login')}
           className="bg-black hover:bg-slate-800 text-white font-bold text-lg py-4 px-10 rounded-full shadow-[0_8px_20px_rgba(0,0,0,0.15)] active:scale-95 transition-all"
         >
           Join PinQuote
