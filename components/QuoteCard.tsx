@@ -271,15 +271,15 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     }
 
     return (
-      <div className="flex items-center gap-4 bg-white border border-slate-200/80 px-5 py-2 rounded-full shadow-sm transition-transform hover:scale-105 w-max">
-        <span className="flex items-center gap-1.5 text-emerald-600 text-base font-bold">
-          <span className="text-xl">👍</span> {approvedCount}
+      <div className="flex items-center gap-2 bg-slate-200 border border-slate-600 px-5 py-2 rounded-full shadow-sm transition-transform hover:scale-105 w-max">
+        <span className="flex items-center text-emerald-600 text-base">
+          <span className="text-[16px]"> {approvedCount} 👍</span>
         </span>
-        <span className="flex items-center gap-2 text-slate-800 text-xl font-black">
-          <span className="text-[32px] drop-shadow-sm leading-none -mt-1.5">🕵️</span> {totalWitnesses}
+        <span className="flex items-center text-slate-800 text-xl font-black">
+          <span className="text-[32px] drop-shadow-sm leading-none -mt-1">🕵️</span>
         </span>
-        <span className="flex items-center gap-1.5 text-rose-600 text-base font-bold">
-          <span className="text-xl">👎</span> {deniedCount}
+        <span className="flex items-center text-rose-600 text-base">
+          <span className="text-[16px]">👎</span> {deniedCount}
         </span>
       </div>
     )
