@@ -52,7 +52,15 @@ function WriteQuoteForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
+  
+  // WebRTC
+  const [isCameraActive, setIsCameraActive] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const [snapImageUrl, setSnapImageUrl] = useState<string | null>(null)
 
+  // Quote State
   const targetId = searchParams.get('targetId')
   const targetUsername = searchParams.get('targetUsername')
   const inviteEmail = searchParams.get('inviteEmail')
@@ -68,7 +76,7 @@ function WriteQuoteForm() {
   const [isHydrated, setIsHydrated] = useState(false)
   const draftKey = `pinquo_draft_${targetId || targetUsername || inviteEmail || customName || 'unknown'}`
 
-  // Load saved draft on mount
+  // Draft
   useEffect(() => {
     const saved = sessionStorage.getItem(draftKey)
     if (saved) {
@@ -76,31 +84,36 @@ function WriteQuoteForm() {
         const parsed = JSON.parse(saved)
         if (parsed.quoteText) setQuoteText(parsed.quoteText)
         if (parsed.witnesses) setWitnesses(parsed.witnesses)
-        if (parsed.bgType) setBgType(parsed.bgType)
         if (parsed.selectedTemplate) setSelectedTemplate(parsed.selectedTemplate)
+        
+        if (parsed.bgType === 'snap') {
+          setBgType(isExistingUser ? 'avatar' : 'template')
+        } else if (parsed.bgType) {
+          setBgType(parsed.bgType)
+        }
       } catch (e) {
         console.error("Failed to parse draft", e)
       }
     }
     setIsHydrated(true)
-  }, [draftKey])
+  }, [draftKey, isExistingUser])
 
-  // Save draft on every change
   useEffect(() => {
     if (isHydrated) {
       sessionStorage.setItem(draftKey, JSON.stringify({
         quoteText,
         witnesses,
-        bgType,
-        selectedTemplate
+        // 💥 FIX: Intentionally omit snapImageUrl so it never persists across sessions
+        bgType: bgType === 'snap' ? 'template' : bgType, // Don't save 'snap' as the default bgType
+        selectedTemplate,
       }))
     }
   }, [quoteText, witnesses, bgType, selectedTemplate, draftKey, isHydrated])
 
+  // UI Data
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<FilterState>('packs')
 
-  // PLG State
   const [isGuest, setIsGuest] = useState(true)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [isLogin, setIsLogin] = useState(false)
@@ -114,9 +127,9 @@ function WriteQuoteForm() {
   const [favorites, setFavorites] = useState<Template[]>([])
   const [isLoadingCore, setIsLoadingCore] = useState(true)
   const carouselRef = useRef<HTMLDivElement>(null)
-
   const [activePack, setActivePack] = useState<DerivedPack | null>(null)
 
+  // Fetch
   const fetchUserData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
@@ -145,7 +158,6 @@ function WriteQuoteForm() {
     let isMounted = true
     const fetchCoreData = async () => {
       setIsLoadingCore(true)
-      
       await fetchUserData()
 
       const { data: templatesData } = await supabase.from('templates').select('*').order('created_at', { ascending: true })
@@ -186,7 +198,6 @@ function WriteQuoteForm() {
         setAllTemplates(processedTemplates)
         setPacks(Array.from(packMap.values()))
       }
-
       if (isMounted) setIsLoadingCore(false)
     }
 
@@ -213,7 +224,6 @@ function WriteQuoteForm() {
 
   // Sorting & Filtering
   const lowercaseQuery = searchQuery.toLowerCase().trim()
-  
   const sortUnlockedFirst = (aAccess: boolean, bAccess: boolean) => {
     if (aAccess && !bAccess) return -1
     if (!aAccess && bAccess) return 1
@@ -238,6 +248,80 @@ function WriteQuoteForm() {
 
   const filteredFavorites = favorites.filter(t => t.name.toLowerCase().includes(lowercaseQuery))
 
+  // 1. Just open the modal
+  const startCamera = () => {
+    setIsCameraActive(true)
+  }
+
+  // 2. Safely attach the hardware stream ONLY after the <video> element is rendered
+  useEffect(() => {
+    let activeStream: MediaStream | null = null;
+
+    if (isCameraActive) {
+      const initCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false
+      })
+          streamRef.current = stream
+          activeStream = stream
+          
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream
+          }
+        } catch (err) {
+          console.error("Camera access denied or hardware not found", err)
+          alert("We need camera access to take a Live Snap!")
+          setIsCameraActive(false)
+        }
+      }
+      initCamera()
+    }
+
+    // Cleanup: If the modal closes, kill the stream immediately
+    return () => {
+      if (activeStream) {
+        activeStream.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [isCameraActive])
+
+  // 3. Stop Hardware Camera
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+    setIsCameraActive(false)
+  }, [])
+
+  const handleTakeSnap = useCallback(() => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0) return
+
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const context = canvas.getContext('2d')
+    if (!context) return
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    canvas.toBlob((blob) => {
+      if (!blob) return
+      const url = URL.createObjectURL(blob)
+      setSnapImageUrl(url)
+      
+      setBgType('snap')
+      setSelectedTemplate(null)
+      setActivePack(null)
+      
+      stopCamera()
+    }, 'image/jpeg', 0.9)
+    
+  }, [stopCamera])
+
+  // Selections & Routing
   const handleSelectTemplate = (template: Template) => {
     setBgType('template')
     setSelectedTemplate(template)
@@ -275,10 +359,19 @@ function WriteQuoteForm() {
       if (selectedTemplate.image_url) params.append('templateImageUrl', selectedTemplate.image_url)
     }
 
+    if (bgType === 'snap' && snapImageUrl) {
+      params.append('snapImageUrl', snapImageUrl)
+    }
+
     router.push(`/create/preview?${params.toString()}`)
   }
+  
+  const isFormValid = quoteText.trim().length > 0 && (
+    (bgType === 'template' && !!selectedTemplate) || 
+    (bgType === 'avatar') ||
+    (bgType === 'snap' && !!snapImageUrl)
+  )
 
-  const isFormValid = quoteText.trim().length > 0 && (bgType !== 'template' || !!selectedTemplate)
   const isPackLocked = activePack && activePack.is_pro && !isProUser
 
   const renderTemplateCard = (template: Template, isGrid: boolean = false) => {
@@ -326,6 +419,34 @@ function WriteQuoteForm() {
   return (
     <div className="flex flex-col pt-6 w-full max-w-2xl mx-auto min-h-[100dvh] bg-[#f8fafc] relative">
       
+      {/* Hardware Viewfinder */}
+      {isCameraActive && (
+        <div className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center animate-in fade-in duration-200">
+          <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-10 bg-gradient-to-b from-black/60 to-transparent">
+            <h2 className="text-white font-black text-xl tracking-tight drop-shadow-md">Live Snap</h2>
+            <button onClick={stopCamera} className="p-2 bg-white/20 backdrop-blur-md rounded-full text-white active:scale-95">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* The live video stream from hardware */}
+          <video 
+            ref={videoRef} 
+            autoPlay 
+            playsInline 
+            muted // 👈 Add this!
+            className="w-full h-full object-cover"
+          />
+          <canvas ref={canvasRef} className="hidden" />
+
+          <div className="absolute bottom-0 left-0 right-0 pb-[max(2rem,env(safe-area-inset-bottom))] pt-10 flex justify-center bg-gradient-to-t from-black/80 to-transparent z-10">
+            <button onClick={handleTakeSnap} className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1 active:scale-95 transition-transform">
+              <div className="w-full h-full bg-white rounded-full"></div>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6 px-4">
         <button onClick={() => router.back()} className="p-2 hover:bg-slate-200 rounded-full transition text-slate-700 -ml-2">
@@ -409,13 +530,25 @@ function WriteQuoteForm() {
             ref={carouselRef} 
             className="relative w-full flex overflow-x-auto snap-x snap-mandatory pt-4 pb-8 px-4 gap-3 no-scrollbar items-center"
           >
-            
-            {/* Live Snap (Locked) */}
-            <div className="relative shrink-0 w-[100px] h-[130px] rounded-[20px] border-2 border-dashed border-slate-300 bg-white/50 flex flex-col items-center justify-center opacity-60 snap-start cursor-not-allowed">
-              <Camera className="w-6 h-6 text-slate-400 mb-2" strokeWidth={2.5} />
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center leading-tight">Live<br/>Snap</span>
-              <div className="absolute -top-2 right-0 bg-slate-300 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-white">Mobile Feature</div>
-            </div>
+            {/* 💥 UNIVERSAL LIVE SNAP BUTTON */}
+            <button 
+              onClick={startCamera}
+              className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] flex flex-col items-center justify-center snap-start transition-all duration-200 overflow-hidden ${
+                bgType === 'snap' 
+                  ? 'ring-4 ring-emerald-400 scale-[1.02] shadow-md bg-emerald-50 border-none' 
+                  : 'bg-white border-2 border-slate-200 shadow-sm opacity-90 hover:opacity-100'
+              }`}
+            >
+              <Camera className={`w-6 h-6 mb-2 relative z-10 ${bgType === 'snap' ? 'text-white drop-shadow-md' : 'text-slate-400'}`} strokeWidth={2.5} />
+              <span className={`text-[10px] font-black uppercase tracking-widest text-center leading-tight relative z-10 ${bgType === 'snap' ? 'text-white drop-shadow-md' : 'text-slate-400'}`}>Live<br/>Snap</span>
+
+              {bgType === 'snap' && snapImageUrl && (
+                <div className="absolute inset-0 z-0">
+                  <img src={snapImageUrl} alt="snap" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                  <div className="absolute inset-0 bg-emerald-900/40 mix-blend-multiply"></div>
+                </div>
+              )}
+            </button>
 
             {/* Quoted User Avatar */}
             {isExistingUser && (
@@ -442,7 +575,6 @@ function WriteQuoteForm() {
               <>
                 {activeFilter === 'all' && sortedTemplates.map(t => renderTemplateCard(t, false))}
                 
-                {/* Guest Favorites State */}
                 {activeFilter === 'favorites' && isGuest && (
                   <div className="w-[200px] flex flex-col items-center justify-center text-center px-4 shrink-0 border-2 border-dashed border-slate-200 rounded-[20px] h-[130px]">
                     <Heart className="w-6 h-6 text-slate-300 mb-2" />
@@ -617,6 +749,5 @@ export default function WriteQuotePage() {
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-slate-300" /></div>}>
       <WriteQuoteForm />
     </Suspense>
-    
   )
 }

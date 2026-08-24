@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { User, MessageCircle, Bookmark, SmilePlus, Share2, Loader2, X, Mail } from 'lucide-react'
 import { EmojiClickData } from 'emoji-picker-react'
 import CustomEmojiPicker from './CustomEmojiPicker'
@@ -24,6 +23,7 @@ export type FeedQuote = {
   created_at: string
   quoted_email: string | null
   custom_author_name: string | null
+  live_photo_url: string | null
   publisher: { id: string, username: string, avatar_url: string | null } | null
   quoted_user: { id: string, username: string, avatar_url: string | null } | null
   template: { 
@@ -56,8 +56,7 @@ const getQuoteFontSize = (text: string) => {
 }
 
 export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand, onFavorite, onVoteWitness }: QuoteCardProps) {
-  const supabase = useRef(createClient()).current
-  const router = useRouter()
+  const [supabase] = useState(() => createClient())
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
   
@@ -69,7 +68,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const [showWitnessModal, setShowWitnessModal] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   
-  // 💥 NEW: State to store dynamically fetched witness profiles
+  // State to store dynamically fetched witness profiles
   const [witnessProfiles, setWitnessProfiles] = useState<Record<string, { username: string; avatar_url: string | null }>>({})
   
   // Auth State
@@ -114,11 +113,10 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // 💥 NEW: Fetch missing witness profiles when the modal opens
+  // Fetch missing witness profiles when the modal opens
   useEffect(() => {
     if (showWitnessModal && quote.witnesses && quote.witnesses.length > 0) {
       const fetchMissingProfiles = async () => {
-        // Find witnesses that have an ID, but no profile data passed down from parent
         const missingUserIds = quote.witnesses!
           .filter(w => w.witness_user_id && !w.profile && !witnessProfiles[w.witness_user_id])
           .map(w => w.witness_user_id as string)
@@ -367,17 +365,18 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
       >
         <img src="/PinQuote-Logo.png" alt="PinQuo" className="absolute top-5 left-5 h-5 sm:h-6 w-auto opacity-60 drop-shadow-md z-20 pointer-events-none select-none"/>
 
-        {quote.template?.image_url ? (
+        {/* Waterfall */}
+        {quote.live_photo_url ? (
+          <img src={quote.live_photo_url} alt="Live Snap" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover" />
+        ) : quote.template?.image_url ? (
           <img src={quote.template.image_url} alt="Quote Background" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover" style={{ filter: 'contrast(1.15) saturate(1.2) sepia(0.15) brightness(0.85)' }} />
-        ) : (
+        ) : quote.template ? (
           <div className={`absolute inset-0 bg-linear-to-br ${bgGradient}`}></div>
-        )}
-
-        {!quote.template && targetAvatarUrl && (
+        ) : targetAvatarUrl ? (
           <div className="absolute inset-0 mix-blend-overlay opacity-80">
             <img src={targetAvatarUrl} alt="Bg" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover" />
           </div>
-        )}
+        ) : null}
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/60 mix-blend-multiply pointer-events-none"></div>
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(0,0,0,0)_0%,_rgba(0,0,0,0.4)_100%)] pointer-events-none"></div>
@@ -470,7 +469,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       )}
 
-      {/* 💥 NEW: WITNESS LIST MODAL WITH DYNAMIC PROFILES */}
+      {/* Witness List Modal */}
       {showWitnessModal && (
         <div 
           onClick={(e) => {
@@ -503,7 +502,6 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
             {/* Scrollable Witness List */}
             <div className="flex-1 overflow-y-auto p-3 space-y-2 no-scrollbar pb-[max(1.5rem,env(safe-area-inset-bottom))]">
               {witnesses.map((w, idx) => {
-                // 💥 Combine parent-provided profile data with dynamically fetched profile data
                 const activeProfile = w.profile || (w.witness_user_id ? witnessProfiles[w.witness_user_id] : null);
                 
                 let witnessName = 'Pending Invite';
