@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Plus_Jakarta_Sans, Playfair_Display } from 'next/font/google'
-import { Home, PlusSquare, User, ShoppingCart, Trophy, SettingsIcon } from 'lucide-react'
+import { Home, PlusSquare, User, Layers, ShoppingCart, Trophy, SettingsIcon } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import SidebarWidgets from '@/components/SidebarWidgets'
 
@@ -71,6 +71,11 @@ export default async function MainLayout({ children }: { children: React.ReactNo
               <span className="text-[19px] font-bold">Profile</span>
             </Link>
 
+            <Link href="/templates" className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 transition-colors text-slate-800 hover:text-black group">
+              <Layers className="w-7 h-7 stroke-[2.5] group-hover:scale-110 transition-transform" />
+              <span className="text-[19px] font-bold">Templates</span>
+            </Link>
+
             <div className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 transition-colors text-slate-400 cursor-not-allowed group" title="Coming Soon">
               <ShoppingCart className="w-7 h-7 stroke-[2.5]" />
               <span className="text-[19px] font-bold">Store</span>
@@ -88,7 +93,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             
             <Link 
               href="/create" 
-              className="scale-90 mt-6 flex items-center justify-center gap-2 bg-gradient-to-r from-orange-400 to-red-500 text-black shadow-xl shadow-black hover:shadow-amber-950 hover:scale-98 active:scale-95 px-6 py-4 rounded-full transition-all duration-50"
+              className="scale-90 mt-6 flex items-center justify-center gap-2 bg-gradient-to-r from-orange-400 to-red-500 text-black shadow shadow-black hover:shadow-amber-950 hover:scale-98 active:scale-95 px-6 py-4 rounded-full transition-all duration-50"
             >
               <PlusSquare className="w-6 h-6 stroke-[4px] drop-shadow-md" />
               <span className="text-xl font-black tracking-wide">Post Quote</span>

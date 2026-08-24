@@ -154,7 +154,7 @@ export default function SidebarWidgets() {
       <div className="bg-white rounded-[32px] p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 flex flex-col">
         <div className="flex items-center gap-2 mb-3 px-1">
           <Flame className="w-4 h-4 text-orange-500 fill-orange-500 drop-shadow-sm" />
-          <h3 className="text-sm font-black text-slate-900 tracking-tight">Trending this Week</h3>
+          <h3 className="text-sm font-black text-slate-900 tracking-tight">Trending</h3>
         </div>
         {quoteOfTheWeek ? renderMiniCard(quoteOfTheWeek) : <div className="h-32 flex items-center justify-center text-xs font-bold text-slate-400">No quotes yet this week.</div>}
       </div>

@@ -10,6 +10,13 @@ import { createClient } from '@/lib/supabase/client'
 
 export type GroupedReaction = { emoji: string, count: number, hasReacted: boolean }
 
+export type WitnessRecord = {
+  id: string
+  witness_user_id: string | null
+  witness_email: string | null
+  vote: 'pending' | 'approved' | 'denied'
+}
+
 export type FeedQuote = {
   id: string
   content: string
@@ -26,6 +33,7 @@ export type FeedQuote = {
   commentCount: number
   favoriteCount: number
   isFavorited: boolean
+  witnesses?: WitnessRecord[]
 }
 
 interface QuoteCardProps {
@@ -34,6 +42,7 @@ interface QuoteCardProps {
   onReact: (emoji: EmojiClickData, quoteId: string, type: 'quote', publisherId?: string) => void
   onExpand?: (quote: FeedQuote) => void
   onFavorite: (quoteId: string) => void
+  onVoteWitness?: (quoteId: string, vote: 'approved' | 'denied') => void
 }
 
 const getQuoteFontSize = (text: string) => {
@@ -45,7 +54,7 @@ const getQuoteFontSize = (text: string) => {
   return 'text-base md:text-lg'
 }
 
-export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand, onFavorite }: QuoteCardProps) {
+export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand, onFavorite, onVoteWitness }: QuoteCardProps) {
   const supabase = createClient()
   const router = useRouter()
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -53,6 +62,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   
   const [isFav, setIsFav] = useState(quote.isFavorited)
   const [favCount, setFavCount] = useState(quote.favoriteCount)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   // PLG Auth State
   const [isGuest, setIsGuest] = useState(true)
@@ -65,10 +75,12 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const [authError, setAuthError] = useState('')
   const [isEmailSent, setIsEmailSent] = useState(false)
 
-  // Check auth state silently on mount
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setIsGuest(!data.session)
+      if (data.session?.user) {
+        setCurrentUserId(data.session.user.id)
+      }
     })
   }, [supabase])
 
@@ -103,7 +115,22 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const targetAvatarUrl = quote.quoted_user?.avatar_url
   const cleanQuoteContent = quote.content.replace(/^["'“”«»]+|["'“”«»]+$/g, '').trim()
 
-  // --- PLG FTW ---
+  const witnesses = quote.witnesses || []
+  const approvedCount = witnesses.filter(w => w.vote === 'approved').length
+  const deniedCount = witnesses.filter(w => w.vote === 'denied').length
+  const totalWitnesses = witnesses.length
+
+  const userWitnessEntry = witnesses.find(w => w.witness_user_id === currentUserId)
+  const isUserWitness = !!userWitnessEntry
+
+  const handleWitnessVoteAction = async (e: React.MouseEvent, voteType: 'approved' | 'denied') => {
+    e.stopPropagation()
+    if (isGuest) {
+      setShowAuthModal(true)
+      return
+    }
+    if (onVoteWitness) onVoteWitness(quote.id, voteType)
+  }
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -153,7 +180,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     e.stopPropagation()
     const quoteUrl = `${window.location.origin}/quote/${quote.id}`
     if (navigator.share) {
-      try { await navigator.share({ title: 'PinQuote', text: `Check out this quote by ${targetName} on PinQuote!`, url: quoteUrl }) } 
+      try { await navigator.share({ title: 'PinQuo', text: `Check out this quote by ${targetName} on PinQuo!`, url: quoteUrl }) } 
       catch (err) { /* User dismissed */ }
     } else {
       try {
@@ -201,7 +228,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
       } else if (data?.user && !data.session) {
         setIsEmailSent(true)
         setAuthLoading(false)
-        return // Stop here to show the success UI
+        return
       } else if (data?.session) {
         authSuccess = true
       }
@@ -223,6 +250,35 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     }
     
     setAuthLoading(false)
+  }
+
+  const renderWitnessPill = () => {
+    if (totalWitnesses === 0) return null
+
+    if (isUserWitness && userWitnessEntry?.vote === 'pending') {
+      return (
+        <div className="flex items-center gap-4 bg-slate-900 text-white px-5 py-2 rounded-full shadow-lg ring-2 ring-slate-900/10 animate-pulse">
+          <span className="uppercase tracking-widest text-[10px] text-slate-300 font-bold ml-1">Verify</span>
+          <button onClick={(e) => handleWitnessVoteAction(e, 'approved')} className="text-xl hover:scale-125 transition-transform origin-center" title="Confirm True">👍</button>
+          <span className="text-3xl drop-shadow-md leading-none mx-0.5 -mt-1">🕵️</span>
+          <button onClick={(e) => handleWitnessVoteAction(e, 'denied')} className="text-xl hover:scale-125 transition-transform origin-center" title="Deny False">👎</button>
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex items-center gap-4 bg-slate-100 border px-5 py-2 rounded-full shadow-xl transition-transform hover:scale-105">
+        <span className="flex items-center gap-1.5 text-emerald-600 text-base font-bold">
+          <span className="text-xl">👍</span> {approvedCount}
+        </span>
+        <span className="flex items-center text-slate-800 text-xl font-black">
+          <span className="text-[28px] drop-shadow-sm leading-none -mt-1.5">🕵️</span> {totalWitnesses}
+        </span>
+        <span className="flex items-center gap-1.5 text-rose-600 text-base font-bold">
+          <span className="text-xl">👎</span> {deniedCount}
+        </span>
+      </div>
+    )
   }
 
   return (
@@ -283,30 +339,46 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       </div>
 
-      {/* Active Reactions */}
-      {quote.groupedReactions && quote.groupedReactions.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-4 px-2 relative z-10">
-          {quote.groupedReactions.map((reaction, idx) => (
-            <button
-              key={`${reaction.emoji}-${idx}`}
-              onClick={(e) => handleExistingReactionClick(e, reaction.emoji)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
-                reaction.hasReacted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <span className="text-sm">{reaction.emoji}</span>
-              <span>{reaction.count}</span>
-            </button>
-          ))}
+      {/* Reactions & Witness Pill Row */}
+      {((quote.groupedReactions && quote.groupedReactions.length > 0) || totalWitnesses > 0) && (
+        <div className={`relative flex items-center w-full min-h-[44px] mt-4 z-10 ${isExpanded ? 'px-6' : 'px-2'}`}>
+          
+          {/* Left: Emoji Reactions */}
+          {quote.groupedReactions && quote.groupedReactions.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 relative z-20 pointer-events-auto">
+              {quote.groupedReactions.map((reaction, idx) => (
+                <button
+                  key={`${reaction.emoji}-${idx}`}
+                  onClick={(e) => handleExistingReactionClick(e, reaction.emoji)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                    reaction.hasReacted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className="text-sm">{reaction.emoji}</span>
+                  <span>{reaction.count}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Center: Witness Pill */}
+          {totalWitnesses > 0 && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+              <div className="pointer-events-auto">
+                {renderWitnessPill()}
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 
-      {/* Action BaR */}
+      {/* Action Bar (Hidden when Expanded) */}
       {!isExpanded && (
-        <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 px-2 relative z-10">
+        <div className="relative flex items-center justify-between pt-4 mt-3 border-t border-slate-200 px-2 h-12">
           
-          <div className="flex items-center gap-5">
-            {/* Reactions */}
+          {/* Left: Interactions */}
+          <div className="flex items-center gap-4 relative z-20">
             <div className="relative" ref={pickerRef}>
               <button onClick={handleReactClick} className="flex items-center gap-1.5 text-slate-500 hover:text-emerald-500 transition-colors group">
                 <SmilePlus className="w-6 h-6 group-active:scale-95 transition-transform" />
@@ -318,23 +390,23 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
               )}
             </div>
 
-            {/* Comment */}
             <button onClick={handleCommentClick} className="flex items-center gap-1.5 text-slate-500 hover:text-blue-500 transition-colors group">
               <MessageCircle className="w-6 h-6 group-active:scale-95 transition-transform" />
               {quote.commentCount > 0 && <span className="text-sm font-bold mt-0.5">{quote.commentCount}</span>}
             </button>
 
-            {/* Favorite */}
             <button onClick={handleFavoriteClick} className={`flex items-center gap-1.5 transition-colors group ${isFav ? 'text-amber-500' : 'text-slate-500 hover:text-amber-500'}`}>
               <Bookmark className={`w-6 h-6 group-active:scale-95 transition-transform ${isFav ? 'fill-amber-500' : ''}`} />
               {favCount > 0 && <span className={`text-sm font-bold mt-0.5 ${isFav ? 'text-amber-500' : ''}`}>{favCount}</span>}
             </button>
           </div>
 
-          {/* Share */}
-          <button onClick={handleShare} className="flex items-center text-slate-500 hover:text-slate-800 transition-colors group">
-            <Share2 className="w-6 h-6 group-active:scale-95 transition-transform" />
-          </button>
+          {/* Right: Share */}
+          <div className="flex items-center relative z-20">
+            <button onClick={handleShare} className="flex items-center text-slate-500 hover:text-slate-800 transition-colors group">
+              <Share2 className="w-6 h-6 group-active:scale-95 transition-transform" />
+            </button>
+          </div>
           
         </div>
       )}
@@ -353,7 +425,6 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
             onClick={(e) => e.stopPropagation()} 
             className="bg-white rounded-[32px] p-6 sm:p-8 max-w-sm w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200"
           >
-            
             <button 
               onClick={() => {
                 setShowAuthModal(false);
@@ -412,7 +483,6 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
                 {authError && <div className="mb-4 p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100">{authError}</div>}
 
                 <form onSubmit={handleInContextAuth} className="space-y-3">
-                  
                   {!isLogin && (
                     <div className="relative">
                       <span className="absolute inset-y-0 left-4 flex items-center text-slate-400 font-bold">@</span>
@@ -454,7 +524,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
                     {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? 'Log In' : 'Create Account')}
                   </button>
                 </form>
-              </  >
+              </>
             )}
           </div>
         </div>

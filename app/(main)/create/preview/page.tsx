@@ -28,6 +28,27 @@ function PreviewQuoteForm() {
   const templateId = searchParams.get('templateId')
   const templateGradient = searchParams.get('templateGradient') || 'from-slate-200 to-slate-300'
   const templateImageUrl = searchParams.get('templateImageUrl')
+  const witnesses = (() => {
+    const value = searchParams.get('witnesses')
+    if (!value) return [] as { type: 'user' | 'email'; value: string }[]
+
+    try {
+      const parsed: unknown = JSON.parse(value)
+      return Array.isArray(parsed)
+        ? parsed.filter(
+            (w): w is { type: 'user' | 'email'; value: string } =>
+              typeof w === 'object' &&
+              w !== null &&
+              'type' in w &&
+              ['user', 'email'].includes((w as any).type) &&
+              'value' in w &&
+              typeof (w as any).value === 'string'
+          )
+        : []
+    } catch {
+      return []
+    }
+  })()
 
   const [isPublishing, setIsPublishing] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -105,6 +126,21 @@ function PreviewQuoteForm() {
       return
     }
 
+    // 💥 NEW: Batch insert the witnesses right after the quote succeeds
+    if (witnesses.length > 0 && newQuoteData?.id) {
+      const witnessPayload = witnesses.map(w => ({
+        quote_id: newQuoteData.id,
+        witness_user_id: w.type === 'user' ? w.value : null,
+        witness_email: w.type === 'email' ? w.value : null
+      }))
+
+      const { error: witnessErr } = await supabase
+        .from('quote_witnesses')
+        .insert(witnessPayload)
+
+      if (witnessErr) console.error("Witness Insert Error:", witnessErr)
+    }
+
     if (targetUid && targetUid !== user.id && newQuoteData?.id) {
       await supabase.from('notifications').insert({
         receiver_id: targetUid,
@@ -117,7 +153,6 @@ function PreviewQuoteForm() {
     // Fire-and-forget side effects
     try {
       let publisherName = currentUsername;
-      // If they just signed up via the modal, their state is still "You". We fetch the fresh DB name!
       if (publisherName === "You") {
         const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).single();
         if (profile?.username) publisherName = profile.username;
@@ -147,6 +182,22 @@ function PreviewQuoteForm() {
         )
       }
 
+      // Email Witnessess
+      if (witnesses.length > 0) {
+        sideEffects.push(
+          fetch("/api/witness-invite", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              witnesses: witnesses, // 👈 Passing the whole array of users and emails
+              publisherName, 
+              quoteContent: quoteText 
+            }),
+            keepalive: true
+          }).catch(err => console.error("Witness email error:", err))
+        )
+      }
+
       if (sideEffects.length > 0) {
         Promise.all(sideEffects).catch(err => console.error("Background task error:", err))
       }
@@ -173,7 +224,6 @@ function PreviewQuoteForm() {
     await executePublish(user)
   }
 
-  // Part 3: Modal Submission Handler
   const handleInContextAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setAuthLoading(true)
@@ -185,7 +235,6 @@ function PreviewQuoteForm() {
 
     if (!error && data?.user) {
       setShowAuthModal(false)
-      // BOOM! Publish it instantly now that they are authenticated!
       await executePublish(data.user)
     } else {
       setAuthError(error?.message || 'Authentication failed')
@@ -217,7 +266,7 @@ function PreviewQuoteForm() {
           <span className="text-slate-800">{currentUsername}</span>
         </div>
 
-        {/* FULL-BLEED CINEMATIC PREVIEW CARD */}
+        {/* Preview Card */}
         <div className="w-full max-w-[420px] bg-slate-900 rounded-[32px] overflow-hidden flex flex-col relative aspect-square shadow-2xl mb-8 border border-slate-200/50">
           
           <img 
@@ -306,7 +355,7 @@ function PreviewQuoteForm() {
         </div>
       </div>
 
-      {/* THE CONTEXTUAL AUTH MODAL */}
+      {/* Auth Modal */}
       {showAuthModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">

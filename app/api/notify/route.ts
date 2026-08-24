@@ -82,16 +82,26 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         from: 'PinQuo <hello@pinquo.app>',
         to: [targetEmail],
-        subject: "Someone quoted you on PinQuo!",
+        subject: `🔥 @${quoterUsername} Quoted you!`,
         html: `
-          <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #f1f5f9; border-radius: 24px;">
-            <h1 style="font-size: 24px; font-weight: 900; color: #000; margin-bottom: 8px;">PinQuo</h1>
-            <p style="color: #475569; font-size: 16px; margin-bottom: 24px;">
-              <strong>@${quoterUsername}</strong> just quoted you!
-            </p>
-            <a href="https://pinquo.app/feed" style="display: inline-block; background-color: #000; color: #fff; text-decoration: none; font-weight: bold; padding: 14px 28px; border-radius: 9999px; font-size: 15px;">
-              View on PinQuo
-            </a>
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);">
+            <div style="padding: 40px 32px; text-align: center;">
+              <h1 style="color: #0f172a; margin: 0; font-size: 28px; font-weight: 900; letter-spacing: -1px;">PinQuo</h1>
+              
+              <div style="margin: 32px 0;">
+                <p style="font-size: 18px; color: #475569; line-height: 1.6; margin: 0;">
+                  <strong>@${quoterUsername}</strong> just Immortalized something you said. 
+                </p>
+              </div>
+
+              <div style="margin: 32px 0; padding: 24px; background-color: #f8fafc; border-left: 4px solid #3b82f6; border-radius: 0 16px 16px 0; text-align: left;">
+                <p style="font-size: 20px; font-style: italic; color: #0f172a; margin: 0; font-weight: 500;">“${quoteContent}”</p>
+              </div>
+              
+              <div style="margin-top: 40px;">
+                <a href="https://pinquo.app/feed" style="background-color: #0f172a; color: #ffffff; padding: 16px 36px; border-radius: 9999px; text-decoration: none; font-weight: 800; font-size: 16px; display: inline-block;">Check it out</a>
+              </div>
+            </div>
           </div>
         `,
       }),

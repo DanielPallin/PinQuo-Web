@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, User, X, Send, SmilePlus, Search } from 'lucide-react'
-import QuoteCard, { FeedQuote, GroupedReaction } from '@/components/QuoteCard'
+import QuoteCard, { FeedQuote, GroupedReaction, WitnessRecord } from '@/components/QuoteCard'
 import Link from 'next/link'
 import { EmojiClickData } from 'emoji-picker-react'
 import CustomEmojiPicker from '@/components/CustomEmojiPicker'
@@ -31,6 +31,7 @@ type RawQuoteData = {
   reactions: { reaction_type: string, user_id: string, comment_id: string | null }[] | null
   favorites: { user_id: string }[] | null
   comments: { count: number }[] | null
+  quote_witnesses: WitnessRecord[] | null
 }
 
 type CommentType = {
@@ -61,6 +62,7 @@ const formatQuote = (q: RawQuoteData, userId: string | null): FeedQuote => {
 
   return {
     ...q,
+    witnesses: q.quote_witnesses || [],
     groupedReactions: Object.values(reactMap).sort((a, b) => b.count - a.count),
     commentCount: q.comments?.[0]?.count || 0,
     favoriteCount: (q.favorites || []).length,
@@ -138,7 +140,8 @@ function FeedContent() {
           template:templates(style_config, image_url),
           reactions(reaction_type, user_id, comment_id),
           favorites(user_id),
-          comments(count)
+          comments(count),
+          quote_witnesses(id, witness_user_id, witness_email, vote)
         `)
         .eq('id', quoteIdParam)
         .single()
@@ -174,7 +177,8 @@ function FeedContent() {
           template:templates(style_config, image_url),
           reactions(reaction_type, user_id, comment_id),
           favorites(user_id),
-          comments(count)
+          comments(count),
+          quote_witnesses(id, witness_user_id, witness_email, vote)
         `)
         .order('created_at', { ascending: false })
         .range(start, end)
@@ -274,7 +278,33 @@ function FeedContent() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  const handleDynamicReaction = async (emojiObj: EmojiClickData, targetId: string, type: 'quote' | 'comment', targetOwnerId?: string) => {
+  // 💥 SECURE WITNESS VOTE HANDLER
+  const handleVoteWitness = async (quoteId: string, voteType: 'approved' | 'denied') => {
+    if (!currentUserId) return
+
+    const updateWitnessState = (q: FeedQuote) => {
+      const witnesses = [...(q.witnesses || [])]
+      const witness = witnesses.find(w => w.witness_user_id === currentUserId)
+      if (witness) {
+        witness.vote = voteType
+      }
+      return { ...q, witnesses }
+    }
+
+    setQuotes(prev => prev.map(q => q.id === quoteId ? updateWitnessState(q) : q))
+    if (expandedQuote?.id === quoteId) setExpandedQuote(updateWitnessState(expandedQuote))
+
+    const { error } = await supabase
+      .from('quote_witnesses')
+      .update({ vote: voteType })
+      .match({ quote_id: quoteId, witness_user_id: currentUserId })
+
+    if (error) {
+      console.error('Failed to submit witness vote:', error)
+    }
+  }
+
+  const handleDynamicReaction = async (emojiObj: EmojiClickData, targetId: string, type: 'quote' | 'comment') => {
     if (!currentUserId) return
     const emoji = emojiObj.emoji
     if (type === 'comment') setActiveCommentEmojiPicker(null)
@@ -347,8 +377,6 @@ function FeedContent() {
 
     if (action !== 'REMOVE') {
       await supabase.from('reactions').insert({ ...matchCriteria, reaction_type: emoji })
-      
-      // 💡 Reaction notifications are handled automatically by the 'on_reaction_created' database trigger[cite: 3]!
     }
   }
 
@@ -368,8 +396,6 @@ function FeedContent() {
       
       setQuotes(prev => prev.map(q => q.id === expandedQuote.id ? { ...q, commentCount: q.commentCount + 1 } : q))
       setExpandedQuote(prev => prev ? { ...prev, commentCount: prev.commentCount + 1 } : null)
-
-      // 💡 Comment notifications are handled automatically by your database trigger!
     }
     setIsPostingComment(false)
   }
@@ -444,6 +470,7 @@ function FeedContent() {
               onReact={handleDynamicReaction} 
               onExpand={setExpandedQuote} 
               onFavorite={toggleFavorite} 
+              onVoteWitness={handleVoteWitness}
             />
           ))}
           
@@ -474,7 +501,7 @@ function FeedContent() {
             <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col bg-slate-50/50">
                
                <div className="shrink-0 bg-white shadow-sm z-10 rounded-b-[40px]">
-                 <QuoteCard quote={expandedQuote} isExpanded={true} onReact={handleDynamicReaction} onFavorite={toggleFavorite} />
+                 <QuoteCard quote={expandedQuote} isExpanded={true} onReact={handleDynamicReaction} onFavorite={toggleFavorite} onVoteWitness={handleVoteWitness} />
                </div>
 
                <div className="p-4 sm:p-6 space-y-6 flex-1 bg-white">
@@ -507,7 +534,7 @@ function FeedContent() {
                                   
                                   <div className="flex items-center gap-1.5">
                                     {groupedCommentReacts.map(r => (
-                                      <button key={r.emoji} onClick={() => handleDynamicReaction({emoji: r.emoji} as EmojiClickData, comment.id, 'comment', comment.user.id)} className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-bold transition ${r.hasReacted ? 'bg-emerald-50 text-emerald-700' : 'bg-transparent text-slate-500 hover:bg-slate-100'}`}>
+                                      <button key={r.emoji} onClick={() => handleDynamicReaction({emoji: r.emoji} as EmojiClickData, comment.id, 'comment')} className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-bold transition ${r.hasReacted ? 'bg-emerald-50 text-emerald-700' : 'bg-transparent text-slate-500 hover:bg-slate-100'}`}>
                                         <span>{r.emoji}</span> <span>{r.count}</span>
                                       </button>
                                     ))}
@@ -518,7 +545,7 @@ function FeedContent() {
                                       </button>
                                       {activeCommentEmojiPicker === comment.id && (
                                         <div className="absolute z-50 top-full mt-1 left-0 shadow-xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 border border-slate-100">
-                                          <CustomEmojiPicker onEmojiClick={(e) => handleDynamicReaction(e, comment.id, 'comment', comment.user.id)} />
+                                          <CustomEmojiPicker onEmojiClick={(e) => handleDynamicReaction(e, comment.id, 'comment')} />
                                         </div>
                                       )}
                                     </div>
@@ -534,22 +561,22 @@ function FeedContent() {
 
             <div className="p-3 sm:p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-white border-t border-slate-100 shrink-0 z-20 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
                <div className="relative flex items-center max-w-2xl mx-auto">
-                 <input 
-                   ref={commentInputRef}
-                   type="text" 
-                   value={newComment}
-                   onChange={e => setNewComment(e.target.value)}
-                   onKeyDown={e => e.key === 'Enter' && handlePostComment()}
-                   placeholder="Add a comment..."
-                   className="flex-1 bg-slate-100 border-none rounded-full py-3 pl-5 pr-14 text-[15px] font-medium focus:ring-2 focus:ring-slate-300 transition outline-none placeholder:text-slate-500"
-                 />
-                 <button 
-                   onClick={handlePostComment}
-                   disabled={!newComment.trim() || isPostingComment}
-                   className="absolute right-1.5 p-2 bg-black text-white rounded-full hover:scale-105 active:scale-95 disabled:opacity-0 disabled:scale-50 transition-all duration-200"
-                 >
-                   {isPostingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 translate-x-[-1px] translate-y-[1px]" />}
-                 </button>
+                  <input 
+                    ref={commentInputRef}
+                    type="text" 
+                    value={newComment}
+                    onChange={e => setNewComment(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handlePostComment()}
+                    placeholder="Add a comment..."
+                    className="flex-1 bg-slate-100 border-none rounded-full py-3 pl-5 pr-14 text-[15px] font-medium focus:ring-2 focus:ring-slate-300 transition outline-none placeholder:text-slate-500"
+                  />
+                  <button 
+                    onClick={handlePostComment}
+                    disabled={!newComment.trim() || isPostingComment}
+                    className="absolute right-1.5 p-2 bg-black text-white rounded-full hover:scale-105 active:scale-95 disabled:opacity-0 disabled:scale-50 transition-all duration-200"
+                  >
+                    {isPostingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 translate-x-[-1px] translate-y-[1px]" />}
+                  </button>
                </div>
             </div>
 
