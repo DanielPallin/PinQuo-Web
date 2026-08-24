@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Camera, ArrowLeft, Loader2, Sparkles, User as UserIcon, X, Lock, Search, Heart } from 'lucide-react'
+import { Camera, ArrowLeft, Loader2, Sparkles, ChevronRight, User as UserIcon, X, Lock, Search, Heart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import WitnessManager, { Witness } from '@/components/WitnessManager'
 
@@ -65,6 +65,38 @@ function WriteQuoteForm() {
   const [bgType, setBgType] = useState<'avatar' | 'template' | 'snap'>(isExistingUser ? 'avatar' : 'template')
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
 
+  const [isHydrated, setIsHydrated] = useState(false)
+  const draftKey = `pinquo_draft_${targetId || targetUsername || inviteEmail || customName || 'unknown'}`
+
+  // Load saved draft on mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem(draftKey)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (parsed.quoteText) setQuoteText(parsed.quoteText)
+        if (parsed.witnesses) setWitnesses(parsed.witnesses)
+        if (parsed.bgType) setBgType(parsed.bgType)
+        if (parsed.selectedTemplate) setSelectedTemplate(parsed.selectedTemplate)
+      } catch (e) {
+        console.error("Failed to parse draft", e)
+      }
+    }
+    setIsHydrated(true)
+  }, [draftKey])
+
+  // Save draft on every change
+  useEffect(() => {
+    if (isHydrated) {
+      sessionStorage.setItem(draftKey, JSON.stringify({
+        quoteText,
+        witnesses,
+        bgType,
+        selectedTemplate
+      }))
+    }
+  }, [quoteText, witnesses, bgType, selectedTemplate, draftKey, isHydrated])
+
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<FilterState>('packs')
 
@@ -85,7 +117,6 @@ function WriteQuoteForm() {
 
   const [activePack, setActivePack] = useState<DerivedPack | null>(null)
 
-  // Separated user fetch so we can re-call it after they log in via the Modal!
   const fetchUserData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
@@ -117,7 +148,6 @@ function WriteQuoteForm() {
       
       await fetchUserData()
 
-      // Fetch all templates regardless of auth state
       const { data: templatesData } = await supabase.from('templates').select('*').order('created_at', { ascending: true })
 
       if (isMounted && templatesData) {
@@ -235,7 +265,6 @@ function WriteQuoteForm() {
     if (inviteEmail) params.append('inviteEmail', inviteEmail)
     if (customName) params.append('customName', customName)
     
-    // Append witnesses as a JSON string
     if (witnesses && witnesses.length > 0) {
       params.append('witnesses', JSON.stringify(witnesses))
     }
@@ -276,7 +305,7 @@ function WriteQuoteForm() {
         {template.image_url ? (
           <img src={template.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" crossOrigin="anonymous"/>
         ) : (
-          <div className={`absolute inset-0 bg-linear-to-br ${template.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
+          <div className={`absolute inset-0 bg-gradient-to-br ${template.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
         )}
         
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
@@ -331,11 +360,18 @@ function WriteQuoteForm() {
 
         {/* Backgrounds Section */}
         <div className="w-full flex flex-col">
-          <div className="px-4 flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-4 px-4">
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-slate-800" />
-              <h3 className="text-lg font-black text-slate-900">Backgrounds</h3>
+              <h2 className="text-xl font-black text-slate-800 tracking-tight">Backgrounds</h2>
             </div>
+            <button 
+              onClick={() => router.push('/templates')}
+              className="flex items-center gap-1 text-sm font-bold text-slate-400 hover:text-emerald-600 transition-colors group"
+            >
+              Manage 
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+            </button>
           </div>
 
           <div className="px-4 mb-4">
@@ -406,7 +442,7 @@ function WriteQuoteForm() {
               <>
                 {activeFilter === 'all' && sortedTemplates.map(t => renderTemplateCard(t, false))}
                 
-                {/* PLG: Guest Favorites State */}
+                {/* Guest Favorites State */}
                 {activeFilter === 'favorites' && isGuest && (
                   <div className="w-[200px] flex flex-col items-center justify-center text-center px-4 shrink-0 border-2 border-dashed border-slate-200 rounded-[20px] h-[130px]">
                     <Heart className="w-6 h-6 text-slate-300 mb-2" />
@@ -528,7 +564,7 @@ function WriteQuoteForm() {
         </div>
       </div>
 
-      {/* THE CONTEXTUAL AUTH MODAL */}
+      {/* Auth Modal */}
       {showAuthModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">

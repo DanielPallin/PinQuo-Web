@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, MessageCircle, Bookmark, SmilePlus, Share2, Loader2, X, Mail, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { User, MessageCircle, Bookmark, SmilePlus, Share2, Loader2, X, Mail } from 'lucide-react'
 import { EmojiClickData } from 'emoji-picker-react'
 import CustomEmojiPicker from './CustomEmojiPicker'
 import { createClient } from '@/lib/supabase/client'
@@ -75,7 +75,6 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const [authError, setAuthError] = useState('')
   const [isEmailSent, setIsEmailSent] = useState(false)
 
-  // Check auth state & user ID silently on mount
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setIsGuest(!data.session)
@@ -98,7 +97,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [],)
+  }, [])
 
   const publisherName = quote.publisher?.username || 'Unknown'
   const isRegisteredUser = !!quote.quoted_user?.username
@@ -116,7 +115,6 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const targetAvatarUrl = quote.quoted_user?.avatar_url
   const cleanQuoteContent = quote.content.replace(/^["'“”«»]+|["'“”«»]+$/g, '').trim()
 
-  // Witness Metrics & User Verdict Handling
   const witnesses = quote.witnesses || []
   const approvedCount = witnesses.filter(w => w.vote === 'approved').length
   const deniedCount = witnesses.filter(w => w.vote === 'denied').length
@@ -131,9 +129,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
       setShowAuthModal(true)
       return
     }
-    if (onVoteWitness) {
-      onVoteWitness(quote.id, voteType)
-    }
+    if (onVoteWitness) onVoteWitness(quote.id, voteType)
   }
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
@@ -256,6 +252,35 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     setAuthLoading(false)
   }
 
+  const renderWitnessPill = () => {
+    if (totalWitnesses === 0) return null
+
+    if (isUserWitness && userWitnessEntry?.vote === 'pending') {
+      return (
+        <div className="flex items-center gap-4 bg-slate-900 text-white px-5 py-2 rounded-full shadow-lg ring-2 ring-slate-900/10 animate-pulse">
+          <span className="uppercase tracking-widest text-[10px] text-slate-300 font-bold ml-1">Verify</span>
+          <button onClick={(e) => handleWitnessVoteAction(e, 'approved')} className="text-xl hover:scale-125 transition-transform origin-center" title="Confirm True">👍</button>
+          <span className="text-3xl drop-shadow-md leading-none mx-0.5 -mt-1">🕵️</span>
+          <button onClick={(e) => handleWitnessVoteAction(e, 'denied')} className="text-xl hover:scale-125 transition-transform origin-center" title="Deny False">👎</button>
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex items-center gap-4 bg-slate-100 border px-5 py-2 rounded-full shadow-xl transition-transform hover:scale-105">
+        <span className="flex items-center gap-1.5 text-emerald-600 text-base font-bold">
+          <span className="text-xl">👍</span> {approvedCount}
+        </span>
+        <span className="flex items-center text-slate-800 text-xl font-black">
+          <span className="text-[28px] drop-shadow-sm leading-none -mt-1.5">🕵️</span> {totalWitnesses}
+        </span>
+        <span className="flex items-center gap-1.5 text-rose-600 text-base font-bold">
+          <span className="text-xl">👎</span> {deniedCount}
+        </span>
+      </div>
+    )
+  }
+
   return (
     <div className={`w-full flex flex-col bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 relative ${isExpanded ? 'p-0 pb-6 rounded-t-[40px]' : 'p-5 rounded-[40px]'}`}>
       
@@ -314,30 +339,46 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       </div>
 
-      {/* Active Reactions */}
-      {quote.groupedReactions && quote.groupedReactions.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-4 px-2 relative z-10">
-          {quote.groupedReactions.map((reaction, idx) => (
-            <button
-              key={`${reaction.emoji}-${idx}`}
-              onClick={(e) => handleExistingReactionClick(e, reaction.emoji)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
-                reaction.hasReacted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <span className="text-sm">{reaction.emoji}</span>
-              <span>{reaction.count}</span>
-            </button>
-          ))}
+      {/* Reactions & Witness Pill Row */}
+      {((quote.groupedReactions && quote.groupedReactions.length > 0) || totalWitnesses > 0) && (
+        <div className={`relative flex items-center w-full min-h-[44px] mt-4 z-10 ${isExpanded ? 'px-6' : 'px-2'}`}>
+          
+          {/* Left: Emoji Reactions */}
+          {quote.groupedReactions && quote.groupedReactions.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 relative z-20 pointer-events-auto">
+              {quote.groupedReactions.map((reaction, idx) => (
+                <button
+                  key={`${reaction.emoji}-${idx}`}
+                  onClick={(e) => handleExistingReactionClick(e, reaction.emoji)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                    reaction.hasReacted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className="text-sm">{reaction.emoji}</span>
+                  <span>{reaction.count}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Center: Witness Pill */}
+          {totalWitnesses > 0 && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+              <div className="pointer-events-auto">
+                {renderWitnessPill()}
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 
-      {/* Action Bar */}
+      {/* Action Bar (Hidden when Expanded) */}
       {!isExpanded && (
-        <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 px-2 relative z-10">
+        <div className="relative flex items-center justify-between pt-4 mt-3 border-t border-slate-200 px-2 h-12">
           
-          <div className="flex items-center gap-4">
-            {/* Reactions */}
+          {/* Left: Interactions */}
+          <div className="flex items-center gap-4 relative z-20">
             <div className="relative" ref={pickerRef}>
               <button onClick={handleReactClick} className="flex items-center gap-1.5 text-slate-500 hover:text-emerald-500 transition-colors group">
                 <SmilePlus className="w-6 h-6 group-active:scale-95 transition-transform" />
@@ -349,63 +390,23 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
               )}
             </div>
 
-            {/* Comment */}
             <button onClick={handleCommentClick} className="flex items-center gap-1.5 text-slate-500 hover:text-blue-500 transition-colors group">
               <MessageCircle className="w-6 h-6 group-active:scale-95 transition-transform" />
               {quote.commentCount > 0 && <span className="text-sm font-bold mt-0.5">{quote.commentCount}</span>}
             </button>
 
-            {/* Favorite */}
             <button onClick={handleFavoriteClick} className={`flex items-center gap-1.5 transition-colors group ${isFav ? 'text-amber-500' : 'text-slate-500 hover:text-amber-500'}`}>
               <Bookmark className={`w-6 h-6 group-active:scale-95 transition-transform ${isFav ? 'fill-amber-500' : ''}`} />
               {favCount > 0 && <span className={`text-sm font-bold mt-0.5 ${isFav ? 'text-amber-500' : ''}`}>{favCount}</span>}
             </button>
           </div>
 
-          {/* 💥 THE DETECTIVE / SPY WITNESS CONSENSUS PILL */}
-          {totalWitnesses > 0 && (
-            <div className="flex items-center">
-              {isUserWitness && userWitnessEntry?.vote === 'pending' ? (
-                /* Interactive voting pills for tagged witnesses */
-                <div className="flex items-center gap-1 bg-slate-900 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-md animate-pulse">
-                  <span className="mr-1">Verify:</span>
-                  <button 
-                    onClick={(e) => handleWitnessVoteAction(e, 'approved')} 
-                    className="p-1 hover:text-emerald-400 transition-colors bg-emerald-600/30 rounded-full"
-                    title="Confirm True"
-                  >
-                    <ThumbsUp className="w-3.5 h-3.5 text-emerald-400" />
-                  </button>
-                  <span className="text-slate-400 px-1">🕵️</span>
-                  <button 
-                    onClick={(e) => handleWitnessVoteAction(e, 'denied')} 
-                    className="p-1 hover:text-rose-400 transition-colors bg-rose-600/30 rounded-full"
-                    title="Deny False"
-                  >
-                    <ThumbsDown className="w-3.5 h-3.5 text-rose-400" />
-                  </button>
-                </div>
-              ) : (
-                /* Standard Public Display Pill */
-                <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full text-xs font-bold text-slate-700 shadow-xs">
-                  <span className="flex items-center gap-1 text-emerald-700">
-                    👍 {approvedCount}
-                  </span>
-                  <span className="flex items-center gap-1 text-slate-900">
-                    <span className="text-sm">🕵️</span> {totalWitnesses}
-                  </span>
-                  <span className="flex items-center gap-1 text-rose-700">
-                    👎 {deniedCount}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Share */}
-          <button onClick={handleShare} className="flex items-center text-slate-500 hover:text-slate-800 transition-colors group">
-            <Share2 className="w-6 h-6 group-active:scale-95 transition-transform" />
-          </button>
+          {/* Right: Share */}
+          <div className="flex items-center relative z-20">
+            <button onClick={handleShare} className="flex items-center text-slate-500 hover:text-slate-800 transition-colors group">
+              <Share2 className="w-6 h-6 group-active:scale-95 transition-transform" />
+            </button>
+          </div>
           
         </div>
       )}
@@ -424,7 +425,6 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
             onClick={(e) => e.stopPropagation()} 
             className="bg-white rounded-[32px] p-6 sm:p-8 max-w-sm w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200"
           >
-            
             <button 
               onClick={() => {
                 setShowAuthModal(false);
@@ -483,7 +483,6 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
                 {authError && <div className="mb-4 p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100">{authError}</div>}
 
                 <form onSubmit={handleInContextAuth} className="space-y-3">
-                  
                   {!isLogin && (
                     <div className="relative">
                       <span className="absolute inset-y-0 left-4 flex items-center text-slate-400 font-bold">@</span>
