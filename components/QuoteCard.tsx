@@ -257,7 +257,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
 
     if (isUserWitness && userWitnessEntry?.vote === 'pending') {
       return (
-        <div className="flex items-center gap-4 bg-slate-900 text-white px-5 py-2 rounded-full shadow-lg ring-2 ring-slate-900/10 animate-pulse">
+        <div className="flex items-center gap-4 bg-slate-900 text-white px-5 py-2 rounded-full shadow-lg ring-2 ring-slate-900/10 animate-pulse w-max">
           <span className="uppercase tracking-widest text-[10px] text-slate-300 font-bold ml-1">Verify</span>
           <button onClick={(e) => handleWitnessVoteAction(e, 'approved')} className="text-xl hover:scale-125 transition-transform origin-center" title="Confirm True">👍</button>
           <span className="text-3xl drop-shadow-md leading-none mx-0.5 -mt-1">🕵️</span>
@@ -267,12 +267,12 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     }
 
     return (
-      <div className="flex items-center gap-4 bg-slate-100 border px-5 py-2 rounded-full shadow-xl transition-transform hover:scale-105">
+      <div className="flex items-center gap-4 bg-white border border-slate-200/80 px-5 py-2 rounded-full shadow-sm transition-transform hover:scale-105 w-max">
         <span className="flex items-center gap-1.5 text-emerald-600 text-base font-bold">
           <span className="text-xl">👍</span> {approvedCount}
         </span>
-        <span className="flex items-center text-slate-800 text-xl font-black">
-          <span className="text-[28px] drop-shadow-sm leading-none -mt-1.5">🕵️</span> {totalWitnesses}
+        <span className="flex items-center gap-2 text-slate-800 text-xl font-black">
+          <span className="text-[32px] drop-shadow-sm leading-none -mt-1.5">🕵️</span> {totalWitnesses}
         </span>
         <span className="flex items-center gap-1.5 text-rose-600 text-base font-bold">
           <span className="text-xl">👎</span> {deniedCount}
@@ -339,45 +339,47 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       </div>
 
-      {/* Reactions & Witness Pill Row */}
+      {/* 💥 Unified Reactions & Witness Pill Row */}
       {((quote.groupedReactions && quote.groupedReactions.length > 0) || totalWitnesses > 0) && (
-        <div className={`relative flex items-center w-full min-h-[44px] mt-4 z-10 ${isExpanded ? 'px-6' : 'px-2'}`}>
+        <div className={`flex flex-wrap items-center w-full mt-4 gap-3 relative z-10 ${isExpanded ? 'px-6' : 'px-2'}`}>
           
-          {/* Left: Emoji Reactions */}
-          {quote.groupedReactions && quote.groupedReactions.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 relative z-20 pointer-events-auto">
-              {quote.groupedReactions.map((reaction, idx) => (
-                <button
-                  key={`${reaction.emoji}-${idx}`}
-                  onClick={(e) => handleExistingReactionClick(e, reaction.emoji)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
-                    reaction.hasReacted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  <span className="text-sm">{reaction.emoji}</span>
-                  <span>{reaction.count}</span>
-                </button>
-              ))}
+          {/* Left / Bottom-Left: Emoji Reactions (Positioned above SmilePlus icon) */}
+          <div className="w-full sm:flex-1 flex justify-start order-2 sm:order-1">
+            {quote.groupedReactions && quote.groupedReactions.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 pointer-events-auto">
+                {quote.groupedReactions.map((reaction, idx) => (
+                  <button
+                    key={`${reaction.emoji}-${idx}`}
+                    onClick={(e) => handleExistingReactionClick(e, reaction.emoji)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                      reaction.hasReacted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span className="text-sm">{reaction.emoji}</span>
+                    <span>{reaction.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Center / Top-Center: Witness Pill */}
+          {totalWitnesses > 0 && (
+            <div className="w-full sm:w-auto flex justify-center shrink-0 order-1 sm:order-2 pointer-events-auto">
+              {renderWitnessPill()}
             </div>
           )}
 
-          {/* Center: Witness Pill */}
-          {totalWitnesses > 0 && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-              <div className="pointer-events-auto">
-                {renderWitnessPill()}
-              </div>
-            </div>
-          )}
+          {/* Right: Invisible flex spacer (balances the left emojis to keep the pill perfectly centered on desktop) */}
+          <div className="hidden sm:block sm:flex-1 order-3 pointer-events-none"></div>
 
         </div>
       )}
 
       {/* Action Bar (Hidden when Expanded) */}
       {!isExpanded && (
-        <div className="relative flex items-center justify-between pt-4 mt-3 border-t border-slate-200 px-2 h-12">
+        <div className="relative flex items-center justify-between pt-4 mt-3 border-t border-slate-100 px-2 h-12">
           
-          {/* Left: Interactions */}
           <div className="flex items-center gap-4 relative z-20">
             <div className="relative" ref={pickerRef}>
               <button onClick={handleReactClick} className="flex items-center gap-1.5 text-slate-500 hover:text-emerald-500 transition-colors group">
@@ -401,7 +403,6 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
             </button>
           </div>
 
-          {/* Right: Share */}
           <div className="flex items-center relative z-20">
             <button onClick={handleShare} className="flex items-center text-slate-500 hover:text-slate-800 transition-colors group">
               <Share2 className="w-6 h-6 group-active:scale-95 transition-transform" />
