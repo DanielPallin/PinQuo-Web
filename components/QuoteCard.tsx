@@ -23,7 +23,7 @@ export type FeedQuote = {
   created_at: string
   quoted_email: string | null
   custom_author_name: string | null
-  live_photo_url: string | null // 💥 NEW: Added to support Live Snaps
+  live_photo_url: string | null
   publisher: { id: string, username: string, avatar_url: string | null } | null
   quoted_user: { id: string, username: string, avatar_url: string | null } | null
   template: { 
@@ -365,7 +365,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
       >
         <img src="/PinQuote-Logo.png" alt="PinQuo" className="absolute top-5 left-5 h-5 sm:h-6 w-auto opacity-60 drop-shadow-md z-20 pointer-events-none select-none"/>
 
-        {/* 💥 THE WATERFALL BACKGROUND LOGIC */}
+        {/* Waterfall */}
         {quote.live_photo_url ? (
           <img src={quote.live_photo_url} alt="Live Snap" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover" />
         ) : quote.template?.image_url ? (

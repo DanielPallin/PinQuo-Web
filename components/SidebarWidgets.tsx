@@ -10,6 +10,7 @@ type RawQuoteData = {
   id: string
   content: string
   created_at: string
+  live_photo_url: string | null
   quoted_email: string | null
   custom_author_name: string | null
   publisher: { id: string, username: string, avatar_url: string | null } | null
@@ -37,6 +38,7 @@ const formatQuote = (q: RawQuoteData, userId: string | null): FeedQuote & { scor
     id: q.id,
     content: q.content,
     created_at: q.created_at,
+    live_photo_url: q.live_photo_url,
     quoted_email: q.quoted_email,
     custom_author_name: q.custom_author_name,
     publisher: q.publisher,
@@ -77,6 +79,7 @@ export default function SidebarWidgets() {
         .from('quotes')
         .select(`
           id, content, created_at, quoted_email, custom_author_name,
+          live_photo_url,
           publisher:profiles!quotes_publisher_id_fkey(id, username, avatar_url),
           quoted_user:profiles!quotes_quoted_user_id_fkey(id, username, avatar_url),
           template:templates(style_config, image_url),
