@@ -221,6 +221,15 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     if (onExpand) onExpand(quote)
   }
 
+  const handleViewWitnesses = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (isGuest) {
+      setShowAuthModal(true)
+      return
+    }
+    setShowWitnessModal(true)
+  }
+
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation()
     const quoteUrl = `${window.location.origin}/quote/${quote.id}`
@@ -305,16 +314,18 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         <div className="flex items-center gap-4 bg-slate-900 text-white px-5 py-2 rounded-full shadow-lg ring-2 ring-emerald-500 animate-pulse w-max">
           <span className="uppercase tracking-widest text-[10px] text-emerald-300 font-bold ml-1">Verify</span>
           <button onClick={(e) => handleWitnessVoteAction(e, 'approved')} className="text-xl hover:scale-125 transition-transform origin-center" title="Confirm True">👍</button>
-          <span onClick={(e) => { e.stopPropagation(); setShowWitnessModal(true); }} className="text-3xl drop-shadow-md leading-none mx-0.5 -mt-1 cursor-pointer hover:scale-110 transition-transform" title="View Witnesses">🕵️</span>
+          
+          <span onClick={handleViewWitnesses} className="text-3xl drop-shadow-md leading-none mx-0.5 -mt-1 cursor-pointer hover:scale-110 transition-transform" title="View Witnesses">🕵️</span>
+          
           <button onClick={(e) => handleWitnessVoteAction(e, 'denied')} className="text-xl hover:scale-125 transition-transform origin-center" title="Deny False">👎</button>
         </div>
       )
     }
 
     return (
-      <div 
-        onClick={(e) => { e.stopPropagation(); setShowWitnessModal(true); }} 
-        className="flex items-center gap-2 bg-slate-200 border border-slate-400 px-5 py-2 rounded-full shadow-sm transition-transform hover:scale-105 w-max cursor-pointer"
+      <div
+        onClick={handleViewWitnesses} 
+        className="flex items-center bg-slate-200 border border-slate-400 px-3 py-1 rounded-full shadow-sm transition-transform hover:scale-105 w-max cursor-pointer"
         title="View Witnesses"
       >
         <span className="flex items-center text-emerald-600 text-base">
