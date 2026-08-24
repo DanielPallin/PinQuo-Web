@@ -3,10 +3,10 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Plus_Jakarta_Sans, Playfair_Display } from 'next/font/google'
-import { Home, PlusSquare, User, Layers, ShoppingCart, Trophy, SettingsIcon } from 'lucide-react'
+import { Home, PlusSquare, User, Layers, ShoppingCart, Trophy, SettingsIcon, Award } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import SidebarWidgets from '@/components/SidebarWidgets'
-import UpdatesWidget from '@/components/UpdatesWidget' // 💥 NEW: Imported the widget
+import UpdatesWidget from '@/components/UpdatesWidget'
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta' })
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' })
@@ -39,13 +39,12 @@ export default async function MainLayout({ children }: { children: React.ReactNo
       
       <div className="w-full max-w-350 flex flex-col lg:flex-row relative">
         
-        {/* MOBILE TOP HEADER */}
+        {/* Mobile Header */}
         <header className="lg:hidden sticky top-0 z-40 bg-white md:bg-white/80 md:backdrop-blur-md pt-5 pb-3 px-6 flex justify-between items-center border-b border-slate-200/50 shadow-sm will-change-transform">
           <Link href="/feed">
             <Image src="/PinQuote-Logo.png" alt="PinQuo Logo" width={110} height={35} priority className="h-8 w-auto object-contain" />
           </Link>
           
-          {/* 💥 NEW: Grouped actions side-by-side on mobile */}
           <div className="flex items-center gap-1 sm:gap-2">
             <UpdatesWidget />
             
@@ -77,6 +76,11 @@ export default async function MainLayout({ children }: { children: React.ReactNo
               <User className="w-7 h-7 stroke-[2.5] group-hover:scale-110 transition-transform" />
               <span className="text-[19px] font-bold">Profile</span>
             </Link>
+
+            <div className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 transition-colors text-slate-400 cursor-not-allowed group" title="Coming Soon">
+              <Award className="w-7 h-7 stroke-[2.5]" />
+              <span className="text-[19px] font-bold">Achievements</span>
+            </div>
 
             <Link href="/templates" className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 transition-colors text-slate-800 hover:text-black group">
               <Layers className="w-7 h-7 stroke-[2.5] group-hover:scale-110 transition-transform" />

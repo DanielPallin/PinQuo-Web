@@ -167,7 +167,7 @@ export default function ProfilePage() {
       {/* Top Right Settings Gear */}
       <Link 
         href="/settings" 
-        className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"
+        className="absolute top-6 right-6 p-2 text-black bg-slate-200 hover:text-white hover:bg-orange-400 rounded-full transition-colors"
         title="Settings"
       >
         <Settings className="w-6 h-6" />
