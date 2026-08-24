@@ -31,6 +31,7 @@ type RawQuoteData = {
   id: string
   content: string
   created_at: string
+  live_photo_url: string | null
   quoted_email: string | null
   custom_author_name: string | null
   publisher: { id: string, username: string, avatar_url: string | null } | null
@@ -85,7 +86,7 @@ export default function QuotedInPage() {
       const { data, error } = await supabase
         .from('quotes')
         .select(`
-          id, content, created_at, quoted_email, custom_author_name,
+          id, content, created_at, live_photo_url, quoted_email, custom_author_name,
           publisher:profiles!quotes_publisher_id_fkey(id, username, avatar_url),
           quoted_user:profiles!quotes_quoted_user_id_fkey(id, username, avatar_url),
           template:templates(style_config, image_url),

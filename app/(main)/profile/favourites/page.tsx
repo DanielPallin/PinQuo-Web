@@ -32,6 +32,7 @@ type RawQuoteData = {
   created_at: string
   quoted_email: string | null
   custom_author_name: string | null
+  live_photo_url: string | null
   publisher: { id: string, username: string, avatar_url: string | null } | null
   quoted_user: { id: string, username: string, avatar_url: string | null } | null
   template: { style_config: { gradient?: string, baseColor?: string }, image_url: string | null } | null
@@ -294,11 +295,11 @@ export default function FavouritesPage() {
         ) : (
           <div className="grid grid-cols-3 gap-2 w-full">
             {quotes.map((quote) => (
-  <Link 
-    key={quote.id} 
-    href={`/feed?quoteId=${quote.id}`}
-    className="relative aspect-square rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95"
-  >
+          <Link 
+            key={quote.id} 
+            href={`/feed?quoteId=${quote.id}`}
+            className="relative aspect-square rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95"
+          >
     {/* 1. The Bucket Image */}
     {quote.template?.image_url && (
       <img 
