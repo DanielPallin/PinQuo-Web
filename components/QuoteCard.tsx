@@ -15,6 +15,7 @@ export type WitnessRecord = {
   witness_user_id: string | null
   witness_email: string | null
   vote: 'pending' | 'approved' | 'denied'
+  profile?: { username?: string; avatar_url?: string | null } | null 
 }
 
 export type FeedQuote = {
@@ -55,7 +56,7 @@ const getQuoteFontSize = (text: string) => {
 }
 
 export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand, onFavorite, onVoteWitness }: QuoteCardProps) {
-  const supabase = createClient()
+  const supabase = useRef(createClient()).current
   const router = useRouter()
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
@@ -64,9 +65,15 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const [favCount, setFavCount] = useState(quote.favoriteCount)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
-  // PLG Auth State
-  const [isGuest, setIsGuest] = useState(true)
+  // Modals
+  const [showWitnessModal, setShowWitnessModal] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  
+  // 💥 NEW: State to store dynamically fetched witness profiles
+  const [witnessProfiles, setWitnessProfiles] = useState<Record<string, { username: string; avatar_url: string | null }>>({})
+  
+  // Auth State
+  const [isGuest, setIsGuest] = useState(true)
   const [isLogin, setIsLogin] = useState(false)
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
@@ -75,6 +82,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const [authError, setAuthError] = useState('')
   const [isEmailSent, setIsEmailSent] = useState(false)
 
+  // 1. Auth Setup
   useEffect(() => {
     const fetchSession = async () => {
       const { data } = await supabase.auth.getSession()
@@ -84,8 +92,10 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
       }
     }
     fetchSession()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // 2. State Sync
   useEffect(() => {
     Promise.resolve().then(() => {
       setIsFav(prev => prev !== quote.isFavorited ? quote.isFavorited : prev)
@@ -93,6 +103,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     })
   }, [quote.isFavorited, quote.favoriteCount])
 
+  // 3. Click Outside Logic
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
@@ -102,6 +113,36 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // 💥 NEW: Fetch missing witness profiles when the modal opens
+  useEffect(() => {
+    if (showWitnessModal && quote.witnesses && quote.witnesses.length > 0) {
+      const fetchMissingProfiles = async () => {
+        // Find witnesses that have an ID, but no profile data passed down from parent
+        const missingUserIds = quote.witnesses!
+          .filter(w => w.witness_user_id && !w.profile && !witnessProfiles[w.witness_user_id])
+          .map(w => w.witness_user_id as string)
+
+        if (missingUserIds.length === 0) return
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url')
+          .in('id', missingUserIds)
+
+        if (data && !error) {
+          const profileMap = data.reduce((acc, p) => {
+            acc[p.id] = { username: p.username, avatar_url: p.avatar_url }
+            return acc
+          }, {} as Record<string, { username: string; avatar_url: string | null }>)
+          
+          setWitnessProfiles(prev => ({ ...prev, ...profileMap }))
+        }
+      }
+      
+      fetchMissingProfiles()
+    }
+  }, [showWitnessModal, quote.witnesses, supabase, witnessProfiles])
 
   const publisherName = quote.publisher?.username || 'Unknown'
   const isRegisteredUser = !!quote.quoted_user?.username
@@ -261,25 +302,29 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
 
     if (isUserWitness && userWitnessEntry?.vote === 'pending') {
       return (
-        <div className="flex items-center gap-4 bg-slate-900 text-white px-5 py-2 rounded-full shadow-lg ring-2 ring-slate-900/10 animate-pulse w-max">
-          <span className="uppercase tracking-widest text-[10px] text-slate-300 font-bold ml-1">Verify</span>
+        <div className="flex items-center gap-4 bg-slate-900 text-white px-5 py-2 rounded-full shadow-lg ring-2 ring-emerald-500 animate-pulse w-max">
+          <span className="uppercase tracking-widest text-[10px] text-emerald-300 font-bold ml-1">Verify</span>
           <button onClick={(e) => handleWitnessVoteAction(e, 'approved')} className="text-xl hover:scale-125 transition-transform origin-center" title="Confirm True">👍</button>
-          <span className="text-3xl drop-shadow-md leading-none mx-0.5 -mt-1">🕵️</span>
+          <span onClick={(e) => { e.stopPropagation(); setShowWitnessModal(true); }} className="text-3xl drop-shadow-md leading-none mx-0.5 -mt-1 cursor-pointer hover:scale-110 transition-transform" title="View Witnesses">🕵️</span>
           <button onClick={(e) => handleWitnessVoteAction(e, 'denied')} className="text-xl hover:scale-125 transition-transform origin-center" title="Deny False">👎</button>
         </div>
       )
     }
 
     return (
-      <div className="flex items-center gap-2 bg-slate-200 border border-slate-600 px-5 py-2 rounded-full shadow-sm transition-transform hover:scale-105 w-max">
+      <div 
+        onClick={(e) => { e.stopPropagation(); setShowWitnessModal(true); }} 
+        className="flex items-center gap-2 bg-slate-200 border border-slate-400 px-5 py-2 rounded-full shadow-sm transition-transform hover:scale-105 w-max cursor-pointer"
+        title="View Witnesses"
+      >
         <span className="flex items-center text-emerald-600 text-base">
-          <span className="text-[16px]"> {approvedCount} 👍</span>
+          <span className="text-[16px] mr-1">{approvedCount}</span> 👍
         </span>
-        <span className="flex items-center text-slate-800 text-xl font-black">
+        <span className="flex items-center text-slate-800 text-xl font-black px-2">
           <span className="text-[32px] drop-shadow-sm leading-none -mt-1">🕵️</span>
         </span>
         <span className="flex items-center text-rose-600 text-base">
-          <span className="text-[16px]">👎</span> {deniedCount}
+          👎 <span className="text-[16px] ml-1">{deniedCount}</span>
         </span>
       </div>
     )
@@ -343,19 +388,26 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       </div>
 
-      {/* 💥 Unified Reactions & Witness Pill Row */}
+      {/* Unified Reactions & Witness Pill Row */}
       {((quote.groupedReactions && quote.groupedReactions.length > 0) || totalWitnesses > 0) && (
-        <div className={`flex flex-wrap items-center w-full mt-4 gap-3 relative z-10 ${isExpanded ? 'px-6' : 'px-2'}`}>
+        <div className={`flex flex-col sm:flex-row sm:items-center gap-3 w-full mt-4 relative z-10 ${isExpanded ? 'px-6' : 'px-2'}`}>
           
-          {/* Left / Bottom-Left: Emoji Reactions (Positioned above SmilePlus icon) */}
+          {/* Witness Pill */}
+          {totalWitnesses > 0 && (
+            <div className="w-full sm:w-auto flex justify-center shrink-0 order-1 sm:order-2 pointer-events-auto">
+              {renderWitnessPill()}
+            </div>
+          )}
+
+          {/* Emoji Reactions */}
           <div className="w-full sm:flex-1 flex justify-start order-2 sm:order-1">
             {quote.groupedReactions && quote.groupedReactions.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 pointer-events-auto">
+              <div className="flex flex-nowrap overflow-x-auto no-scrollbar gap-2 pointer-events-auto snap-x w-full max-w-[240px] sm:max-w-sm pb-1">
                 {quote.groupedReactions.map((reaction, idx) => (
                   <button
                     key={`${reaction.emoji}-${idx}`}
                     onClick={(e) => handleExistingReactionClick(e, reaction.emoji)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                    className={`shrink-0 snap-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
                       reaction.hasReacted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
@@ -367,20 +419,11 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
             )}
           </div>
 
-          {/* Center / Top-Center: Witness Pill */}
-          {totalWitnesses > 0 && (
-            <div className="w-full sm:w-auto flex justify-center shrink-0 order-1 sm:order-2 pointer-events-auto">
-              {renderWitnessPill()}
-            </div>
-          )}
-
-          {/* Right: Invisible flex spacer (balances the left emojis to keep the pill perfectly centered on desktop) */}
           <div className="hidden sm:block sm:flex-1 order-3 pointer-events-none"></div>
-
         </div>
       )}
 
-      {/* Action Bar (Hidden when Expanded) */}
+      {/* Action Bar */}
       {!isExpanded && (
         <div className="relative flex items-center justify-between pt-4 mt-3 border-t border-slate-100 px-2 h-12">
           
@@ -413,6 +456,81 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
             </button>
           </div>
           
+        </div>
+      )}
+
+      {/* 💥 NEW: WITNESS LIST MODAL WITH DYNAMIC PROFILES */}
+      {showWitnessModal && (
+        <div 
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowWitnessModal(false);
+          }} 
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 cursor-default"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            className="bg-white rounded-[32px] w-full max-w-sm shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[80vh]"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="text-3xl drop-shadow-sm">🕵️</div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 leading-tight">Witnesses</h3>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{totalWitnesses} Tagged</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowWitnessModal(false)} 
+                className="p-2.5 bg-white hover:bg-slate-100 rounded-full transition-colors text-slate-500 border border-slate-200 shadow-sm active:scale-95"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Scrollable Witness List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2 no-scrollbar pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+              {witnesses.map((w, idx) => {
+                // 💥 Combine parent-provided profile data with dynamically fetched profile data
+                const activeProfile = w.profile || (w.witness_user_id ? witnessProfiles[w.witness_user_id] : null);
+                
+                let witnessName = 'Pending Invite';
+                if (activeProfile?.username) {
+                  witnessName = activeProfile.username;
+                } else if (w.witness_email) {
+                  witnessName = w.witness_email;
+                }
+
+                const avatarUrl = activeProfile?.avatar_url;
+
+                return (
+                  <div key={w.id || idx} className="flex items-center justify-between p-3 bg-white border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 rounded-2xl transition-colors">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt={witnessName} className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-5 h-5 text-slate-400" />
+                        )}
+                      </div>
+                      <div className="flex flex-col overflow-hidden">
+                        <span className="font-bold text-slate-800 text-sm truncate">{witnessName}</span>
+                        <span className={`text-[10px] font-black uppercase tracking-widest mt-0.5 ${w.vote === 'approved' ? 'text-emerald-500' : w.vote === 'denied' ? 'text-rose-500' : 'text-slate-400'}`}>
+                          {w.vote}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Vote Icon */}
+                    <div className="text-xl shrink-0 bg-white shadow-sm w-10 h-10 flex items-center justify-center rounded-full border border-slate-100">
+                      {w.vote === 'approved' ? '👍' : w.vote === 'denied' ? '👎' : '⏳'}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </div>
       )}
 
