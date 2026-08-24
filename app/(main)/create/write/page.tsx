@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Camera, ArrowLeft, Loader2, Sparkles, ChevronRight, User as UserIcon, X, Lock, Search, Heart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import WitnessManager, { Witness } from '@/components/WitnessManager'
 
 const TAILWIND_SAFELIST = "bg-orange-200 bg-yellow-200 bg-slate-300 bg-slate-200 from-orange-200 to-red-200 from-yellow-200 to-amber-200 from-slate-300 to-slate-400"
@@ -52,6 +53,10 @@ function WriteQuoteForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
+  
+  // 💥 NEW: Hardware detection for the Camera Lock
+  const isMobile = useIsMobile()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const targetId = searchParams.get('targetId')
   const targetUsername = searchParams.get('targetUsername')
@@ -64,6 +69,9 @@ function WriteQuoteForm() {
   const [witnesses, setWitnesses] = useState<Witness[]>([])
   const [bgType, setBgType] = useState<'avatar' | 'template' | 'snap'>(isExistingUser ? 'avatar' : 'template')
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
+  
+  // 💥 NEW: State to hold the captured photo
+  const [snapImageUrl, setSnapImageUrl] = useState<string | null>(null)
 
   const [isHydrated, setIsHydrated] = useState(false)
   const draftKey = `pinquo_draft_${targetId || targetUsername || inviteEmail || customName || 'unknown'}`
@@ -78,6 +86,7 @@ function WriteQuoteForm() {
         if (parsed.witnesses) setWitnesses(parsed.witnesses)
         if (parsed.bgType) setBgType(parsed.bgType)
         if (parsed.selectedTemplate) setSelectedTemplate(parsed.selectedTemplate)
+        if (parsed.snapImageUrl) setSnapImageUrl(parsed.snapImageUrl) // Restore snap if it exists
       } catch (e) {
         console.error("Failed to parse draft", e)
       }
@@ -92,10 +101,11 @@ function WriteQuoteForm() {
         quoteText,
         witnesses,
         bgType,
-        selectedTemplate
+        selectedTemplate,
+        snapImageUrl // Save snap to draft
       }))
     }
-  }, [quoteText, witnesses, bgType, selectedTemplate, draftKey, isHydrated])
+  }, [quoteText, witnesses, bgType, selectedTemplate, snapImageUrl, draftKey, isHydrated])
 
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<FilterState>('packs')
@@ -238,6 +248,19 @@ function WriteQuoteForm() {
 
   const filteredFavorites = favorites.filter(t => t.name.toLowerCase().includes(lowercaseQuery))
 
+  // 💥 NEW: Handle native camera capture
+  const handleSnapCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Create a temporary local URL for the captured photo
+      const url = URL.createObjectURL(file)
+      setSnapImageUrl(url)
+      setBgType('snap')
+      setSelectedTemplate(null)
+      setActivePack(null)
+    }
+  }
+
   const handleSelectTemplate = (template: Template) => {
     setBgType('template')
     setSelectedTemplate(template)
@@ -275,10 +298,21 @@ function WriteQuoteForm() {
       if (selectedTemplate.image_url) params.append('templateImageUrl', selectedTemplate.image_url)
     }
 
+    // 💥 NEW: Pass the Snap image to the preview page
+    if (bgType === 'snap' && snapImageUrl) {
+      params.append('snapImageUrl', snapImageUrl)
+    }
+
     router.push(`/create/preview?${params.toString()}`)
   }
 
-  const isFormValid = quoteText.trim().length > 0 && (bgType !== 'template' || !!selectedTemplate)
+  // 💥 UPDATED: Validation now allows proceeding if a Live Snap was taken
+  const isFormValid = quoteText.trim().length > 0 && (
+    (bgType === 'template' && !!selectedTemplate) || 
+    (bgType === 'avatar') ||
+    (bgType === 'snap' && !!snapImageUrl)
+  )
+  
   const isPackLocked = activePack && activePack.is_pro && !isProUser
 
   const renderTemplateCard = (template: Template, isGrid: boolean = false) => {
@@ -326,6 +360,16 @@ function WriteQuoteForm() {
   return (
     <div className="flex flex-col pt-6 w-full max-w-2xl mx-auto min-h-[100dvh] bg-[#f8fafc] relative">
       
+      {/* 💥 NEW: Hidden Native Camera Input */}
+      <input 
+        type="file" 
+        accept="image/*" 
+        capture="environment" 
+        ref={fileInputRef}
+        onChange={handleSnapCapture}
+        className="hidden" 
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6 px-4">
         <button onClick={() => router.back()} className="p-2 hover:bg-slate-200 rounded-full transition text-slate-700 -ml-2">
@@ -410,12 +454,33 @@ function WriteQuoteForm() {
             className="relative w-full flex overflow-x-auto snap-x snap-mandatory pt-4 pb-8 px-4 gap-3 no-scrollbar items-center"
           >
             
-            {/* Live Snap (Locked) */}
-            <div className="relative shrink-0 w-[100px] h-[130px] rounded-[20px] border-2 border-dashed border-slate-300 bg-white/50 flex flex-col items-center justify-center opacity-60 snap-start cursor-not-allowed">
-              <Camera className="w-6 h-6 text-slate-400 mb-2" strokeWidth={2.5} />
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center leading-tight">Live<br/>Snap</span>
-              <div className="absolute -top-2 right-0 bg-slate-300 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-white">Mobile Feature</div>
-            </div>
+            {/* 💥 NEW: Live Snap (Smart Button) */}
+            <button 
+              onClick={() => isMobile ? fileInputRef.current?.click() : null}
+              disabled={!isMobile}
+              className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] flex flex-col items-center justify-center snap-start transition-all duration-200 overflow-hidden ${
+                !isMobile 
+                  ? 'border-2 border-dashed border-slate-300 bg-white/50 opacity-60 cursor-not-allowed' 
+                  : bgType === 'snap' 
+                    ? 'ring-4 ring-emerald-400 scale-[1.02] shadow-md bg-emerald-50 border-none' 
+                    : 'bg-white border-2 border-slate-200 shadow-sm opacity-90 hover:opacity-100'
+              }`}
+            >
+              <Camera className={`w-6 h-6 mb-2 relative z-10 ${bgType === 'snap' ? 'text-white drop-shadow-md' : 'text-slate-400'}`} strokeWidth={2.5} />
+              <span className={`text-[10px] font-black uppercase tracking-widest text-center leading-tight relative z-10 ${bgType === 'snap' ? 'text-white drop-shadow-md' : 'text-slate-400'}`}>Live<br/>Snap</span>
+              
+              {!isMobile && (
+                <div className="absolute -top-2 right-0 bg-slate-300 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-white z-20">Mobile Only</div>
+              )}
+
+              {/* Show the captured image as a faint background when active */}
+              {isMobile && bgType === 'snap' && snapImageUrl && (
+                <div className="absolute inset-0 z-0">
+                  <img src={snapImageUrl} alt="snap" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                  <div className="absolute inset-0 bg-emerald-900/40 mix-blend-multiply"></div>
+                </div>
+              )}
+            </button>
 
             {/* Quoted User Avatar */}
             {isExistingUser && (

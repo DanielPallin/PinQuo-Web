@@ -25,6 +25,7 @@ function PreviewQuoteForm() {
   const customName = searchParams.get('customName')
   const quoteText = searchParams.get('quote') || ''
   const bgType = searchParams.get('bgType') || 'template'
+  const snapImageUrl = searchParams.get('snapImageUrl')
   const templateId = searchParams.get('templateId')
   const templateGradient = searchParams.get('templateGradient') || 'from-slate-200 to-slate-300'
   const templateImageUrl = searchParams.get('templateImageUrl')
@@ -287,6 +288,9 @@ function PreviewQuoteForm() {
           ) : bgType === 'template' ? (
             <div className={`absolute inset-0 bg-linear-to-br ${templateGradient}`}></div>
           ) : null}
+          {bgType === 'snap' && snapImageUrl && (
+            <img src={snapImageUrl} alt="Background" className="absolute inset-0 w-full h-full object-cover" />
+          )}
 
           {/* Avatar Mode Fallback */}
           {bgType === 'avatar' && (
