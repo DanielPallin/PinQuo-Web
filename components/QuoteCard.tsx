@@ -3,12 +3,19 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, MessageCircle, Bookmark, SmilePlus, Share2, Loader2, X, Mail } from 'lucide-react'
+import { User, MessageCircle, Bookmark, SmilePlus, Share2, Loader2, X, Mail, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { EmojiClickData } from 'emoji-picker-react'
 import CustomEmojiPicker from './CustomEmojiPicker'
 import { createClient } from '@/lib/supabase/client'
 
 export type GroupedReaction = { emoji: string, count: number, hasReacted: boolean }
+
+export type WitnessRecord = {
+  id: string
+  witness_user_id: string | null
+  witness_email: string | null
+  vote: 'pending' | 'approved' | 'denied'
+}
 
 export type FeedQuote = {
   id: string
@@ -26,6 +33,7 @@ export type FeedQuote = {
   commentCount: number
   favoriteCount: number
   isFavorited: boolean
+  witnesses?: WitnessRecord[]
 }
 
 interface QuoteCardProps {
@@ -34,6 +42,7 @@ interface QuoteCardProps {
   onReact: (emoji: EmojiClickData, quoteId: string, type: 'quote', publisherId?: string) => void
   onExpand?: (quote: FeedQuote) => void
   onFavorite: (quoteId: string) => void
+  onVoteWitness?: (quoteId: string, vote: 'approved' | 'denied') => void
 }
 
 const getQuoteFontSize = (text: string) => {
@@ -45,7 +54,7 @@ const getQuoteFontSize = (text: string) => {
   return 'text-base md:text-lg'
 }
 
-export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand, onFavorite }: QuoteCardProps) {
+export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand, onFavorite, onVoteWitness }: QuoteCardProps) {
   const supabase = createClient()
   const router = useRouter()
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -53,6 +62,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   
   const [isFav, setIsFav] = useState(quote.isFavorited)
   const [favCount, setFavCount] = useState(quote.favoriteCount)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   // PLG Auth State
   const [isGuest, setIsGuest] = useState(true)
@@ -65,10 +75,13 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const [authError, setAuthError] = useState('')
   const [isEmailSent, setIsEmailSent] = useState(false)
 
-  // Check auth state silently on mount
+  // Check auth state & user ID silently on mount
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setIsGuest(!data.session)
+      if (data.session?.user) {
+        setCurrentUserId(data.session.user.id)
+      }
     })
   }, [supabase])
 
@@ -85,7 +98,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  }, [],)
 
   const publisherName = quote.publisher?.username || 'Unknown'
   const isRegisteredUser = !!quote.quoted_user?.username
@@ -103,7 +116,25 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const targetAvatarUrl = quote.quoted_user?.avatar_url
   const cleanQuoteContent = quote.content.replace(/^["'“”«»]+|["'“”«»]+$/g, '').trim()
 
-  // --- PLG FTW ---
+  // Witness Metrics & User Verdict Handling
+  const witnesses = quote.witnesses || []
+  const approvedCount = witnesses.filter(w => w.vote === 'approved').length
+  const deniedCount = witnesses.filter(w => w.vote === 'denied').length
+  const totalWitnesses = witnesses.length
+
+  const userWitnessEntry = witnesses.find(w => w.witness_user_id === currentUserId)
+  const isUserWitness = !!userWitnessEntry
+
+  const handleWitnessVoteAction = async (e: React.MouseEvent, voteType: 'approved' | 'denied') => {
+    e.stopPropagation()
+    if (isGuest) {
+      setShowAuthModal(true)
+      return
+    }
+    if (onVoteWitness) {
+      onVoteWitness(quote.id, voteType)
+    }
+  }
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -153,7 +184,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     e.stopPropagation()
     const quoteUrl = `${window.location.origin}/quote/${quote.id}`
     if (navigator.share) {
-      try { await navigator.share({ title: 'PinQuote', text: `Check out this quote by ${targetName} on PinQuote!`, url: quoteUrl }) } 
+      try { await navigator.share({ title: 'PinQuo', text: `Check out this quote by ${targetName} on PinQuo!`, url: quoteUrl }) } 
       catch (err) { /* User dismissed */ }
     } else {
       try {
@@ -201,7 +232,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
       } else if (data?.user && !data.session) {
         setIsEmailSent(true)
         setAuthLoading(false)
-        return // Stop here to show the success UI
+        return
       } else if (data?.session) {
         authSuccess = true
       }
@@ -301,11 +332,11 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       )}
 
-      {/* Action BaR */}
+      {/* Action Bar */}
       {!isExpanded && (
         <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 px-2 relative z-10">
           
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-4">
             {/* Reactions */}
             <div className="relative" ref={pickerRef}>
               <button onClick={handleReactClick} className="flex items-center gap-1.5 text-slate-500 hover:text-emerald-500 transition-colors group">
@@ -330,6 +361,46 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
               {favCount > 0 && <span className={`text-sm font-bold mt-0.5 ${isFav ? 'text-amber-500' : ''}`}>{favCount}</span>}
             </button>
           </div>
+
+          {/* 💥 THE DETECTIVE / SPY WITNESS CONSENSUS PILL */}
+          {totalWitnesses > 0 && (
+            <div className="flex items-center">
+              {isUserWitness && userWitnessEntry?.vote === 'pending' ? (
+                /* Interactive voting pills for tagged witnesses */
+                <div className="flex items-center gap-1 bg-slate-900 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-md animate-pulse">
+                  <span className="mr-1">Verify:</span>
+                  <button 
+                    onClick={(e) => handleWitnessVoteAction(e, 'approved')} 
+                    className="p-1 hover:text-emerald-400 transition-colors bg-emerald-600/30 rounded-full"
+                    title="Confirm True"
+                  >
+                    <ThumbsUp className="w-3.5 h-3.5 text-emerald-400" />
+                  </button>
+                  <span className="text-slate-400 px-1">🕵️</span>
+                  <button 
+                    onClick={(e) => handleWitnessVoteAction(e, 'denied')} 
+                    className="p-1 hover:text-rose-400 transition-colors bg-rose-600/30 rounded-full"
+                    title="Deny False"
+                  >
+                    <ThumbsDown className="w-3.5 h-3.5 text-rose-400" />
+                  </button>
+                </div>
+              ) : (
+                /* Standard Public Display Pill */
+                <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full text-xs font-bold text-slate-700 shadow-xs">
+                  <span className="flex items-center gap-1 text-emerald-700">
+                    👍 {approvedCount}
+                  </span>
+                  <span className="flex items-center gap-1 text-slate-900">
+                    <span className="text-sm">🕵️</span> {totalWitnesses}
+                  </span>
+                  <span className="flex items-center gap-1 text-rose-700">
+                    👎 {deniedCount}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Share */}
           <button onClick={handleShare} className="flex items-center text-slate-500 hover:text-slate-800 transition-colors group">
@@ -454,7 +525,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
                     {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? 'Log In' : 'Create Account')}
                   </button>
                 </form>
-              </  >
+              </>
             )}
           </div>
         </div>

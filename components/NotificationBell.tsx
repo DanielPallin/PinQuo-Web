@@ -189,6 +189,8 @@ export default function NotificationBell() {
                         {notif.type === 'reaction' && 'reacted to your quote.'}
                         {notif.type === 'comment' && 'commented on your quote.'}
                         {notif.type === 'quote' && 'quoted you in a post.'}
+                        {notif.type === 'witness_invite' && 'added you as a witness.'}
+                        {notif.type === 'witness_vote' && 'voted on your quote.'}
                       </Link>
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
@@ -196,6 +198,8 @@ export default function NotificationBell() {
                       {notif.type === 'reaction' && <SmilePlus className="w-3.5 h-3.5 text-pink-500" />}
                       {notif.type === 'comment' && <MessageCircle className="w-3.5 h-3.5 text-emerald-500" />}
                       {notif.type === 'quote' && <Quote className="w-3.5 h-3.5 text-indigo-500" />}
+                      {notif.type === 'witness_invite' && <span className="text-sm leading-none">🕵️</span>}
+                      {notif.type === 'witness_vote' && <span className="text-sm leading-none">⚖️</span>}
                       
                       <span className="text-xs font-bold text-slate-400">{timeAgo(notif.created_at)}</span>
                     </div>

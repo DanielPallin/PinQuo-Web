@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Camera, ArrowLeft, Loader2, Sparkles, User as UserIcon, X, Lock, Search, Heart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import WitnessManager, { Witness } from '@/components/WitnessManager'
 
 const TAILWIND_SAFELIST = "bg-orange-200 bg-yellow-200 bg-slate-300 bg-slate-200 from-orange-200 to-red-200 from-yellow-200 to-amber-200 from-slate-300 to-slate-400"
 
@@ -60,6 +61,7 @@ function WriteQuoteForm() {
   const displayTarget = targetUsername || customName || inviteEmail || 'Unknown'
 
   const [quoteText, setQuoteText] = useState('')
+  const [witnesses, setWitnesses] = useState<Witness[]>([])
   const [bgType, setBgType] = useState<'avatar' | 'template' | 'snap'>(isExistingUser ? 'avatar' : 'template')
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
 
@@ -172,7 +174,7 @@ function WriteQuoteForm() {
 
     if (!error) {
       setShowAuthModal(false)
-      await fetchUserData() // Boom! Seamlessly unlocks their app state without losing the quote!
+      await fetchUserData()
     } else {
       alert(error.message)
     }
@@ -232,6 +234,11 @@ function WriteQuoteForm() {
     if (targetUsername) params.append('targetUsername', targetUsername)
     if (inviteEmail) params.append('inviteEmail', inviteEmail)
     if (customName) params.append('customName', customName)
+    
+    // Append witnesses as a JSON string
+    if (witnesses && witnesses.length > 0) {
+      params.append('witnesses', JSON.stringify(witnesses))
+    }
     
     if (bgType === 'template' && selectedTemplate) {
       params.append('templateId', selectedTemplate.id)
@@ -318,6 +325,7 @@ function WriteQuoteForm() {
               className="w-full h-28 bg-transparent text-slate-900 text-xl md:text-2xl font-medium resize-none focus:outline-none placeholder:text-slate-300 px-6 py-2 leading-snug font-serif"
             />
             <span className="absolute bottom-2 right-4 text-4xl font-serif font-black text-slate-200 select-none">”</span>
+            <WitnessManager witnesses={witnesses} onChange={setWitnesses} />
           </div>
         </div>
 
@@ -573,5 +581,6 @@ export default function WriteQuotePage() {
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-slate-300" /></div>}>
       <WriteQuoteForm />
     </Suspense>
+    
   )
 }
