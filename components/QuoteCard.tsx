@@ -76,17 +76,21 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const [isEmailSent, setIsEmailSent] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    const fetchSession = async () => {
+      const { data } = await supabase.auth.getSession()
       setIsGuest(!data.session)
       if (data.session?.user) {
         setCurrentUserId(data.session.user.id)
       }
-    })
-  }, [supabase])
+    }
+    fetchSession()
+  }, [])
 
   useEffect(() => {
-    setIsFav(quote.isFavorited)
-    setFavCount(quote.favoriteCount)
+    Promise.resolve().then(() => {
+      setIsFav(prev => prev !== quote.isFavorited ? quote.isFavorited : prev)
+      setFavCount(prev => prev !== quote.favoriteCount ? quote.favoriteCount : prev)
+    })
   }, [quote.isFavorited, quote.favoriteCount])
 
   useEffect(() => {

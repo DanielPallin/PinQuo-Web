@@ -6,6 +6,7 @@ import { Plus_Jakarta_Sans, Playfair_Display } from 'next/font/google'
 import { Home, PlusSquare, User, Layers, ShoppingCart, Trophy, SettingsIcon } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import SidebarWidgets from '@/components/SidebarWidgets'
+import UpdatesWidget from '@/components/UpdatesWidget' // 💥 NEW: Imported the widget
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta' })
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' })
@@ -44,15 +45,21 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             <Image src="/PinQuote-Logo.png" alt="PinQuo Logo" width={110} height={35} priority className="h-8 w-auto object-contain" />
           </Link>
           
-          {/* PLG: Conditionally show Bell or Join button on mobile */}
-          {profile ? (
-            <NotificationBell />
-          ) : (
-            <Link href="/login" className="bg-black text-white text-xs font-bold px-4 py-2 rounded-full active:scale-95 transition-transform">
-              Join
-            </Link>
-          )}
+          {/* 💥 NEW: Grouped actions side-by-side on mobile */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            <UpdatesWidget />
+            
+            {/* PLG: Conditionally show Bell or Join button on mobile */}
+            {profile ? (
+              <NotificationBell />
+            ) : (
+              <Link href="/login" className="bg-black text-white text-xs font-bold px-4 py-2 ml-1 rounded-full active:scale-95 transition-transform">
+                Login
+              </Link>
+            )}
+          </div>
         </header>
+        
 
         {/* LEFT SIDEBAR (Desktop Only) */}
         <aside className="hidden lg:flex w-70 xl:w-[320px] flex-col sticky top-0 h-screen border-r border-slate-200/60 px-6 py-8 overflow-y-auto shrink-0 bg-white">
@@ -115,8 +122,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
           
           {/* User Profile & Notification Cluster */}
           {profile ? (
-            <div className="relative z-50 flex items-center justify-end gap-3 mb-8 bg-white p-2 pr-3 rounded-full shadow-sm border border-slate-100 shrink-0">
-              <Link href="/profile" className="flex items-center gap-2.5 hover:opacity-80 transition cursor-pointer">
+            <div className="relative z-50 flex items-center justify-end gap-1 mb-8 bg-white p-2 pr-3 rounded-full shadow-sm border border-slate-100 shrink-0">
+              <Link href="/profile" className="flex items-center gap-2.5 hover:opacity-80 transition cursor-pointer mr-auto pl-2">
                 <span className="font-bold text-slate-800 text-[14px]">{profile.username}</span>
                 <div className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden border-2 border-white shadow-sm flex items-center justify-center">
                   {profile.avatar_url ? (
@@ -126,12 +133,17 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                   )}
                 </div>
               </Link>
+              
               <div className="w-[1px] h-5 bg-slate-200 mx-1"></div>
+              
+              {/* 💥 NEW: Desktop Updates Button */}
+              <UpdatesWidget />
               <NotificationBell />
             </div>
           ) : (
             // PLG: Guest CTA for the Desktop Sidebar
             <div className="relative z-50 flex items-center justify-end gap-3 mb-8 shrink-0">
+              <UpdatesWidget />
               <Link 
                 href="/login" 
                 className="px-6 py-2.5 bg-black text-white font-bold rounded-full hover:bg-slate-800 transition shadow-[0_4px_14px_rgba(0,0,0,0.1)] active:scale-95 text-sm"
