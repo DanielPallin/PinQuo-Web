@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Search, Heart, Sparkles, Layers, Loader2, ChevronRight, X, Paintbrush } from 'lucide-react'
@@ -25,8 +25,7 @@ type Pack = {
 
 const FILTERS = ['All', 'Templates', 'Packs']
 
-// --- Components ---
-
+// Components
 const TemplateCard = ({ template, isFav, onClick }: { template: Template, isFav?: boolean, onClick: () => void }) => (
   <div 
     onClick={onClick}
@@ -35,7 +34,7 @@ const TemplateCard = ({ template, isFav, onClick }: { template: Template, isFav?
     {template.image_url ? (
       <img src={template.image_url} alt={template.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
     ) : (
-      <div className={`absolute inset-0 bg-linear-to-br ${template.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
+      <div className={`absolute inset-0 bg-gradient-to-br ${template.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
     )}
     
     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/10 opacity-60 group-hover:opacity-80 transition-opacity"></div>
@@ -58,7 +57,7 @@ const TemplateCard = ({ template, isFav, onClick }: { template: Template, isFav?
   </div>
 )
 
-const CarouselRow = ({ title, icon: Icon, templates, favorites, onSelect }: { title: string, icon?: any, templates: Template[], favorites: Template[], onSelect: (t: Template) => void }) => {
+const CarouselRow = ({ title, icon: Icon, templates, favorites, onSelect, onSeeAll }: { title: string, icon?: any, templates: Template[], favorites: Template[], onSelect: (t: Template) => void, onSeeAll?: () => void }) => {
   if (templates.length === 0) return null
   return (
     <div className="mt-8">
@@ -67,9 +66,11 @@ const CarouselRow = ({ title, icon: Icon, templates, favorites, onSelect }: { ti
           {Icon && <Icon className="w-5 h-5 text-slate-800" />}
           <h2 className="font-black text-lg sm:text-xl text-slate-800 tracking-tight">{title}</h2>
         </div>
-        <button className="text-sm font-bold text-slate-400 hover:text-black flex items-center transition-colors">
-          See all <ChevronRight className="w-4 h-4 ml-0.5" />
-        </button>
+        {onSeeAll && (
+          <button onClick={onSeeAll} className="text-sm font-bold text-slate-400 hover:text-black flex items-center transition-colors">
+            See all <ChevronRight className="w-4 h-4 ml-0.5" />
+          </button>
+        )}
       </div>
       <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar gap-4 px-4 sm:px-6 pb-4 -mx-4 sm:mx-0">
         {templates.map(t => (
@@ -81,8 +82,7 @@ const CarouselRow = ({ title, icon: Icon, templates, favorites, onSelect }: { ti
   )
 }
 
-// --- Main Page ---
-
+// Main Page
 export default function TemplatesPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -94,8 +94,6 @@ export default function TemplatesPage() {
 
   const [favorites, setFavorites] = useState<Template[]>([])
   const [allTemplates, setAllTemplates] = useState<Template[]>([])
-  const [packs, setPacks] = useState<Pack[]>([])
-  const [templatePackMap, setTemplatePackMap] = useState<Record<string, string>>({}) // template_id -> pack_id
 
   // Modal State
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
@@ -105,21 +103,12 @@ export default function TemplatesPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) setUserId(user.id)
 
-      const [templatesRes, packsRes, packMapRes, favsRes] = await Promise.all([
+      const [templatesRes, favsRes] = await Promise.all([
         supabase.from('templates').select('*').order('created_at', { ascending: false }),
-        supabase.from('packs').select('*').order('created_at', { ascending: false }),
-        supabase.from('pack_templates').select('template_id, pack_id'),
         user ? supabase.from('user_template_interactions').select('template_id, templates(*)').eq('user_id', user.id).eq('is_favorite', true) : Promise.resolve({ data: null })
       ])
 
       if (templatesRes.data) setAllTemplates(templatesRes.data as Template[])
-      if (packsRes.data) setPacks(packsRes.data as Pack[])
-      
-      if (packMapRes.data) {
-        const map: Record<string, string> = {}
-        packMapRes.data.forEach(pm => map[pm.template_id] = pm.pack_id)
-        setTemplatePackMap(map)
-      }
 
       if (favsRes.data) {
         const extractedFavs = favsRes.data.map((f: any) => f.templates).filter(Boolean)
@@ -131,6 +120,40 @@ export default function TemplatesPage() {
     fetchData()
   }, [supabase])
 
+  // Auto group templates to form Packs
+  const packs = useMemo(() => {
+    const packMap: Record<string, Pack> = {}
+    allTemplates.forEach(t => {
+      if (!t.image_url) return
+      const match = t.image_url.match(/paid_templates\/([^/]+)\//)
+      if (match && match[1]) {
+        const packSlug = match[1]
+        if (!packMap[packSlug]) {
+          const formattedName = packSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+          packMap[packSlug] = {
+            id: packSlug,
+            name: formattedName,
+            description: `A curated collection of ${formattedName} templates.`,
+            cover_image_url: t.image_url,
+            is_pro: t.is_pro_only
+          }
+        }
+      }
+    })
+    return Object.values(packMap)
+  }, [allTemplates])
+
+  // Map individual templates to their parent pack ID for the modal button
+  const templatePackMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    allTemplates.forEach(t => {
+      if (!t.image_url) return
+      const match = t.image_url.match(/paid_templates\/([^/]+)\//)
+      if (match && match[1]) map[t.id] = match[1]
+    })
+    return map
+  }, [allTemplates])
+
   const toggleFavorite = async (template: Template) => {
     if (!userId) {
       alert("Please log in to save favorites.")
@@ -139,30 +162,20 @@ export default function TemplatesPage() {
 
     const isFav = favorites.some(f => f.id === template.id)
 
-    // 1. Optimistic UI Update
     if (isFav) {
       setFavorites(prev => prev.filter(f => f.id !== template.id))
-      // Update DB
-      await supabase
-        .from('user_template_interactions')
-        .update({ is_favorite: false })
-        .eq('user_id', userId)
-        .eq('template_id', template.id)
+      await supabase.from('user_template_interactions').update({ is_favorite: false }).eq('user_id', userId).eq('template_id', template.id)
     } else {
       setFavorites(prev => [...prev, template])
-      // Upsert DB (creates the row if it doesn't exist, updates if it does)
-      await supabase
-        .from('user_template_interactions')
-        .upsert({ 
-          user_id: userId, 
-          template_id: template.id, 
-          is_favorite: true,
-          last_used_at: new Date().toISOString()
-        }, { onConflict: 'user_id, template_id' })
+      await supabase.from('user_template_interactions').upsert({ 
+        user_id: userId, 
+        template_id: template.id, 
+        is_favorite: true,
+        last_used_at: new Date().toISOString()
+      }, { onConflict: 'user_id, template_id' })
     }
   }
 
-  // --- Filtering ---
   const filteredTemplates = allTemplates.filter(t => 
     t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     (t.tags && t.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())))
@@ -173,7 +186,7 @@ export default function TemplatesPage() {
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white pb-24">
       
-      {/* HEADER & SEARCH */}
+      {/* Header & Search */}
       <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-slate-100 pt-4 pb-2 px-4 sm:px-6 will-change-transform">
         <div className="relative flex items-center bg-slate-50 border border-slate-200 rounded-full px-4 py-3 shadow-inner focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all mb-3">
           <Search className="w-5 h-5 text-slate-400 mr-2 shrink-0" />
@@ -213,21 +226,27 @@ export default function TemplatesPage() {
           </div>
         ) : (
           <>
-            {/* --- MY FAVORITES --- */}
+            {/* Favourites View */}
             {userId && favorites.length > 0 && activeFilter !== 'Packs' && (
               <CarouselRow title="My Favorites" icon={Heart} templates={favorites} favorites={favorites} onSelect={setSelectedTemplate} />
             )}
 
-            {/* --- PACKS VIEW --- */}
+            {/* Packs View */}
             {(activeFilter === 'All' || activeFilter === 'Packs') && packs.length > 0 && (
               <div className="mt-8">
-                <div className="flex items-center px-4 sm:px-6 mb-4 gap-2">
-                  <Layers className="w-5 h-5 text-slate-800" />
-                  <h2 className="font-black text-lg sm:text-xl text-slate-800 tracking-tight">Curated Packs</h2>
+                <div className="flex items-center justify-between px-4 sm:px-6 mb-4">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-slate-800" />
+                    <h2 className="font-black text-lg sm:text-xl text-slate-800 tracking-tight">Curated Packs</h2>
+                  </div>
+                  {activeFilter === 'All' && (
+                     <button onClick={() => setActiveFilter('Packs')} className="text-sm font-bold text-slate-400 hover:text-black flex items-center transition-colors">
+                       See all <ChevronRight className="w-4 h-4 ml-0.5" />
+                     </button>
+                  )}
                 </div>
                 
                 {activeFilter === 'Packs' ? (
-                  // Grid View for "Packs" Filter
                   <div className="grid grid-cols-1 gap-4 px-4 sm:px-6">
                     {packs.map(pack => (
                       <div key={pack.id} onClick={() => router.push(`/templates/pack/${pack.id}`)} className="relative w-full h-48 rounded-[28px] overflow-hidden group cursor-pointer shadow-sm border border-slate-100">
@@ -241,7 +260,6 @@ export default function TemplatesPage() {
                     ))}
                   </div>
                 ) : (
-                  // Carousel View for "All"
                   <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar gap-4 px-4 sm:px-6 pb-4 -mx-4 sm:mx-0">
                     {packs.map(pack => (
                       <div key={pack.id} onClick={() => router.push(`/templates/pack/${pack.id}`)} className="relative w-72 h-44 rounded-[28px] overflow-hidden shrink-0 snap-center group cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300">
@@ -259,26 +277,24 @@ export default function TemplatesPage() {
               </div>
             )}
 
-            {/* --- TEMPLATES VIEW --- */}
+            {/* Templates View */}
             {(activeFilter === 'All' || activeFilter === 'Templates') && (
               <>
-                <CarouselRow title="Trending Right Now" templates={allTemplates.slice(0, 8)} favorites={favorites} onSelect={setSelectedTemplate} />
-                <CarouselRow title="Recently Added" templates={allTemplates.slice(0, 10)} favorites={favorites} onSelect={setSelectedTemplate} />
+                <CarouselRow title="Trending Right Now" templates={allTemplates.slice(0, 8)} favorites={favorites} onSelect={setSelectedTemplate} onSeeAll={activeFilter === 'All' ? () => setActiveFilter('Templates') : undefined} />
+                <CarouselRow title="Recently Added" templates={allTemplates.slice(0, 10)} favorites={favorites} onSelect={setSelectedTemplate} onSeeAll={activeFilter === 'All' ? () => setActiveFilter('Templates') : undefined} />
               </>
             )}
           </>
         )}
       </div>
 
-      {/* --- TEMPLATE PREVIEW DRAWER (MODAL) --- */}
+      {/* Template Preview Modal */}
       {selectedTemplate && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 sm:p-6 transition-opacity">
-          {/* Backdrop Click to close */}
           <div className="absolute inset-0" onClick={() => setSelectedTemplate(null)}></div>
           
             <div className="relative w-full max-w-sm bg-white rounded-[32px] sm:rounded-[40px] p-6 shadow-2xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-4 fade-in duration-300">
              <div className="w-full flex justify-center mb-6">
-            {/* Strictly constrained preview frame mimicking an actual quote card */}
             <div className="w-[200px] aspect-[3/4] rounded-2xl overflow-hidden border border-slate-200 shadow-xl relative bg-slate-100">
                 {selectedTemplate.image_url ? (
                 <img 
@@ -287,7 +303,7 @@ export default function TemplatesPage() {
                     className="absolute inset-0 w-full h-full object-cover" 
                 />
                 ) : (
-                <div className={`absolute inset-0 bg-linear-to-br ${selectedTemplate.style_config?.gradient || 'from-slate-200 to-slate-300'}`} />
+                <div className={`absolute inset-0 bg-gradient-to-br ${selectedTemplate.style_config?.gradient || 'from-slate-200 to-slate-300'}`} />
                 )}
             </div>
             </div>
@@ -304,7 +320,6 @@ export default function TemplatesPage() {
               </button>
               
               <div className="flex gap-3">
-                {/* Dynamically show "View Pack" only if the template belongs to a Pack */}
                 {templatePackMap[selectedTemplate.id] && (
                   <button 
                     onClick={() => router.push(`/templates/pack/${templatePackMap[selectedTemplate.id]}`)}
