@@ -5,6 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Loader2, CheckCircle2, Sparkles, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
+// Types & Helpers
+type ParsedWitness = { type: 'user' | 'email'; value: string }
+
 const getQuoteFontSize = (text: string) => {
   const len = text.length
   if (len < 40) return 'text-3xl md:text-4xl'
@@ -19,6 +22,7 @@ function PreviewQuoteForm() {
   const searchParams = useSearchParams()
   const supabase = createClient()
 
+  // URL Params
   const targetId = searchParams.get('targetId')
   const targetUsername = searchParams.get('targetUsername')
   const inviteEmail = searchParams.get('inviteEmail')
@@ -29,28 +33,25 @@ function PreviewQuoteForm() {
   const templateId = searchParams.get('templateId')
   const templateGradient = searchParams.get('templateGradient') || 'from-slate-200 to-slate-300'
   const templateImageUrl = searchParams.get('templateImageUrl')
-  const witnesses = (() => {
+  
+  // Safely parse witnesses with tight typings
+  const witnesses: ParsedWitness[] = (() => {
     const value = searchParams.get('witnesses')
-    if (!value) return [] as { type: 'user' | 'email'; value: string }[]
-
+    if (!value) return []
     try {
-      const parsed: unknown = JSON.parse(value)
-      return Array.isArray(parsed)
-        ? parsed.filter(
-            (w): w is { type: 'user' | 'email'; value: string } =>
-              typeof w === 'object' &&
-              w !== null &&
-              'type' in w &&
-              ['user', 'email'].includes((w as any).type) &&
-              'value' in w &&
-              typeof (w as any).value === 'string'
-          )
-        : []
+      const parsed = JSON.parse(value)
+      if (!Array.isArray(parsed)) return []
+      return parsed.filter((w): w is ParsedWitness => 
+        typeof w === 'object' && w !== null && 
+        'type' in w && ['user', 'email'].includes(w.type) && 
+        'value' in w && typeof w.value === 'string'
+      )
     } catch {
       return []
     }
   })()
 
+  // State
   const [isPublishing, setIsPublishing] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [currentUsername, setCurrentUsername] = useState('You')
@@ -64,14 +65,16 @@ function PreviewQuoteForm() {
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
 
+  // Derived Variables
   const displayTarget = targetUsername || customName || inviteEmail || 'Unknown'
   const isRegisteredUser = !!targetUsername
+  const isValidTargetId = typeof targetId === 'string' && targetId.trim() !== '' && targetId !== 'undefined' && targetId !== 'null'
 
-  // 1. The Sanitizer
   const cleanQuoteContent = quoteText
     .replace(/^["'“”«»]+|["'“”«»]+$/g, '')
     .trim()
 
+  // Data Fetching
   useEffect(() => {
     let isMounted = true
 
@@ -82,7 +85,7 @@ function PreviewQuoteForm() {
         if (data?.username) setCurrentUsername(data.username)
       }
 
-      if (targetId && isMounted && targetId !== 'undefined' && targetId !== 'null') {
+      if (isValidTargetId && isMounted) {
         const { data: targetData } = await supabase.from('profiles').select('avatar_url').eq('id', targetId).single()
         if (targetData?.avatar_url) setTargetAvatarUrl(targetData.avatar_url)
       }
@@ -90,85 +93,97 @@ function PreviewQuoteForm() {
 
     void fetchData()
     return () => { isMounted = false }
-  }, [supabase, targetId])
+  }, [supabase, targetId, isValidTargetId])
 
-  // --- THE PUBLISH LOGIC SPLIT ---
-
-  // Part 1: The actual database insertion (Runs after auth is confirmed)
+  // Publishing Structure
   const executePublish = async (user: any) => {
     setIsPublishing(true)
     setErrorMsg('')
 
-    const isValidTargetId = targetId && targetId !== 'undefined' && targetId !== 'null' && targetId.trim() !== '';
-    const targetUid = isValidTargetId ? targetId : null;
-    const targetEmail = (inviteEmail && inviteEmail.trim() !== "") ? inviteEmail : null;
-    const authorName = (customName && customName.trim() !== "") ? customName : null;
-
-    const quoteData = {
-      publisher_id: user.id,
-      content: quoteText,
-      template_id: bgType === 'template' ? (templateId || null) : null,
-      live_photo_url: null,
-      quoted_user_id: targetUid,
-      quoted_email: targetEmail,
-      custom_author_name: authorName
-    }
-
-    const { error: dbError, data: newQuoteData } = await supabase
-      .from('quotes')
-      .insert([quoteData])
-      .select('id')
-      .single()
-
-    if (dbError) {
-      console.error("Supabase Insert Error:", dbError)
-      setErrorMsg(dbError.message || "Failed to publish quote.")
-      setIsPublishing(false)
-      return
-    }
-
-    // 💥 NEW: Batch insert the witnesses right after the quote succeeds
-    if (witnesses.length > 0 && newQuoteData?.id) {
-      const witnessPayload = witnesses.map(w => ({
-        quote_id: newQuoteData.id,
-        witness_user_id: w.type === 'user' ? w.value : null,
-        witness_email: w.type === 'email' ? w.value : null
-      }))
-
-      const { error: witnessErr } = await supabase
-        .from('quote_witnesses')
-        .insert(witnessPayload)
-
-      if (witnessErr) console.error("Witness Insert Error:", witnessErr)
-    }
-
-    if (targetUid && targetUid !== user.id && newQuoteData?.id) {
-      await supabase.from('notifications').insert({
-        receiver_id: targetUid,
-        actor_id: user.id,
-        type: 'quote',
-        quote_id: newQuoteData.id
-      });
-    }
-
-    // Fire-and-forget side effects
     try {
-      let publisherName = currentUsername;
-      if (publisherName === "You") {
-        const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).single();
-        if (profile?.username) publisherName = profile.username;
+      // 1. Handle Live Snap Uploads (If applicable)
+      let finalLivePhotoUrl = null
+      if (bgType === 'snap' && snapImageUrl) {
+        try {
+          const res = await fetch(snapImageUrl)
+          const blob = await res.blob()
+          const uniqueId = typeof crypto !== 'undefined' ? crypto.randomUUID() : new Date().getTime()
+          const fileName = `${user.id}/web_snap_${uniqueId}.jpg`
+          
+          // Supabase bucket: quote_media
+          const { data: uploadData, error: uploadErr } = await supabase.storage
+            .from('quotes_media') 
+            .upload(fileName, blob, { contentType: 'image/jpeg' })
+            
+          if (uploadData && !uploadErr) {
+            const { data: { publicUrl } } = supabase.storage.from('quotes_media').getPublicUrl(fileName)
+            finalLivePhotoUrl = publicUrl
+          } else {
+            console.error("Storage upload error:", uploadErr)
+          }
+        } catch (err) {
+          console.error("Failed to process Live Snap image:", err)
+        }
       }
 
-      const sideEffects: Promise<unknown>[] = [];
+      // Insert the Quote
+      const quoteData = {
+        publisher_id: user.id,
+        content: quoteText,
+        template_id: bgType === 'template' ? (templateId || null) : null,
+        live_photo_url: finalLivePhotoUrl,
+        quoted_user_id: isValidTargetId ? targetId : null,
+        quoted_email: (inviteEmail && inviteEmail.trim() !== "") ? inviteEmail.trim() : null,
+        custom_author_name: (customName && customName.trim() !== "") ? customName.trim() : null
+      }
 
-      if (targetEmail) {
+      const { error: dbError, data: newQuoteData } = await supabase
+        .from('quotes')
+        .insert([quoteData])
+        .select('id')
+        .single()
+
+      if (dbError || !newQuoteData) throw new Error(dbError?.message || "Failed to publish quote.")
+
+      // Batch Insert Witnesses
+      if (witnesses.length > 0) {
+        const witnessPayload = witnesses.map(w => ({
+          quote_id: newQuoteData.id,
+          witness_user_id: w.type === 'user' ? w.value : null,
+          witness_email: w.type === 'email' ? w.value : null
+        }))
+        const { error: witnessErr } = await supabase.from('quote_witnesses').insert(witnessPayload)
+        if (witnessErr) console.error("Witness Insert Error:", witnessErr)
+      }
+
+      // In-App Notification for Registered Targets
+      if (isValidTargetId && targetId !== user.id) {
+        await supabase.from('notifications').insert({
+          receiver_id: targetId,
+          actor_id: user.id,
+          type: 'quote',
+          quote_id: newQuoteData.id
+        })
+      }
+
+      // Fire-and-Forget External Notifications (Emails)
+      const sideEffects: Promise<unknown>[] = []
+      let publisherName = currentUsername
+      
+      // Safety fetch if username is still default
+      if (publisherName === "You") {
+        const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).single()
+        if (profile?.username) publisherName = profile.username
+      }
+
+      if (quoteData.quoted_email) {
         sideEffects.push(
           fetch("/api/invite", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: targetEmail, publisherName, quoteContent: quoteText }),
+            body: JSON.stringify({ email: quoteData.quoted_email, publisherName, quoteContent: quoteText }),
             keepalive: true
-          }).catch(err => console.error("Invite error:", err))
+          })
         )
       }
 
@@ -179,52 +194,50 @@ function PreviewQuoteForm() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ quoterUsername: publisherName, quotedUsername: targetUsername, quoteContent: quoteText }),
             keepalive: true
-          }).catch(err => console.error("Notify error:", err))
+          })
         )
       }
 
-      // Email Witnessess
       if (witnesses.length > 0) {
         sideEffects.push(
           fetch("/api/witness-invite", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              witnesses: witnesses, // 👈 Passing the whole array of users and emails
-              publisherName, 
-              quoteContent: quoteText 
-            }),
+            body: JSON.stringify({ witnesses, publisherName, quoteContent: quoteText }),
             keepalive: true
-          }).catch(err => console.error("Witness email error:", err))
+          })
         )
       }
 
+      // Use allSettled so one failing email doesn't block the rest
       if (sideEffects.length > 0) {
-        Promise.all(sideEffects).catch(err => console.error("Background task error:", err))
+        Promise.allSettled(sideEffects).catch(err => console.error("Background task error:", err))
       }
-    } catch (err) {
-      console.error("Background task setup error:", err);
-    }
 
-    router.push('/feed')
+      router.push('/feed')
+
+    } catch (err: any) {
+      console.error("Publishing error:", err)
+      setErrorMsg(err.message || "Something went wrong.")
+      setIsPublishing(false)
+    }
   }
 
-  // Part 2: The Gatekeeper (Triggered by the Publish button)
+  // Gatekeeper
   const attemptPublish = async () => {
     setIsPublishing(true)
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
-      // Pause publish, pop the modal
       setIsPublishing(false)
       setShowAuthModal(true)
       return
     }
     
-    // User is logged in, proceed normally
     await executePublish(user)
   }
 
+  // In-Context PLG Auth
   const handleInContextAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setAuthLoading(true)
@@ -276,24 +289,22 @@ function PreviewQuoteForm() {
             className="absolute top-5 left-5 h-5 sm:h-6 w-auto opacity-60 drop-shadow-md z-20 pointer-events-none select-none"
           />
 
-          {/* Base Image with Filters */}
-          {bgType === 'template' && templateImageUrl ? (
-            <img 
-              src={templateImageUrl} 
-              alt="Quote Background" 
-              crossOrigin="anonymous" 
-              className="absolute inset-0 w-full h-full object-cover" 
-              style={{ filter: 'contrast(1.20) saturate(1.2) sepia(0.10) brightness(0.90)' }}
-            />
-          ) : bgType === 'template' ? (
-            <div className={`absolute inset-0 bg-linear-to-br ${templateGradient}`}></div>
-          ) : null}
-          {bgType === 'snap' && snapImageUrl && (
-            <img src={snapImageUrl} alt="Background" className="absolute inset-0 w-full h-full object-cover" />
-          )}
-
-          {/* Avatar Mode Fallback */}
-          {bgType === 'avatar' && (
+          {/* Background Layers */}
+          {bgType === 'template' ? (
+            templateImageUrl ? (
+              <img 
+                src={templateImageUrl} 
+                alt="Quote Background" 
+                crossOrigin="anonymous" 
+                className="absolute inset-0 w-full h-full object-cover" 
+                style={{ filter: 'contrast(1.20) saturate(1.2) sepia(0.10) brightness(0.90)' }}
+              />
+            ) : (
+              <div className={`absolute inset-0 bg-linear-to-br ${templateGradient}`}></div>
+            )
+          ) : bgType === 'snap' && snapImageUrl ? (
+            <img src={snapImageUrl} alt="Live Snap" className="absolute inset-0 w-full h-full object-cover" />
+          ) : bgType === 'avatar' ? (
             <div className="absolute inset-0 mix-blend-overlay opacity-80">
               {targetAvatarUrl ? (
                 <img src={targetAvatarUrl} alt="Bg" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover" />
@@ -301,7 +312,7 @@ function PreviewQuoteForm() {
                 <div className="absolute inset-0 bg-slate-800"></div>
               )}
             </div>
-          )}
+          ) : null}
 
           {/* Cinematic Vignettes */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/60 mix-blend-multiply pointer-events-none"></div>
@@ -311,7 +322,6 @@ function PreviewQuoteForm() {
           <div className="relative z-10 flex flex-col items-center justify-center h-full p-6 sm:p-10 text-center pointer-events-none select-none">
             
             <div className="relative inline-block max-w-[75%] mx-auto mt-4">
-              
               <span className="absolute top-0 left-0 -translate-x-[110%] -translate-y-[40%] text-5xl sm:text-7xl font-serif font-black text-white/50 drop-shadow-lg leading-none pointer-events-none select-none">
                 &ldquo;
               </span>

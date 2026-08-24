@@ -78,6 +78,18 @@ export default function UpdatesDrawer({ isOpen, onClose }: UpdatesDrawerProps) {
                 <div className="w-6 h-6 rounded-full bg-emerald-50 border-4 border-emerald-500 shrink-0 relative z-10 shadow-sm mt-0.5"></div>
                 <div className="flex flex-col gap-1.5 pb-2">
                   <span className="text-xs font-black text-emerald-600 tracking-wide uppercase">Just Shipped</span>
+                  <h4 className="text-lg font-black text-slate-800 leading-tight">Camera Snap</h4>
+                  <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                    Capture the moment when the quote was said.
+                  </p>
+                </div>
+              </div>
+
+              {/* Update Item 2 */}
+              <div className="relative flex items-start gap-4">
+                <div className="w-6 h-6 rounded-full bg-emerald-50 border-4 border-emerald-500 shrink-0 relative z-10 shadow-sm mt-0.5"></div>
+                <div className="flex flex-col gap-1.5 pb-2">
+                  <span className="text-xs font-black text-emerald-600 tracking-wide uppercase">Live</span>
                   <h4 className="text-lg font-black text-slate-800 leading-tight">The Witness Update 🕵️</h4>
                   <p className="text-sm text-slate-500 font-medium leading-relaxed">
                     Quotes just got serious. You can now tag witnesses to verify or deny your quotes. This can be fun.
@@ -85,7 +97,7 @@ export default function UpdatesDrawer({ isOpen, onClose }: UpdatesDrawerProps) {
                 </div>
               </div>
 
-              {/* Update Item 2 */}
+              {/* Update Item 3 */}
               <div className="relative flex items-start gap-4">
                 <div className="w-6 h-6 rounded-full bg-slate-50 border-4 border-green-500 shrink-0 relative z-10 mt-0.5"></div>
                 <div className="flex flex-col gap-1.5 pb-2">
