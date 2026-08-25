@@ -115,11 +115,15 @@ export default function SidebarWidgets() {
         onClick={() => router.push(`/feed?quoteId=${quote.id}`, { scroll: false })}
         className="w-full bg-slate-900 rounded-2xl p-5 relative overflow-hidden cursor-pointer group shadow-md hover:scale-[1.02] active:scale-[0.98] transition-transform aspect-square flex flex-col items-center justify-center text-center"
       >
-        {quote.template?.image_url ? (
+        {/* Waterfall */}
+        {quote.live_photo_url ? (
+          <img src={quote.live_photo_url} alt="Live Snap" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-70 transition-opacity" />
+        ) : quote.template?.image_url ? (
           <img src={quote.template.image_url} alt="" crossOrigin="anonymous" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-70 transition-opacity" style={{ filter: 'contrast(1.15) saturate(1.2) sepia(0.15) brightness(0.8)' }} />
         ) : (
           <div className={`absolute inset-0 bg-linear-to-br ${quote.template?.style_config?.gradient || 'from-slate-800 to-slate-900'}`}></div>
         )}
+
         <div className="absolute inset-0 bg-black/30"></div>
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(0,0,0,0)_0%,_rgba(0,0,0,0.6)_100%)] pointer-events-none"></div>
         
