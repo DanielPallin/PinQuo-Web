@@ -93,7 +93,6 @@ export default function QuotedInPage() {
           reactions(reaction_type, user_id, comment_id),
           favorites(user_id),
           comments(count)
-          .order('created_at', { ascending: false })
         `)
         .eq('quoted_user_id', profileData.id)
         .order('created_at', { ascending: false })
@@ -308,40 +307,41 @@ export default function QuotedInPage() {
         ) : (
           <div className="grid grid-cols-3 gap-2 w-full">
             {quotes.map((quote) => (
-  <Link 
-    key={quote.id} 
-    href={`/feed?quoteId=${quote.id}`}
-    className="relative aspect-square rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95"
-  >
-    {/* 1. The Bucket Image */}
-    {quote.template?.image_url && (
-      <img 
-        src={quote.template.image_url} 
-        alt="Quote" 
-        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-      />
-    )}
-    
-    {/* 2. Fallback Gradient (If no image exists) */}
-    {!quote.template?.image_url && (
-      <div className={`absolute inset-0 bg-linear-to-br ${quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
-    )}
+              <Link 
+                key={quote.id} 
+                href={`/feed?quoteId=${quote.id}`}
+                className="relative aspect-square rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95 bg-slate-800"
+              >
+                {/* 💥 THE UNIFIED WATERFALL LOGIC */}
+                {quote.live_photo_url ? (
+                  <img 
+                    src={quote.live_photo_url} 
+                    alt="Live Snap" 
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  />
+                ) : quote.template?.image_url ? (
+                  <img 
+                    src={quote.template.image_url} 
+                    alt="Quote Template" 
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    crossOrigin="anonymous"
+                  />
+                ) : quote.template ? (
+                  <div className={`absolute inset-0 bg-linear-to-br ${quote.template.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
+                ) : quote.quoted_user?.avatar_url ? (
+                  <img 
+                    src={quote.quoted_user.avatar_url} 
+                    alt="Avatar Fallback" 
+                    className="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-overlay" 
+                  />
+                ) : null}
 
-    {/* 3. Avatar Fallback (For legacy quotes) */}
-    {!quote.template && quote.quoted_user?.avatar_url && (
-      <img 
-        src={quote.quoted_user.avatar_url} 
-        alt="Avatar" 
-        className="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-overlay" 
-      />
-    )}
-
-    {/* 4. Cinematic Overlay & Quote Hint */}
-    <div className="absolute inset-0 bg-slate-900/10 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
-      <span className="text-white/60 font-serif text-3xl font-black mb-3 select-none drop-shadow-md">“ ”</span>
-    </div>
-  </Link>
-))}
+                {/* Cinematic Overlay & Quote Hint */}
+                <div className="absolute inset-0 bg-slate-900/10 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center z-10">
+                  <span className="text-white/60 font-serif text-3xl font-black mb-3 select-none drop-shadow-md">“ ”</span>
+                </div>
+              </Link>
+            ))}
           </div>
         )}
       </div>
@@ -354,11 +354,9 @@ export default function QuotedInPage() {
           style={{ willChange: 'opacity' }}
         >
           
-          {/* 👇 Changed h-full to h-[100dvh] right here 👇 */}
           <div onClick={(e) => e.stopPropagation()} className="w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] max-w-[550px] bg-slate-50 sm:rounded-[40px] flex flex-col overflow-hidden cursor-default shadow-2xl relative">
             
             <div className="shrink-0 relative">
-               {/* Safe Close Button: Solid white on mobile, frosted glass on desktop! */}
                <button onClick={() => setExpandedQuote(null)} className="absolute top-4 right-4 z-50 p-2 bg-white md:bg-black/10 hover:bg-slate-100 md:hover:bg-black/20 rounded-full transition text-slate-700 md:backdrop-blur-md shadow-sm md:shadow-none will-change-transform">
                  <X className="w-6 h-6" />
                </button>

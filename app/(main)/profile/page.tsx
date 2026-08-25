@@ -15,6 +15,7 @@ type Profile = {
 
 type MiniQuote = {
   id: string
+  live_photo_url: string | null // 💥 FIX: Moved to the root of the quote object
   template: { 
     style_config: { gradient: string, baseColor: string } 
     image_url: string | null
@@ -26,7 +27,7 @@ export default function ProfilePage() {
   const supabase = createClient()
 
   const [isLoading, setIsLoading] = useState(true)
-  const [isGuest, setIsGuest] = useState(false) // 👇 Tracks if they are logged out
+  const [isGuest, setIsGuest] = useState(false) 
   const [profile, setProfile] = useState<Profile | null>(null)
   
   const [followers, setFollowers] = useState(0)
@@ -44,7 +45,7 @@ export default function ProfilePage() {
     const fetchProfileData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       
-      // 👇 GRACEFUL GUEST HANDLING 👇
+      // Guest Handling
       if (!user) {
         if (isMounted) {
           setIsGuest(true)
@@ -64,9 +65,10 @@ export default function ProfilePage() {
         setFollowing(followingCount || 0)
       }
 
+      // 💥 FIX: Added live_photo_url to the root select statement
       const { data: pubData, count: pubCount } = await supabase
         .from('quotes')
-        .select('id, template:templates(style_config,image_url)', { count: 'exact' })
+        .select('id, live_photo_url, template:templates(style_config,image_url)', { count: 'exact' })
         .eq('publisher_id', user.id)
         .order('created_at', { ascending: false })
         .limit(4)
@@ -76,9 +78,10 @@ export default function ProfilePage() {
         setPublishedCount(pubCount || 0)
       }
 
+      // 💥 FIX: Corrected the syntax error and added live_photo_url correctly
       const { data: quotedData, count: quotedCount } = await supabase
         .from('quotes')
-        .select('id, template:templates(style_config,image_url)', { count: 'exact' })
+        .select('id, live_photo_url, template:templates(style_config,image_url)', { count: 'exact' })
         .eq('quoted_user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(4)
@@ -126,8 +129,11 @@ export default function ProfilePage() {
 
           return (
             <div key={quote.id} className="relative aspect-square rounded-[20px] overflow-hidden bg-slate-200">
-              {quote.template?.image_url ? (
-                <img src={quote.template.image_url} alt="" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+              {/* THE WATERFALL LOGIC */}
+              {quote.live_photo_url ? (
+                <img src={quote.live_photo_url} alt="Live Snap" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+              ) : quote.template?.image_url ? (
+                <img src={quote.template.image_url} alt="Template" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
               ) : (
                 <div className={`absolute inset-0 bg-linear-to-br ${quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
               )}
@@ -140,7 +146,6 @@ export default function ProfilePage() {
 
   if (isLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
 
-  // non authenticated
   if (isGuest) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen text-center p-6 bg-white pb-24">
@@ -167,13 +172,13 @@ export default function ProfilePage() {
       {/* Top Right Settings Gear */}
       <Link 
         href="/settings" 
-        className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"
+        className="absolute top-6 right-6 p-2 text-black bg-slate-200 hover:text-white hover:bg-orange-400 rounded-full transition-colors"
         title="Settings"
       >
         <Settings className="w-6 h-6" />
       </Link>
 
-      {/* HERO SECTION */}
+      {/* Hero */}
       <div className="flex flex-col items-center w-full mt-4 mb-8">
         
         <div className="w-28 h-28 rounded-full bg-slate-100 border-[2px] border-slate-200 flex items-center justify-center overflow-hidden mb-4 shadow-sm">
@@ -220,7 +225,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* CONTENT GRIDS */}
+      {/* Content */}
       <div className="flex gap-6 w-full">
         <div className="flex-1 flex flex-col items-center gap-3">
           <div className="flex flex-col items-center gap-0.5">

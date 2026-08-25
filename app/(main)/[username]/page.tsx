@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Crown, User, Loader2 } from 'lucide-react'
+import { ArrowLeft, Crown, User, Loader2, Ban } from 'lucide-react'
 
 type Profile = {
   id: string
@@ -14,6 +14,7 @@ type Profile = {
 
 type MiniQuote = {
   id: string
+  live_photo_url: string | null
   template: { style_config: { gradient?: string, baseColor?: string }, image_url: string | null } | null
 }
 
@@ -34,6 +35,12 @@ export default function PublicProfilePage() {
   const [following, setFollowing] = useState(0)
   const [isFollowing, setIsFollowing] = useState(false)
   const [isTogglingFollow, setIsTogglingFollow] = useState(false)
+  
+  const [isBlocked, setIsBlocked] = useState(false)
+  const [isTogglingBlock, setIsTogglingBlock] = useState(false)
+  
+  // 💥 NEW: State for controlling the custom modal visibility
+  const [showBlockModal, setShowBlockModal] = useState(false)
   
   const [published, setPublished] = useState<MiniQuote[]>([])
   const [quotedIn, setQuotedIn] = useState<MiniQuote[]>([])
@@ -76,11 +83,19 @@ export default function PublicProfilePage() {
           .maybeSingle()
         
         if (isMounted && followData) setIsFollowing(true)
+
+        const { data: blockData } = await supabase
+          .from('blocks')
+          .select('created_at')
+          .match({ blocker_id: user.id, blocked_id: profileData.id })
+          .maybeSingle()
+        
+        if (isMounted && blockData) setIsBlocked(true)
       }
 
       const { data: pubData } = await supabase
         .from('quotes')
-        .select('id, template:templates(style_config, image_url)')
+        .select('id, live_photo_url, template:templates(style_config, image_url)')
         .eq('publisher_id', profileData.id)
         .order('created_at', { ascending: false })
         .limit(3)
@@ -89,7 +104,7 @@ export default function PublicProfilePage() {
 
       const { data: quotedData } = await supabase
         .from('quotes')
-        .select('id, template:templates(style_config, image_url)')
+        .select('id, live_photo_url, template:templates(style_config, image_url)')
         .eq('quoted_user_id', profileData.id)
         .order('created_at', { ascending: false })
         .limit(3)
@@ -105,50 +120,67 @@ export default function PublicProfilePage() {
   }, [supabase, usernameParam])
 
   const handleToggleFollow = async () => {
-  if (!currentUser || !targetProfile || isTogglingFollow) return
-  if (currentUser.id === targetProfile.id) return
+    if (!currentUser || !targetProfile || isTogglingFollow) return
+    if (currentUser.id === targetProfile.id) return
 
-  setIsTogglingFollow(true)
-  const currentlyFollowing = isFollowing
+    setIsTogglingFollow(true)
+    const currentlyFollowing = isFollowing
 
-  // Optimistic UI update
-  setIsFollowing(!currentlyFollowing)
-  setFollowers(prev => prev + (currentlyFollowing ? -1 : 1))
+    setIsFollowing(!currentlyFollowing)
+    setFollowers(prev => prev + (currentlyFollowing ? -1 : 1))
 
-  if (!currentlyFollowing) {
-    // 1. Execute Follow
-    const { error: followErr } = await supabase
-      .from('follows')
-      .insert({ follower_id: currentUser.id, following_id: targetProfile.id })
-    
-    if (followErr) {
-      console.error("DEBUG - Follow Error:", followErr)
-      // Revert optimistic update if it fails
-      setIsFollowing(currentlyFollowing)
-      setFollowers(prev => prev + (currentlyFollowing ? 1 : -1))
+    if (!currentlyFollowing) {
+      const { error: followErr } = await supabase
+        .from('follows')
+        .insert({ follower_id: currentUser.id, following_id: targetProfile.id })
+      
+      if (followErr) {
+        console.error("DEBUG - Follow Error:", followErr)
+        setIsFollowing(currentlyFollowing)
+        setFollowers(prev => prev + (currentlyFollowing ? 1 : -1))
+      }
     } else {
-      // 2. SUCCESS! 
-      // The database trigger 'on_follow_created' automatically handles 
-      // the notification securely on the backend. No manual insert needed!
-    }
-  } else {
-    // Execute Unfollow
-    const { error: unfollowErr } = await supabase
-      .from('follows')
-      .delete()
-      .eq('follower_id', currentUser.id)
-      .eq('following_id', targetProfile.id)
+      const { error: unfollowErr } = await supabase
+        .from('follows')
+        .delete()
+        .eq('follower_id', currentUser.id)
+        .eq('following_id', targetProfile.id)
 
-    if (unfollowErr) {
-      console.error("DEBUG - Unfollow Error:", unfollowErr)
-      // Revert optimistic update if it fails
-      setIsFollowing(currentlyFollowing)
-      setFollowers(prev => prev + (currentlyFollowing ? 1 : -1))
+      if (unfollowErr) {
+        console.error("DEBUG - Unfollow Error:", unfollowErr)
+        setIsFollowing(currentlyFollowing)
+        setFollowers(prev => prev + (currentlyFollowing ? 1 : -1))
+      }
     }
+
+    setIsTogglingFollow(false)
   }
 
-  setIsTogglingFollow(false)
-}
+  // 💥 NEW: Trigger for handling block / unblock execution
+  const executeBlockAction = async () => {
+    if (!currentUser || !targetProfile || isTogglingBlock) return
+
+    setIsTogglingBlock(true)
+    const currentlyBlocked = isBlocked
+
+    setIsBlocked(!currentlyBlocked)
+    setShowBlockModal(false)
+
+    if (!currentlyBlocked) {
+      await supabase.from('blocks').insert({ blocker_id: currentUser.id, blocked_id: targetProfile.id })
+      await supabase.from('follows').delete().match({ follower_id: currentUser.id, following_id: targetProfile.id })
+      await supabase.from('follows').delete().match({ follower_id: targetProfile.id, following_id: currentUser.id })
+      
+      if (isFollowing) {
+        setIsFollowing(false)
+        setFollowers(prev => prev - 1)
+      }
+    } else {
+      await supabase.from('blocks').delete().match({ blocker_id: currentUser.id, blocked_id: targetProfile.id })
+    }
+
+    setIsTogglingBlock(false)
+  }
 
   const renderHorizontalGrid = (quotes: MiniQuote[], title: string, navigateTo: string) => {
     const slots = [...quotes, ...Array(Math.max(0, 3 - quotes.length)).fill(null)].slice(0, 3)
@@ -163,19 +195,19 @@ export default function PublicProfilePage() {
           className="grid grid-cols-3 gap-3 w-full bg-slate-50/50 p-3 rounded-[28px] border-[3px] border-slate-50 shadow-inner cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform"
         >
           {slots.map((q, i) => {
-            // If the slot is completely empty (no quote exists), render the blank skeleton
             if (!q) {
               return <div key={i} className="w-full aspect-square rounded-[18px] bg-slate-200/40 shadow-sm" />
             }
 
-            // If a quote exists, render its image or fallback gradient!
             return (
               <div 
                 key={i} 
-                className="w-full aspect-square rounded-[18px] shadow-sm relative overflow-hidden flex items-center justify-center"
+                className="w-full aspect-square rounded-[18px] shadow-sm relative overflow-hidden flex items-center justify-center bg-slate-800"
               >
-                {q.template?.image_url ? (
-                  <img src={q.template.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" crossOrigin="anonymous" />
+                {q.live_photo_url ? (
+                  <img src={q.live_photo_url} alt="Live Snap" className="absolute inset-0 w-full h-full object-cover" />
+                ) : q.template?.image_url ? (
+                  <img src={q.template.image_url} alt="Template" className="absolute inset-0 w-full h-full object-cover" crossOrigin="anonymous" />
                 ) : (
                   <div className={`absolute inset-0 bg-linear-to-br ${q.template?.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
                 )}
@@ -188,6 +220,7 @@ export default function PublicProfilePage() {
   }
 
   if (isLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
+  
   if (isNotFound) return (
     <div className="flex flex-col min-h-screen items-center justify-center p-6 text-center">
       <h2 className="text-2xl font-black text-slate-800 mb-2">User not found</h2>
@@ -197,11 +230,44 @@ export default function PublicProfilePage() {
 
   const isOwnProfile = currentUser?.id === targetProfile?.id
 
+  if (isBlocked) return (
+    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white pb-24 relative overflow-x-hidden">
+      <div className="flex justify-between items-center pt-6 px-6 mb-2 shrink-0">
+        <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-200/50 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
+        <button onClick={executeBlockAction} disabled={isTogglingBlock} className="p-2 -mr-2 rounded-full transition text-red-500 bg-red-50" title="Unblock User">
+          <Ban className="w-6 h-6" />
+        </button>
+      </div>
+      <div className="flex flex-col items-center justify-center mt-20 text-center px-6">
+        <Ban className="w-16 h-16 text-slate-200 mb-4" />
+        <h2 className="text-xl font-black text-slate-900 mb-2">You blocked @{targetProfile?.username}</h2>
+        <p className="text-slate-500 font-medium">Unblock to see their profile and quotes.</p>
+      </div>
+    </div>
+  )
+
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white pb-24 relative overflow-x-hidden">
       <div className="absolute top-0 left-0 w-full h-64 bg-linear-to-b from-slate-100 to-white -z-10" />
       <div className="flex justify-between items-center pt-6 px-6 mb-2 shrink-0">
         <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-200/50 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
+        
+        {!isOwnProfile && currentUser && (
+          <button 
+            onClick={() => {
+              if (isBlocked) {
+                executeBlockAction() // Unblock instantly without confirmation popup
+              } else {
+                setShowBlockModal(true) // Open custom modal for blocking
+              }
+            }} 
+            disabled={isTogglingBlock}
+            className="p-2 -mr-2 rounded-full transition bg-slate-100 text-slate-600 hover:bg-red-200 hover:text-red-600"
+            title="Block User"
+          >
+            <Ban className="w-6 h-6" />
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col items-center px-6 mt-2 mb-8">
@@ -248,6 +314,45 @@ export default function PublicProfilePage() {
         {renderHorizontalGrid(published, `Published by ${targetProfile?.username}`, `/${targetProfile?.username}/published`)}
         {renderHorizontalGrid(quotedIn, `${targetProfile?.username} was quoted in`, `/${targetProfile?.username}/quoted-in`)}
       </div>
+
+      {/* Block Modal */}
+      {showBlockModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[32px] p-6 max-w-sm w-full shadow-2xl border border-slate-100 flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
+            
+            <div className="w-14 h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4 shadow-inner">
+              <Ban className="w-7 h-7" />
+            </div>
+
+            <h3 className="text-xl font-black text-slate-900 mb-2">
+              Block @{targetProfile?.username}?
+            </h3>
+
+            <p className="text-slate-500 font-medium text-sm leading-relaxed mb-6">
+              Are you sure you want to block @{targetProfile?.username}? You will no longer see @{targetProfile?.username}&apos;s publications and @{targetProfile?.username} will not be able to interact on your quotes.
+            </p>
+
+            <div className="flex items-center gap-3 w-full">
+              <button 
+                onClick={() => setShowBlockModal(false)}
+                className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-full transition-all active:scale-95 text-sm"
+              >
+                Cancel
+              </button>
+              
+              <button 
+                onClick={executeBlockAction}
+                disabled={isTogglingBlock}
+                className="flex-1 py-3 px-4 bg-red-500 hover:bg-red-600 text-white font-bold rounded-full shadow-lg shadow-red-500/25 transition-all active:scale-95 text-sm flex items-center justify-center gap-2"
+              >
+                {isTogglingBlock ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Block'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
