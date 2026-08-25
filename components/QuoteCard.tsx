@@ -323,7 +323,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     return (
       <div
         onClick={handleViewWitnesses} 
-        className="flex items-center bg-slate-200 border border-slate-400 px-3 py-1 rounded-full shadow-sm transition-transform hover:scale-105 w-max cursor-pointer"
+        className="flex items-center bg-slate-200 border dark:bg-black dark:border-slate-800 border-slate-400 px-3 py-1 rounded-full shadow-sm transition-transform hover:scale-105 w-max cursor-pointer"
         title="View Witnesses"
       >
         <span className="flex items-center text-emerald-600 text-base">
@@ -340,7 +340,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   }
 
   return (
-    <div className={`w-full flex flex-col bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 relative ${isExpanded ? 'p-0 pb-6 rounded-t-[40px]' : 'p-5 rounded-[40px]'}`}>
+    <div className={`w-full flex flex-col dark:bg-slate-800  bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-700 relative ${isExpanded ? 'p-0 pb-6 rounded-t-[40px]' : 'p-5 rounded-[40px]'}`}>
       
       {/* Publisher Header */}
       <div className={`flex items-center justify-between mb-4 px-2 ${isExpanded ? 'pt-6 px-6' : ''}`}>
@@ -352,8 +352,8 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
               <User className="w-6 h-6 text-slate-400" />
             )}
           </Link>
-          <p className="text-slate-500 font-medium text-sm relative z-10">
-            Published by <Link href={`/${publisherName}`} onClick={(e) => e.stopPropagation()} className="font-bold text-slate-800 hover:text-black hover:underline">{publisherName}</Link>
+          <p className="text-slate-500 dark:text-white font-medium text-sm relative z-10">
+            Published by <Link href={`/${publisherName}`} onClick={(e) => e.stopPropagation()} className="font-bold dark:text-amber-700 text-slate-800 hover:text-black hover:underline">{publisherName}</Link>
           </p>
         </div>
       </div>
@@ -417,7 +417,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
                   <button
                     key={`${reaction.emoji}-${idx}`}
                     onClick={(e) => handleExistingReactionClick(e, reaction.emoji)}
-                    className={`shrink-0 snap-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                    className={`shrink-0 dark:bg-black dark:border-slate-800 snap-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
                       reaction.hasReacted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
@@ -435,33 +435,33 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
 
       {/* Action Bar */}
       {!isExpanded && (
-        <div className="relative flex items-center justify-between pt-4 mt-3 border-t border-slate-100 px-2 h-12">
+        <div className="relative flex items-center justify-between pt-4 mt-3 border-t dark:border-slate-700 border-slate-100 px-2 h-12">
           
           <div className="flex items-center gap-4 relative z-20">
             <div className="relative" ref={pickerRef}>
-              <button onClick={handleReactClick} className="flex items-center gap-1.5 text-slate-500 hover:text-emerald-500 transition-colors group">
+              <button onClick={handleReactClick} className="flex items-center gap-1.5 dark:text-amber-700 text-black hover:text-emerald-500 transition-colors group">
                 <SmilePlus className="w-6 h-6 group-active:scale-95 transition-transform" />
               </button>
               {showEmojiPicker && !isGuest && (
-                <div onClick={(e) => e.stopPropagation()} className="absolute z-50 bottom-full left-0 mb-2 shadow-xl rounded-2xl overflow-hidden border border-slate-100 bg-white">
+                <div onClick={(e) => e.stopPropagation()} className="absolute z-50 dark:text-amber-700 bottom-full left-0 mb-2 shadow-xl rounded-2xl overflow-hidden border border-slate-100 bg-white">
                   <CustomEmojiPicker onEmojiClick={handleReactionSelection} />
                 </div>
               )}
             </div>
 
-            <button onClick={handleCommentClick} className="flex items-center gap-1.5 text-slate-500 hover:text-blue-500 transition-colors group">
+            <button onClick={handleCommentClick} className="flex items-center gap-1.5 dark:text-amber-700 text-black hover:text-blue-400 transition-colors group">
               <MessageCircle className="w-6 h-6 group-active:scale-95 transition-transform" />
-              {quote.commentCount > 0 && <span className="text-sm font-bold mt-0.5">{quote.commentCount}</span>}
+              {quote.commentCount > 0 && <span className="text-sm font-bold dark:text-amber-700 mt-0.5">{quote.commentCount}</span>}
             </button>
 
-            <button onClick={handleFavoriteClick} className={`flex items-center gap-1.5 transition-colors group ${isFav ? 'text-amber-500' : 'text-slate-500 hover:text-amber-500'}`}>
-              <Bookmark className={`w-6 h-6 group-active:scale-95 transition-transform ${isFav ? 'fill-amber-500' : ''}`} />
-              {favCount > 0 && <span className={`text-sm font-bold mt-0.5 ${isFav ? 'text-amber-500' : ''}`}>{favCount}</span>}
+            <button onClick={handleFavoriteClick} className={`flex items-center gap-1.5 transition-colors group ${isFav ? 'text-amber-500' : 'text-black dark:hover:text-yellow-300 hover:text-amber-500'}`}>
+              <Bookmark className={`w-6 h-6 group-active:scale-95 dark:hover:text-yellow-300 dark:text-amber-700 transition-transform ${isFav ? 'fill-amber-500' : ''}`} />
+              {favCount > 0 && <span className={`text-sm font-bold mt-0.5 ${isFav ? 'text-amber-700' : ''}`}>{favCount}</span>}
             </button>
           </div>
 
           <div className="flex items-center relative z-20">
-            <button onClick={handleShare} className="flex items-center text-slate-500 hover:text-slate-800 transition-colors group">
+            <button onClick={handleShare} className="flex items-center text-black dark:text-amber-700 hover:text-green-400 transition-colors group">
               <Share2 className="w-6 h-6 group-active:scale-95 transition-transform" />
             </button>
           </div>
@@ -483,7 +483,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
             className="bg-white rounded-[32px] w-full max-w-sm shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[80vh]"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50">
               <div className="flex items-center gap-3">
                 <div className="text-3xl drop-shadow-sm">🕵️</div>
                 <div>

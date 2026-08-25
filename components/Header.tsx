@@ -1,8 +1,9 @@
-'use client'; // Required to read the current URL path
+'use client'; 
 
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import ThemeToggle from '@/components/ThemeToggle'; // 💥 Import the new toggle
 
 export default function Header() {
   const pathname = usePathname();
@@ -28,9 +29,9 @@ export default function Header() {
           </Link>
         </div>
 
-        {/* NAVIGATION / ACTIONS */}
-        <div className="flex items-center gap-4">
-          {/* placeholder */}
+        {/* THEME TOGGLE SECTION */}
+        <div className="flex shrink-0 items-center">
+          <ThemeToggle /> {/* 💥 Dropped in right here! */}
         </div>
 
       </div>

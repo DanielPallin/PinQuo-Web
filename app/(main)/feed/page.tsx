@@ -377,7 +377,6 @@ function FeedContent() {
       const start = page * ITEMS_PER_PAGE
       const end = start + ITEMS_PER_PAGE - 1
 
-      // 💥 BUG FIX: Added live_photo_url to the select query
       const { data } = await supabase
         .from('quotes')
         .select(`
@@ -552,7 +551,7 @@ function FeedContent() {
   }
 
   return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50/50 pb-24 relative px-4 mt-4">
+    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50/50 pb-24 dark:bg-black relative px-4 mt-4">
       
       <FeedSearch isSearchVisible={isSearchVisible} />
 

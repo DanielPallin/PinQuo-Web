@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { FeedQuote, GroupedReaction } from '@/components/QuoteCard'
 import { Trophy, Flame } from 'lucide-react'
+import ThemeToggle from '@/components/ThemeToggle'
 
 type RawQuoteData = {
   id: string
