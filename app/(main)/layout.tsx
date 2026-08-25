@@ -141,7 +141,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                 </div>
               </Link>
               
-              <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-700 mx-1 shrink-0 transition-colors"></div>
+              <div className="w-[1px] h-5 bg-slate-200 dark:text-white dark:bg-slate-700 mx-1 shrink-0 transition-colors"></div>
           
               <div className="flex items-center shrink-0 dark:text-white dark:shadow-amber-50">
                 <ThemeToggle />

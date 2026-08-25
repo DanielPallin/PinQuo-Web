@@ -127,9 +127,9 @@ export default function NotificationBell() {
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className={`relative p-2 rounded-full transition-colors cursor-pointer ${isOpen ? 'bg-slate-200' : 'hover:bg-slate-200'}`}
+        className={`relative p-2 rounded-full dark:hover:bg-amber-700 transition-colors cursor-pointer ${isOpen ? 'bg-slate-200' : 'hover:bg-amber-600'}`}
       >
-        <Bell className="w-8 h-8 text-black" />
+        <Bell className="w-7 h-7 dark:text-white text-black" />
         {unreadCount > 0 && (
           <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full animate-in zoom-in"></span>
         )}
@@ -154,7 +154,7 @@ export default function NotificationBell() {
               notifications.map((notif) => (
                 <div key={notif.id} className={`flex items-start gap-4 p-4 transition hover:bg-slate-50 border-b border-slate-50 last:border-0 ${!notif.is_read ? 'bg-emerald-50/30' : ''}`}>
                   
-                  {/* AVATAR CLICK -> Goes to Profile */}
+                  {/* Goes to Profile */}
                   <Link 
                     href={`/${notif.actor.username}`}
                     onClick={() => handleNotificationClick(notif.id)}
@@ -170,7 +170,7 @@ export default function NotificationBell() {
                   <div className="flex-1 flex flex-col justify-center pt-1">
                     <p className="text-sm text-slate-700 leading-snug">
                       
-                      {/* USERNAME CLICK -> Goes to Profile */}
+                      {/* Goes to Profile */}
                       <Link 
                         href={`/${notif.actor.username}`}
                         onClick={() => handleNotificationClick(notif.id)}
@@ -179,7 +179,7 @@ export default function NotificationBell() {
                         {notif.actor.username}
                       </Link>
                       
-                      {/* ACTION TEXT CLICK -> Goes exactly to the Quote Modal or Profile */}
+                      {/* Goes exactly to the Quote Modal or Profile */}
                       <Link 
                         href={getActionLink(notif)}
                         onClick={() => handleNotificationClick(notif.id)}
