@@ -167,12 +167,12 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white pb-24 pt-8 px-6 relative">
+    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen dark:bg-black bg-white pb-24 pt-8 px-6 relative">
 
       {/* Top Right Settings Gear */}
       <Link 
         href="/settings" 
-        className="absolute top-6 right-6 p-2 text-black bg-slate-200 hover:text-white hover:bg-orange-400 rounded-full transition-colors"
+        className="absolute top-6 right-6 p-2 text-black bg-slate-200 dark:bg-slate-700 dark:text-white dark:hover:text-black hover:text-white hover:bg-orange-400 rounded-full transition-colors"
         title="Settings"
       >
         <Settings className="w-6 h-6" />
@@ -181,7 +181,7 @@ export default function ProfilePage() {
       {/* Hero */}
       <div className="flex flex-col items-center w-full mt-4 mb-8">
         
-        <div className="w-28 h-28 rounded-full bg-slate-100 border-[2px] border-slate-200 flex items-center justify-center overflow-hidden mb-4 shadow-sm">
+        <div className="w-28 h-28 rounded-full bg-slate-100 border-[2px] dark:border-amber-700 border-slate-200 flex items-center justify-center overflow-hidden mb-4 shadow-sm">
           {profile?.avatar_url ? (
             <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
           ) : (
@@ -189,37 +189,37 @@ export default function ProfilePage() {
           )}
         </div>
 
-        <h1 className="font-black text-2xl text-slate-900 mb-2">
+        <h1 className="text-2xl dark:text-amber-700 font-semibold text-slate-900 mb-2">
           @{profile?.username}
         </h1>
 
         {profile?.bio && (
-          <p className="text-slate-500 font-medium text-center text-[15px] leading-snug max-w-xs mb-4">
+          <p className="text-slate-500 font-medium dark:text-slate-300 text-center text-[15px] leading-snug max-w-xs mb-4">
             {profile.bio}
           </p>
         )}
 
-        <div className="flex items-center gap-3 text-sm text-slate-500 mb-6">
-          <span><strong className="text-slate-800">{followers}</strong> Followers</span>
-          <span className="text-slate-300">•</span>
-          <span><strong className="text-slate-800">{following}</strong> Following</span>
+        <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-200 mb-6">
+          <span><strong className="text-slate-800 dark:text-amber-700 ">{followers}</strong> Followers</span>
+          <span className="text-slate-400 dark:text-white">•</span>
+          <span><strong className="text-slate-800 dark:text-amber-700">{following}</strong> Following</span>
         </div>
 
         {/* Floating Action Buttons */}
         <div className="flex items-center justify-center gap-3 w-full">
           <button 
             onClick={handleShareProfile}
-            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 py-2.5 px-4 bg-white text-slate-700 font-bold rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] active:translate-y-0 active:scale-95 border border-slate-200 transition-all duration-200 ease-out will-change-transform"
+            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 py-2.5 px-4 dark:bg-slate-800 dark:text-white dark:border-amber-700 bg-white text-slate-700 font-semibold rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] active:translate-y-0 active:scale-95 border border-slate-200 transition-all duration-200 ease-out will-change-transform"
           >
-            <QrCode className="w-4 h-4 text-slate-500" />
+            <QrCode className="w-4 h-4 text-slate-500 dark:text-white" />
             Share Profile
           </button>
           
           <Link 
             href="/profile/edit"
-            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 py-2.5 px-4 bg-white text-slate-700 font-bold rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] active:translate-y-0 active:scale-95 border border-slate-200 transition-all duration-200 ease-out will-change-transform"
+            className="flex-1 max-w-[160px] flex items-center justify-center gap-2 py-2.5 px-4 bg-white dark:bg-slate-800 dark:text-white dark:border-amber-700 text-slate-700 font-bold rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] active:translate-y-0 active:scale-95 border border-slate-200 transition-all duration-200 ease-out will-change-transform"
           >
-            <Edit className="w-4 h-4 text-slate-500" />
+            <Edit className="w-4 h-4 text-slate-500 dark:text-white " />
             Edit Profile
           </Link>
         </div>
@@ -229,16 +229,16 @@ export default function ProfilePage() {
       <div className="flex gap-6 w-full">
         <div className="flex-1 flex flex-col items-center gap-3">
           <div className="flex flex-col items-center gap-0.5">
-            <h3 className="font-black text-[17px] text-slate-800">Published</h3>
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{publishedCount} Total</span>
+            <h3 className="font-black text-[17px] dark:text-amber-700 text-slate-800">Published</h3>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider dark:text-white">{publishedCount} Total</span>
           </div>
           {renderMiniGrid(published, () => router.push(`/${profile?.username}/published`))}
         </div>
         
         <div className="flex-1 flex flex-col items-center gap-3">
           <div className="flex flex-col items-center gap-0.5">
-            <h3 className="font-black text-[17px] text-slate-800">Quoted In</h3>
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{quotedInCount} Total</span>
+            <h3 className="font-black text-[17px] text-slate-800 dark:text-amber-700">Quoted In</h3>
+            <span className="text-[11px] font-bold text-slate-400 dark:text-white uppercase tracking-wider">{quotedInCount} Total</span>
           </div>
           {renderMiniGrid(quotedIn, () => router.push(`/${profile?.username}/quoted-in`))}
         </div>

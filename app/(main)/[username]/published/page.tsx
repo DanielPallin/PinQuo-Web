@@ -298,7 +298,7 @@ const handlePostComment = async () => {
   const isOwnProfile = currentUserId === targetProfile?.id
 
   return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50/30 pb-24 relative overflow-x-hidden">
+    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen  bg-slate-50/30 pb-24 relative overflow-x-hidden">
       
       <div className="absolute top-0 left-0 w-full h-64 bg-linear-to-b from-slate-100 to-transparent -z-10" />
 
@@ -323,16 +323,16 @@ const handlePostComment = async () => {
       </div>
 
       {/* 3-Column Grid */}
-      <div className="px-6 w-full">
+      <div className="px-6 dark:bg-slate-800 w-full">
         {quotes.length === 0 ? (
           <div className="text-center mt-10"><p className="text-slate-400 font-bold">No quotes found.</p></div>
         ) : (
-          <div className="grid grid-cols-3 gap-2 w-full">
+          <div className="grid grid-cols-3 dark:bg-slate-800 gap-2 w-full">
             {quotes.map((quote) => (
               <Link 
                 key={quote.id} 
                 href={`/feed?quoteId=${quote.id}`}
-                className="relative aspect-square rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95"
+                className="relative aspect-square dark:bg-slate-800 rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95"
               >
                 {/* Waterfall */}
                 {quote.live_photo_url ? (

@@ -281,21 +281,21 @@ export default function QuotedInPage() {
       <div className="absolute top-0 left-0 w-full h-64 bg-linear-to-b from-slate-100 to-transparent -z-10" />
 
       {/* Grid Header */}
-      <div className="flex flex-col items-center pt-6 pb-6 px-6 relative shrink-0">
+      <div className="flex flex-col items-center dark:bg-black pt-6 pb-6 px-6 relative shrink-0">
         <button title="Go Back" onClick={() => router.back()} className="absolute left-6 top-6 p-2 -ml-2 hover:bg-slate-200/50 rounded-full transition">
           <ArrowLeft className="w-8 h-8 text-black" />
         </button>
         
         <Crown className="w-6 h-6 text-yellow-500 fill-yellow-500/20 mb-1 drop-shadow-sm mt-2" />
-        <div className="w-20 h-20 rounded-full bg-slate-200 border-[3px] border-white shadow-md flex items-center justify-center overflow-hidden mb-3">
+        <div className="w-20 h-20 rounded-full bg-slate-200 border-[3px] dark:border-amber-700 border-white shadow-md flex items-center justify-center overflow-hidden mb-3">
           {targetProfile?.avatar_url ? (
             <img src={targetProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
           ) : (
-            <User className="w-8 h-8 text-slate-400" />
+            <User className="w-8 h-8 text-black" />
           )}
         </div>
-        <h1 className="text-xl font-black text-slate-900 mb-1">{targetProfile?.username}</h1>
-        <p className="text-slate-500 font-bold text-sm">
+        <h1 className="text-xl font-black dark:text-amber-700 text-slate-900 mb-1">{targetProfile?.username}</h1>
+        <p className="text-slate-500 font-bold text-sm dark:text-white">
           {isOwnProfile ? 'You were Quoted in' : `${targetProfile?.username} was Quoted in`}
         </p>
       </div>
