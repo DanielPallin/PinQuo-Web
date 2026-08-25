@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Crown, User, Loader2, X, Send, SmilePlus } from 'lucide-react'
+import { ArrowLeft, Crown, User, Loader2, X, Send, SmilePlus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import QuoteCard, { FeedQuote, GroupedReaction } from '@/components/QuoteCard'
 import { EmojiClickData } from 'emoji-picker-react'
@@ -83,6 +83,7 @@ export default function PublishedPage() {
 
       if (isMounted) setTargetProfile(profileData)
 
+      // 💥 BUG FIX: Removed the rogue .order() from inside the select string
       const { data, error } = await supabase
         .from('quotes')
         .select(`
@@ -93,7 +94,6 @@ export default function PublishedPage() {
           reactions(reaction_type, user_id, comment_id),
           favorites(user_id),
           comments(count)
-          .order('created_at', { ascending: false })
         `)
         .eq('publisher_id', profileData.id)
         .order('created_at', { ascending: false })
@@ -150,7 +150,6 @@ export default function PublishedPage() {
     fetchComments()
   }, [expandedQuote, supabase])
 
-  // LOCK BODY SCROLL ON MOBILE WHEN MODAL IS OPEN
   useEffect(() => {
     if (expandedQuote) {
       document.body.style.overflow = 'hidden'
@@ -196,7 +195,6 @@ export default function PublishedPage() {
       if (expandedQuote?.id === targetId) setExpandedQuote(updateQuoteState(expandedQuote))
     }
 
-    // --- REACTION HANDLER ---
   if (isRemoving) {
     if (type === 'quote') {
       await supabase.from('reactions').delete().match({ quote_id: targetId, user_id: currentUserId, reaction_type: emoji })
@@ -253,6 +251,41 @@ const handlePostComment = async () => {
     else await supabase.from('favorites').delete().match({ quote_id: quoteId, user_id: currentUserId })
   }
 
+  // Storage cleanup and cascade delete Quote
+  const handleDeleteQuote = async (e: React.MouseEvent, quoteId: string) => {
+    e.preventDefault() 
+    
+    if (!window.confirm("Are you sure you want to delete this quote? This cannot be undone.")) return
+    
+    // Find Quote
+    const quoteToDelete = quotes.find(q => q.id === quoteId)
+
+    // Instant removal
+    setQuotes(prev => prev.filter(q => q.id !== quoteId))
+    
+    // Delete the Live Snap file if it exists
+    if (quoteToDelete?.live_photo_url) {
+      const pathParts = quoteToDelete.live_photo_url.split('quotes_media/')
+      
+      if (pathParts.length > 1) {
+        const filePath = pathParts[1]
+        const { error: storageError } = await supabase.storage.from('quotes_media').remove([filePath])
+        
+        if (storageError) {
+          console.error("Failed to delete media from bucket:", storageError)
+        }
+      }
+    }
+
+    // DB cleanse
+    const { error: dbError } = await supabase.from('quotes').delete().eq('id', quoteId)
+    
+    if (dbError) {
+      console.error("Failed to delete quote from database:", dbError)
+      alert("Something went wrong deleting the quote data. Please try again.")
+    }
+  }
+
   if (isLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
   
   if (isNotFound) return (
@@ -296,40 +329,53 @@ const handlePostComment = async () => {
         ) : (
           <div className="grid grid-cols-3 gap-2 w-full">
             {quotes.map((quote) => (
-  <Link 
-    key={quote.id} 
-    href={`/feed?quoteId=${quote.id}`}
-    className="relative aspect-square rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95"
-  >
-    {/* 1. The Bucket Image */}
-    {quote.template?.image_url && (
-      <img 
-        src={quote.template.image_url} 
-        alt="Quote" 
-        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-      />
-    )}
-    
-    {/* 2. Fallback Gradient (If no image exists) */}
-    {!quote.template?.image_url && (
-      <div className={`absolute inset-0 bg-linear-to-br ${quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
-    )}
+              <Link 
+                key={quote.id} 
+                href={`/feed?quoteId=${quote.id}`}
+                className="relative aspect-square rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95"
+              >
+                {/* Waterfall */}
+                {quote.live_photo_url ? (
+                  <img 
+                    src={quote.live_photo_url} 
+                    alt="Live Snap" 
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  />
+                ) : quote.template?.image_url ? (
+                  <img 
+                    src={quote.template.image_url} 
+                    alt="Quote Template" 
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  />
+                ) : quote.template ? (
+                  <div className={`absolute inset-0 bg-linear-to-br ${quote.template.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
+                ) : quote.quoted_user?.avatar_url ? (
+                  <img 
+                    src={quote.quoted_user.avatar_url} 
+                    alt="Avatar Fallback" 
+                    className="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-overlay" 
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-slate-800"></div>
+                )}
 
-    {/* 3. Avatar Fallback (For legacy quotes) */}
-    {!quote.template && quote.quoted_user?.avatar_url && (
-      <img 
-        src={quote.quoted_user.avatar_url} 
-        alt="Avatar" 
-        className="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-overlay" 
-      />
-    )}
+                {/* Cinematic Overlay & Quote Hint */}
+                <div className="absolute inset-0 bg-slate-900/10 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center z-10">
+                  <span className="text-white/60 font-serif text-3xl font-black mb-3 select-none drop-shadow-md">“ ”</span>
+                </div>
 
-    {/* 4. Cinematic Overlay & Quote Hint */}
-    <div className="absolute inset-0 bg-slate-900/10 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
-      <span className="text-white/60 font-serif text-3xl font-black mb-3 select-none drop-shadow-md">“ ”</span>
-    </div>
-  </Link>
-))}
+                {/* Delete */}
+                {isOwnProfile && (
+                  <button 
+                    onClick={(e) => handleDeleteQuote(e, quote.id)}
+                    className="absolute top-2 right-2 z-20 p-2 bg-black/40 hover:bg-red-500 text-white rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-200 active:scale-95"
+                    title="Delete Quote"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </Link>
+            ))}
           </div>
         )}
       </div>
@@ -338,16 +384,13 @@ const handlePostComment = async () => {
       {expandedQuote && (
         <div 
           onClick={() => setExpandedQuote(null)} 
-          // Safe Background: Solid black on mobile, frosted glass on desktop
           className="fixed inset-0 z-[100] bg-black md:bg-black/90 md:backdrop-blur-sm flex flex-col items-center justify-start sm:justify-center p-0 sm:p-8 animate-in fade-in duration-200 cursor-pointer overflow-hidden"
           style={{ willChange: 'opacity' }}
         >
           
-          {/* 👇 Changed h-full to h-[100dvh] right here 👇 */}
           <div onClick={(e) => e.stopPropagation()} className="w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] max-w-[550px] bg-slate-50 sm:rounded-[40px] flex flex-col overflow-hidden cursor-default shadow-2xl relative">
             
             <div className="shrink-0 relative">
-               {/* Safe Close Button: Solid white on mobile, frosted glass on desktop! */}
                <button onClick={() => setExpandedQuote(null)} className="absolute top-4 right-4 z-50 p-2 bg-white md:bg-black/10 hover:bg-slate-100 md:hover:bg-black/20 rounded-full transition text-slate-700 md:backdrop-blur-md shadow-sm md:shadow-none will-change-transform">
                  <X className="w-6 h-6" />
                </button>
@@ -395,9 +438,9 @@ const handlePostComment = async () => {
                                <div className="relative">
                                  <button onClick={() => setActiveCommentEmojiPicker(prev => prev === comment.id ? null : comment.id)} className="reaction-trigger text-slate-400 hover:text-black p-1 transition"><SmilePlus className="w-3.5 h-3.5" /></button>
                                  {activeCommentEmojiPicker === comment.id && (
-                                  <div className="absolute z-50 top-full mt-1 left-0 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
-                                    <CustomEmojiPicker onEmojiClick={(e) => handleDynamicReaction(e, comment.id, 'comment', comment.user.id)} />
-                                  </div>
+                                    <div className="absolute z-50 top-full mt-1 left-0 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                                      <CustomEmojiPicker onEmojiClick={(e) => handleDynamicReaction(e, comment.id, 'comment', comment.user.id)} />
+                                    </div>
                                   )}
                                </div>
                             </div>
