@@ -139,7 +139,7 @@ export default function FavouritesPage() {
 
         setQuotes(formattedQuotes)
       } else if (error) {
-        console.error("Fel vid hämtning av favoriter:", error)
+        console.error("Could not fetch favourites:", error)
       }
       if (isMounted) setIsLoading(false)
     }
@@ -157,7 +157,7 @@ export default function FavouritesPage() {
         .select(`
           id, content, created_at,
           user:profiles!comments_user_id_fkey(id, username, avatar_url),
-          reactions(reaction_type, user_id,)
+          reactions(reaction_type, user_id)
         `)
         .eq('quote_id', expandedQuote.id)
         .order('created_at', { ascending: true })
@@ -285,7 +285,7 @@ export default function FavouritesPage() {
           )}
         </div>
         <h1 className="text-xl font-black text-slate-900 mb-1">{currentUserProfile?.username}</h1>
-        <p className="text-slate-500 font-bold text-sm">Dina Favoriter</p>
+        <p className="text-slate-500 font-bold text-sm">Saved favourites</p>
       </div>
 
       {/* Grid */}

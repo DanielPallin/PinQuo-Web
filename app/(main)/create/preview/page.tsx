@@ -110,7 +110,7 @@ function PreviewQuoteForm() {
           const uniqueId = typeof crypto !== 'undefined' ? crypto.randomUUID() : new Date().getTime()
           const fileName = `${user.id}/web_snap_${uniqueId}.jpg`
           
-          // Supabase bucket: quote_media
+          // Supabase bucket: quotes_media
           const { data: uploadData, error: uploadErr } = await supabase.storage
             .from('quotes_media') 
             .upload(fileName, blob, { contentType: 'image/jpeg' })
