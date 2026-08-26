@@ -10,6 +10,13 @@ export type Witness = {
   display: string
 }
 
+// Minimal profile shape returned by the username search below.
+type SearchedProfile = {
+  id: string
+  username: string
+  avatar_url: string | null
+}
+
 interface WitnessManagerProps {
   witnesses: Witness[]
   onChange: (witnesses: Witness[]) => void
@@ -19,9 +26,9 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
   const supabase = createClient()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searchResults, setSearchResults] = useState<SearchedProfile[]>([])
   const [isSearching, setIsSearching] = useState(false)
-  
+
   const containerRef = useRef<HTMLDivElement>(null)
 
   const maxWitnesses = 5
@@ -49,8 +56,8 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
         .select('id, username, avatar_url')
         .ilike('username', `%${searchQuery}%`)
         .limit(5)
-      
-      if (data) setSearchResults(data)
+
+      if (data) setSearchResults(data as SearchedProfile[])
       setIsSearching(false)
     }
 
@@ -58,7 +65,7 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
     return () => clearTimeout(timer)
   }, [searchQuery, supabase])
 
-  const handleAddUser = (user: any) => {
+  const handleAddUser = (user: SearchedProfile) => {
     if (!canAddMore || witnesses.some(w => w.value === user.id)) return
     onChange([...witnesses, { type: 'user', value: user.id, display: user.username }])
     setSearchQuery('')
@@ -69,7 +76,7 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
     e.preventDefault()
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!canAddMore || !emailRegex.test(searchQuery) || witnesses.some(w => w.value === searchQuery)) return
-    
+
     onChange([...witnesses, { type: 'email', value: searchQuery, display: searchQuery }])
     setSearchQuery('')
     setIsOpen(false)
@@ -81,7 +88,7 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
 
   return (
     <div className="relative flex flex-col gap-3 w-full my-4" ref={containerRef}>
-      
+
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -107,7 +114,7 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
       {/* Dropdown Modal */}
       {isOpen && (
         <div className="absolute top-full left-0 mt-3 w-full sm:w-[350px] bg-white rounded-[24px] shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-          
+
           <div className="p-3 border-b border-slate-100 flex items-center gap-3 relative bg-slate-50/50">
             <Search className="w-5 h-5 text-slate-400 absolute left-6" />
             <form onSubmit={handleAddEmail} className="w-full">
@@ -148,7 +155,7 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
               </div>
             )}
           </div>
-          
+
         </div>
       )}
     </div>

@@ -10,49 +10,61 @@ export default function SetupPage() {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
-  
-  const [isChecking, setIsChecking] = useState(true) 
-  
+
+  const [isChecking, setIsChecking] = useState(true)
+
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
     let isMounted = true
+    // Plain closure flag (not state) so the timeout below can check it
+    // without racing stale state from the render that scheduled it.
+    let resolved = false
 
-    const initializeAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session && isMounted) {
-        setTimeout(async () => {
-          const { data: { session: retrySession } } = await supabase.auth.getSession()
-          if (!retrySession && isMounted) {
-            router.replace('/')
-          } else if (retrySession && isMounted) {
-            setUserId(retrySession.user.id)
-            setIsChecking(false)
-          }
-        }, 500)
-      } else if (session && isMounted) {
+    const markResolved = () => { resolved = true }
+
+    // Source of truth: fires immediately with the current session (or null)
+    // on subscribe, then again on any future change.
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted || resolved) return
+      if (session) {
         setUserId(session.user.id)
         setIsChecking(false)
-      }
-    }
-
-    initializeAuth()
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session && isMounted) {
-        setUserId(session.user.id)
-        setIsChecking(false)
+        markResolved()
       }
     })
 
+    // Belt-and-braces: also do one direct check in case the listener is
+    // slow to fire for an already-existing session.
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!isMounted || resolved) return
+      if (session) {
+        setUserId(session.user.id)
+        setIsChecking(false)
+        markResolved()
+      }
+    }
+    void checkSession()
+
+    // Safety net: give the session up to 3s to resolve (covers the brief
+    // window right after signup/login while it's being persisted). If
+    // nothing shows up by then, bounce back to login instead of leaving
+    // the user stuck on the spinner forever.
+    const timeoutId = setTimeout(() => {
+      if (isMounted && !resolved) {
+        router.replace('/')
+      }
+    }, 3000)
+
     return () => {
       isMounted = false
+      clearTimeout(timeoutId)
       authListener.subscription.unsubscribe()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // <-- FORCED EMPTY: Prevents the React infinite render crash!
+  }, [])
 
   async function handleSaveUsername(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -133,7 +145,7 @@ export default function SetupPage() {
               maxLength={20}
             />
           </div>
-          
+
           {errorMsg && <p className="text-red-500 text-xs font-semibold mt-2 text-left px-1">{errorMsg}</p>}
 
           <button

@@ -8,6 +8,7 @@ import Link from 'next/link'
 import QuoteCard, { FeedQuote, GroupedReaction } from '@/components/QuoteCard'
 import { EmojiClickData } from 'emoji-picker-react'
 import CustomEmojiPicker from '@/components/CustomEmojiPicker'
+import { useQuoteInteractions, QuoteComment } from '@/hooks/useQuoteInteractions'
 
 const timeAgo = (dateString: string) => {
   const seconds = Math.floor((new Date().getTime() - new Date(dateString).getTime()) / 1000)
@@ -18,14 +19,6 @@ const timeAgo = (dateString: string) => {
 }
 
 type Profile = { id: string; username: string; avatar_url: string | null }
-
-type CommentType = {
-  id: string
-  content: string
-  created_at: string
-  user: { id: string, username: string, avatar_url: string | null }
-  reactions: { reaction_type: string, user_id: string }[]
-}
 
 type RawQuoteData = {
   id: string
@@ -56,10 +49,23 @@ export default function PublishedPage() {
   const [quotes, setQuotes] = useState<FeedQuote[]>([])
   const [expandedQuote, setExpandedQuote] = useState<FeedQuote | null>(null)
 
-  const [comments, setComments] = useState<CommentType[]>([])
+  const [comments, setComments] = useState<QuoteComment[]>([])
   const [newComment, setNewComment] = useState('')
-  const [isPostingComment, setIsPostingComment] = useState(false)
   const [activeCommentEmojiPicker, setActiveCommentEmojiPicker] = useState<string | null>(null)
+
+  // Shared reaction / comment / favorite logic (issue 3).
+  // This also brings in reaction/comment notifications, which this page
+  // was previously missing entirely (issue 6).
+  const { fetchComments, handleReaction, postComment, toggleFavorite, isPostingComment } = useQuoteInteractions({
+    supabase,
+    currentUserId,
+    quotes,
+    setQuotes,
+    expandedQuote,
+    setExpandedQuote,
+    comments,
+    setComments,
+  })
 
   useEffect(() => {
     let isMounted = true
@@ -83,7 +89,6 @@ export default function PublishedPage() {
 
       if (isMounted) setTargetProfile(profileData)
 
-      // 💥 BUG FIX: Removed the rogue .order() from inside the select string
       const { data, error } = await supabase
         .from('quotes')
         .select(`
@@ -132,23 +137,11 @@ export default function PublishedPage() {
     return () => { isMounted = false }
   }, [supabase, usernameParam])
 
+  // Fetch comments when a quote is expanded (now backed by the shared hook).
   useEffect(() => {
     if (!expandedQuote) return
-    const fetchComments = async () => {
-      const { data } = await supabase
-        .from('comments')
-        .select(`
-          id, content, created_at,
-          user:profiles!comments_user_id_fkey(id, username, avatar_url),
-          reactions(reaction_type, user_id)
-        `)
-        .eq('quote_id', expandedQuote.id)
-        .order('created_at', { ascending: true })
-
-      if (data) setComments(data as unknown as CommentType[])
-    }
-    fetchComments()
-  }, [expandedQuote, supabase])
+    void fetchComments(expandedQuote.id)
+  }, [expandedQuote, fetchComments])
 
   useEffect(() => {
     if (expandedQuote) {
@@ -162,108 +155,22 @@ export default function PublishedPage() {
     }
   }, [expandedQuote])
 
-  const handleDynamicReaction = async (emojiObj: EmojiClickData, targetId: string, type: 'quote' | 'comment', targetOwnerId?: string) => {
-    if (!currentUserId) return
-    const emoji = emojiObj.emoji
-    if (type === 'comment') setActiveCommentEmojiPicker(null)
-
-       let isRemoving = false
-    if (type === 'quote') {
-       const quote = quotes.find(q => q.id === targetId)
-       isRemoving = quote?.groupedReactions.find(r => r.emoji === emoji)?.hasReacted || false
-    } else if (type === 'comment') {
-       const comment = comments.find(c => c.id === targetId)
-       isRemoving = comment?.reactions.some(r => r.reaction_type === emoji && r.user_id === currentUserId) || false
-    }
-
-    if (type === 'quote') {
-      const updateQuoteState = (q: FeedQuote) => {
-        let newReactions = [...q.groupedReactions]
-        const existing = newReactions.find(r => r.emoji === emoji)
-        
-        if (isRemoving && existing) {
-          existing.count--
-          existing.hasReacted = false
-          if (existing.count === 0) newReactions = newReactions.filter(r => r.emoji !== emoji)
-        } else if (!isRemoving) {
-          if (existing) { existing.count++; existing.hasReacted = true }
-          else newReactions.push({ emoji, count: 1, hasReacted: true })
-        }
-        return { ...q, groupedReactions: newReactions.sort((a,b) => b.count - a.count) }
-      }
-      setQuotes(prev => prev.map(q => q.id === targetId ? updateQuoteState(q) : q))
-      if (expandedQuote?.id === targetId) setExpandedQuote(updateQuoteState(expandedQuote))
-    }
-
-  if (isRemoving) {
-    if (type === 'quote') {
-      await supabase.from('reactions').delete().match({ quote_id: targetId, user_id: currentUserId, reaction_type: emoji })
-    } else {
-      await supabase.from('reactions').delete().match({ comment_id: targetId, user_id: currentUserId, reaction_type: emoji })
-    }
-  } else {
-    type ReactionPayload = { user_id: string; reaction_type: string; quote_id?: string; comment_id?: string; };
-    const insertData: ReactionPayload = type === 'quote' 
-      ? { quote_id: targetId, user_id: currentUserId, reaction_type: emoji }
-      : { comment_id: targetId, user_id: currentUserId, reaction_type: emoji }
-      
-    await supabase.from('reactions').insert(insertData as any)
-    
-  }
-
-  if (type === 'comment' && expandedQuote) {
-    const { data } = await supabase.from('comments').select(`*, user:profiles(id, username, avatar_url), reactions(reaction_type, user_id)`).eq('quote_id', expandedQuote.id).order('created_at', { ascending: true })
-    if (data) setComments(data as unknown as CommentType[])
-  }
-}
-
-const handlePostComment = async () => {
-  if (!newComment.trim() || !expandedQuote || !currentUserId) return
-  setIsPostingComment(true)
-
-  const { data } = await supabase.from('comments').insert({
-    quote_id: expandedQuote.id,
-    user_id: currentUserId,
-    content: newComment.trim()
-  }).select('id, content, created_at, user:profiles(id, username, avatar_url), reactions(reaction_type, user_id)').single()
-
-  if (data) {
-    setComments(prev => [...prev, data as unknown as CommentType])
+  const submitComment = async () => {
+    if (!newComment.trim()) return
+    await postComment(newComment)
     setNewComment('')
-    setQuotes(prev => prev.map(q => q.id === expandedQuote.id ? { ...q, commentCount: q.commentCount + 1 } : q))
-    
-  }
-  setIsPostingComment(false)
-}
-
-  const toggleFavorite = async (quoteId: string) => {
-    if (!currentUserId) return
-    const quote = quotes.find((q) => q.id === quoteId)
-    if (!quote) return
-    const isAdding = !quote.isFavorited
-
-    const updateQuote = (q: FeedQuote) => ({ ...q, favoriteCount: q.favoriteCount + (isAdding ? 1 : -1), isFavorited: isAdding })
-    
-    setQuotes((prev) => prev.map((q) => q.id === quoteId ? updateQuote(q) : q))
-    if (expandedQuote?.id === quoteId) setExpandedQuote(updateQuote(expandedQuote))
-
-    if (isAdding) await supabase.from('favorites').insert({ quote_id: quoteId, user_id: currentUserId })
-    else await supabase.from('favorites').delete().match({ quote_id: quoteId, user_id: currentUserId })
   }
 
-  // Storage cleanup and cascade delete Quote
+  // Storage cleanup and cascade delete Quote (page-specific, unchanged)
   const handleDeleteQuote = async (e: React.MouseEvent, quoteId: string) => {
     e.preventDefault() 
     
     if (!window.confirm("Are you sure you want to delete this quote? This cannot be undone.")) return
     
-    // Find Quote
     const quoteToDelete = quotes.find(q => q.id === quoteId)
 
-    // Instant removal
     setQuotes(prev => prev.filter(q => q.id !== quoteId))
     
-    // Delete the Live Snap file if it exists
     if (quoteToDelete?.live_photo_url) {
       const pathParts = quoteToDelete.live_photo_url.split('quotes_media/')
       
@@ -277,7 +184,6 @@ const handlePostComment = async () => {
       }
     }
 
-    // DB cleanse
     const { error: dbError } = await supabase.from('quotes').delete().eq('id', quoteId)
     
     if (dbError) {
@@ -334,7 +240,6 @@ const handlePostComment = async () => {
                 href={`/feed?quoteId=${quote.id}`}
                 className="relative aspect-square dark:bg-slate-800 rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95"
               >
-                {/* Waterfall */}
                 {quote.live_photo_url ? (
                   <img 
                     src={quote.live_photo_url} 
@@ -359,12 +264,10 @@ const handlePostComment = async () => {
                   <div className="absolute inset-0 bg-slate-800"></div>
                 )}
 
-                {/* Cinematic Overlay & Quote Hint */}
                 <div className="absolute inset-0 bg-slate-900/10 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center z-10">
                   <span className="text-white/60 font-serif text-3xl font-black mb-3 select-none drop-shadow-md">“ ”</span>
                 </div>
 
-                {/* Delete */}
                 {isOwnProfile && (
                   <button 
                     onClick={(e) => handleDeleteQuote(e, quote.id)}
@@ -397,7 +300,7 @@ const handlePostComment = async () => {
                <QuoteCard 
                  quote={expandedQuote} 
                  isExpanded={true} 
-                 onReact={handleDynamicReaction} 
+                 onReact={handleReaction} 
                  onFavorite={toggleFavorite} 
                />
             </div>
@@ -431,7 +334,7 @@ const handlePostComment = async () => {
                             
                             <div className="flex items-center gap-1.5 mt-1.5 ml-2">
                                {groupedCommentReacts.map(r => (
-                                 <button key={r.emoji} onClick={() => handleDynamicReaction({emoji: r.emoji} as EmojiClickData, comment.id, 'comment', comment.user.id)} className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border transition ${r.hasReacted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                                 <button key={r.emoji} onClick={() => handleReaction({emoji: r.emoji} as EmojiClickData, comment.id, 'comment', comment.user.id)} className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border transition ${r.hasReacted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
                                    <span>{r.emoji}</span> <span>{r.count}</span>
                                  </button>
                                ))}
@@ -439,7 +342,7 @@ const handlePostComment = async () => {
                                  <button onClick={() => setActiveCommentEmojiPicker(prev => prev === comment.id ? null : comment.id)} className="reaction-trigger text-slate-400 hover:text-black p-1 transition"><SmilePlus className="w-3.5 h-3.5" /></button>
                                  {activeCommentEmojiPicker === comment.id && (
                                     <div className="absolute z-50 top-full mt-1 left-0 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
-                                      <CustomEmojiPicker onEmojiClick={(e) => handleDynamicReaction(e, comment.id, 'comment', comment.user.id)} />
+                                      <CustomEmojiPicker onEmojiClick={(e) => handleReaction(e, comment.id, 'comment', comment.user.id)} />
                                     </div>
                                   )}
                                </div>
@@ -457,12 +360,12 @@ const handlePostComment = async () => {
                    type="text" 
                    value={newComment}
                    onChange={e => setNewComment(e.target.value)}
-                   onKeyDown={e => e.key === 'Enter' && handlePostComment()}
+                   onKeyDown={e => e.key === 'Enter' && submitComment()}
                    placeholder="Write a comment..."
                    className="w-full bg-slate-100 border-none rounded-full py-3.5 pl-5 pr-12 text-sm font-medium focus:ring-2 focus:ring-emerald-200 transition outline-none"
                  />
                  <button 
-                   onClick={handlePostComment}
+                   onClick={submitComment}
                    disabled={!newComment.trim() || isPostingComment}
                    className="absolute right-2 p-2 bg-black text-white rounded-full hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 transition"
                  >
