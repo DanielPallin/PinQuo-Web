@@ -68,9 +68,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: 'No valid emails found to notify.' }, { status: 200 })
     }
 
-    const host = request.headers.get('host') || 'pinquo.app'
-    const protocol = host.includes('localhost:') ? 'http' : 'https'
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pinquo.app'
 
     // Dispatch emails individually for privacy (BCC style equivalent)
     const emailPromises = targetEmails.map(email => 
