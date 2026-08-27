@@ -188,15 +188,15 @@ export default function PublicProfilePage() {
     return (
       <div className="flex flex-col w-full mb-8">
         <div className="flex items-center justify-between px-2 mb-3">
-          <h3 className="font-black text-[15px] text-slate-800 tracking-tight">{title}</h3>
+          <h3 className="font-black text-[15px] text-slate-800 dark:text-slate-100 tracking-tight">{title}</h3>
         </div>
         <div 
           onClick={() => router.push(navigateTo)}
-          className="grid grid-cols-3 gap-3 w-full bg-slate-50/50 p-3 rounded-[28px] border-[3px] border-slate-50 shadow-inner cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform"
+          className="grid grid-cols-3 gap-3 w-full bg-slate-50/50 dark:bg-slate-900/60 p-3 rounded-[28px] border-[3px] border-slate-50 dark:border-slate-800 shadow-inner cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform"
         >
           {slots.map((q, i) => {
             if (!q) {
-              return <div key={i} className="w-full aspect-square rounded-[18px] bg-slate-200/40 shadow-sm" />
+              return <div key={i} className="w-full aspect-square rounded-[18px] bg-slate-200/40 dark:bg-slate-800/60 shadow-sm" />
             }
 
             return (
@@ -223,25 +223,25 @@ export default function PublicProfilePage() {
   
   if (isNotFound) return (
     <div className="flex flex-col min-h-screen items-center justify-center p-6 text-center">
-      <h2 className="text-2xl font-black text-slate-800 mb-2">User not found</h2>
-      <button onClick={() => router.back()} className="px-6 py-3 bg-black text-white font-bold rounded-full">Go Back</button>
+      <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100 mb-2">User not found</h2>
+      <button onClick={() => router.back()} className="px-6 py-3 bg-black text-white dark:bg-white dark:text-slate-950 font-bold rounded-full">Go Back</button>
     </div>
   )
 
   const isOwnProfile = currentUser?.id === targetProfile?.id
 
   if (isBlocked) return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white pb-24 relative overflow-x-hidden">
+    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white dark:bg-slate-950 pb-24 relative overflow-x-hidden">
       <div className="flex justify-between items-center pt-6 px-6 mb-2 shrink-0">
-        <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-200/50 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
-        <button onClick={executeBlockAction} disabled={isTogglingBlock} className="p-2 -mr-2 rounded-full transition text-red-500 bg-red-50" title="Unblock User">
+        <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black dark:text-slate-100" /></button>
+        <button onClick={executeBlockAction} disabled={isTogglingBlock} className="p-2 -mr-2 rounded-full transition text-red-500 bg-red-50 dark:bg-red-500/10" title="Unblock User">
           <Ban className="w-6 h-6" />
         </button>
       </div>
       <div className="flex flex-col items-center justify-center mt-20 text-center px-6">
-        <Ban className="w-16 h-16 text-slate-200 mb-4" />
-        <h2 className="text-xl font-black text-slate-900 mb-2">You blocked @{targetProfile?.username}</h2>
-        <p className="text-slate-500 font-medium">Unblock to see their profile and quotes.</p>
+        <Ban className="w-16 h-16 text-slate-200 dark:text-slate-700 mb-4" />
+        <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 mb-2">You blocked @{targetProfile?.username}</h2>
+        <p className="text-slate-500 dark:text-slate-400 font-medium">Unblock to see their profile and quotes.</p>
       </div>
     </div>
   )

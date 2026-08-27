@@ -2,30 +2,114 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-playfair), ui-serif, Georgia, serif;
+}
+
+/* ============================================================
+   PINQUOTE — DARK MODE DESIGN SYSTEM
+   ------------------------------------------------------------
+   A layered, premium "deep navy" palette. Instead of pure
+   black, we stack slate surfaces for depth:
+
+     Page / surfaces ......... slate-950  (deepest)
+     Cards / inputs .......... slate-900
+     Wells / active states ... slate-800
+     Borders ................. slate-800  (use /60 for subtle)
+     Text (primary) .......... slate-100
+     Text (secondary) ........ slate-400
+     Text (muted) ............ slate-500
+     Brand accent (glow) ..... amber-400
+     Primary CTA ............. white bg + slate-950 text
+
+   The "cinematic" quote cards (bg-slate-900 + white text +
+   imagery) are intentionally theme-independent — they stay
+   rich and moody in both light and dark mode.
+   ============================================================ */
+
 @layer base {
-  :root {
-    --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
-    --font-serif: var(--font-playfair), ui-serif, Georgia, serif;
-  }
-
-  /* 📱 MOBILE: Standard 16px (100%) */
-  /* Keeps text readable and buttons large enough for fat fingers to tap */
   html {
-    font-size: 16px; 
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
-  /* 💻 DESKTOP: Scaled down by ~15% */
-  /* 13.5px / 16px = ~84%. Every Tailwind class (w-full, p-4, text-lg) shrinks perfectly! */
+  /* Mobile: standard 16px (100%) for readable text and comfortable tap targets */
+  html {
+    font-size: 16px;
+  }
+
+  /* Desktop: scaled down by ~15% (13.5px / 16px = ~84%) */
   @media (min-width: 1024px) {
     html {
-      font-size: 14px; 
+      font-size: 14px;
     }
   }
 
-  /* 🖥️ HUGE MONITORS: Scale back up slightly so it doesn't look tiny on ultra-wides */
+  /* Huge monitors: scale back up so text does not feel tiny on ultra-wides */
   @media (min-width: 1536px) {
     html {
-      font-size: 16px; 
+      font-size: 16px;
     }
   }
+
+  /* Smooth, premium theme switch */
+  html, body,
+  html *, body * {
+    transition-property: background-color, border-color, color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+}
+
+/* ---- Text selection (amber brand tint) ---- */
+::selection {
+  background: rgba(251, 191, 36, 0.35);
+  color: inherit;
+}
+.dark ::selection {
+  background: rgba(251, 191, 36, 0.30);
+}
+
+/* ---- Refined scrollbars ---- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent; /* slate-400 */
+}
+.dark * {
+  scrollbar-color: rgba(71, 85, 105, 0.7) transparent; /* slate-600 */
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.40);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.65);
+  background-clip: padding-box;
+}
+.dark *::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.65);
+  background-clip: padding-box;
+}
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.85);
+  background-clip: padding-box;
+}
+
+/* Utility: hide scrollbars (used by reaction rails, etc.) */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

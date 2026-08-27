@@ -323,7 +323,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     return (
       <div
         onClick={handleViewWitnesses} 
-        className="flex items-center bg-slate-200 border dark:bg-black dark:border-slate-800 border-slate-400 px-3 py-1 rounded-full shadow-sm transition-transform hover:scale-105 w-max cursor-pointer"
+        className="flex items-center bg-slate-200 border border-slate-400 dark:bg-slate-900 dark:border-slate-700 px-3 py-1 rounded-full shadow-sm dark:shadow-none transition-transform hover:scale-105 w-max cursor-pointer"
         title="View Witnesses"
       >
         <span className="flex items-center text-emerald-600 text-base">
@@ -340,7 +340,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   }
 
   return (
-    <div className={`w-full flex flex-col dark:bg-slate-800  bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-700 relative ${isExpanded ? 'p-0 pb-6 rounded-t-[40px]' : 'p-5 rounded-[40px]'}`}>
+    <div className={`w-full flex flex-col dark:bg-slate-900  bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none border border-slate-100 dark:border-slate-800 relative ${isExpanded ? 'p-0 pb-6 rounded-t-[40px]' : 'p-5 rounded-[40px]'}`}>
       
       {/* Publisher Header */}
       <div className={`flex items-center justify-between mb-4 px-2 ${isExpanded ? 'pt-6 px-6' : ''}`}>
@@ -352,8 +352,8 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
               <User className="w-6 h-6 text-slate-400" />
             )}
           </Link>
-          <p className="text-slate-500 dark:text-white font-medium text-sm relative z-10">
-            Published by <Link href={`/${publisherName}`} onClick={(e) => e.stopPropagation()} className="font-bold dark:text-amber-700 text-slate-800 hover:text-black hover:underline">{publisherName}</Link>
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-sm relative z-10">
+            Published by <Link href={`/${publisherName}`} onClick={(e) => e.stopPropagation()} className="font-bold text-slate-800 dark:text-amber-400 hover:text-black dark:hover:text-amber-300 hover:underline transition-colors">{publisherName}</Link>
           </p>
         </div>
       </div>
@@ -417,8 +417,10 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
                   <button
                     key={`${reaction.emoji}-${idx}`}
                     onClick={(e) => handleExistingReactionClick(e, reaction.emoji)}
-                    className={`shrink-0 dark:bg-black dark:border-slate-800 snap-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
-                      reaction.hasReacted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    className={`shrink-0 snap-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                      reaction.hasReacted
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-500/15 dark:border-emerald-500/40 dark:text-emerald-300'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 dark:bg-slate-800/70 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
                     }`}
                   >
                     <span className="text-sm">{reaction.emoji}</span>
@@ -435,33 +437,33 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
 
       {/* Action Bar */}
       {!isExpanded && (
-        <div className="relative flex items-center justify-between pt-4 mt-3 border-t dark:border-slate-700 border-slate-100 px-2 h-12">
+        <div className="relative flex items-center justify-between pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 px-2 h-12">
           
           <div className="flex items-center gap-4 relative z-20">
             <div className="relative" ref={pickerRef}>
-              <button onClick={handleReactClick} className="flex items-center gap-1.5 dark:text-amber-700 text-black hover:text-emerald-500 transition-colors group">
+              <button onClick={handleReactClick} className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors group">
                 <SmilePlus className="w-6 h-6 group-active:scale-95 transition-transform" />
               </button>
               {showEmojiPicker && !isGuest && (
-                <div onClick={(e) => e.stopPropagation()} className="absolute z-50 dark:text-amber-700 bottom-full left-0 mb-2 shadow-xl rounded-2xl overflow-hidden border border-slate-100 bg-white">
+                <div onClick={(e) => e.stopPropagation()} className="absolute z-50 bottom-full left-0 mb-2 shadow-xl rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
                   <CustomEmojiPicker onEmojiClick={handleReactionSelection} />
                 </div>
               )}
             </div>
 
-            <button onClick={handleCommentClick} className="flex items-center gap-1.5 dark:text-amber-700 text-black hover:text-blue-400 transition-colors group">
+            <button onClick={handleCommentClick} className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200 hover:text-blue-500 dark:hover:text-blue-400 transition-colors group">
               <MessageCircle className="w-6 h-6 group-active:scale-95 transition-transform" />
-              {quote.commentCount > 0 && <span className="text-sm font-bold dark:text-amber-700 mt-0.5">{quote.commentCount}</span>}
+              {quote.commentCount > 0 && <span className="text-sm font-bold text-slate-700 dark:text-slate-300 mt-0.5">{quote.commentCount}</span>}
             </button>
 
-            <button onClick={handleFavoriteClick} className={`flex items-center gap-1.5 transition-colors group ${isFav ? 'text-amber-500' : 'text-black dark:hover:text-yellow-300 hover:text-amber-500'}`}>
-              <Bookmark className={`w-6 h-6 group-active:scale-95 dark:hover:text-yellow-300 dark:text-amber-700 transition-transform ${isFav ? 'fill-amber-500' : ''}`} />
-              {favCount > 0 && <span className={`text-sm font-bold mt-0.5 ${isFav ? 'text-amber-700' : ''}`}>{favCount}</span>}
+            <button onClick={handleFavoriteClick} className={`flex items-center gap-1.5 transition-colors group ${isFav ? 'text-amber-500 dark:text-amber-400' : 'text-slate-800 dark:text-slate-200 hover:text-amber-500 dark:hover:text-amber-400'}`}>
+              <Bookmark className={`w-6 h-6 group-active:scale-95 transition-transform ${isFav ? 'fill-amber-500' : ''}`} />
+              {favCount > 0 && <span className={`text-sm font-bold mt-0.5 ${isFav ? 'text-amber-500 dark:text-amber-400' : 'text-slate-700 dark:text-slate-300'}`}>{favCount}</span>}
             </button>
           </div>
 
           <div className="flex items-center relative z-20">
-            <button onClick={handleShare} className="flex items-center text-black dark:text-amber-700 hover:text-green-400 transition-colors group">
+            <button onClick={handleShare} className="flex items-center text-slate-800 dark:text-slate-200 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors group">
               <Share2 className="w-6 h-6 group-active:scale-95 transition-transform" />
             </button>
           </div>
@@ -480,20 +482,20 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         >
           <div 
             onClick={(e) => e.stopPropagation()} 
-            className="bg-white rounded-[32px] w-full max-w-sm shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[80vh]"
+            className="bg-white dark:bg-slate-900 rounded-[32px] w-full max-w-sm shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[80vh] border border-slate-100 dark:border-slate-800"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
               <div className="flex items-center gap-3">
                 <div className="text-3xl drop-shadow-sm">🕵️</div>
                 <div>
-                  <h3 className="text-xl font-black text-slate-800 leading-tight">Witnesses</h3>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{totalWitnesses} Tagged</p>
+                  <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 leading-tight">Witnesses</h3>
+                  <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{totalWitnesses} Tagged</p>
                 </div>
               </div>
               <button 
                 onClick={() => setShowWitnessModal(false)} 
-                className="p-2.5 bg-white hover:bg-slate-100 rounded-full transition-colors text-slate-500 border border-slate-200 shadow-sm active:scale-95"
+                className="p-2.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-none active:scale-95"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -514,25 +516,25 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
                 const avatarUrl = activeProfile?.avatar_url;
 
                 return (
-                  <div key={w.id || idx} className="flex items-center justify-between p-3 bg-white border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 rounded-2xl transition-colors">
+                  <div key={w.id || idx} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/70 hover:border-emerald-200 dark:hover:border-emerald-500/40 hover:bg-emerald-50/50 dark:hover:bg-emerald-500/10 rounded-2xl transition-colors">
                     <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 overflow-hidden flex items-center justify-center shrink-0">
                         {avatarUrl ? (
                           <img src={avatarUrl} alt={witnessName} className="w-full h-full object-cover" />
                         ) : (
-                          <User className="w-5 h-5 text-slate-400" />
+                          <User className="w-5 h-5 text-slate-400 dark:text-slate-400" />
                         )}
                       </div>
                       <div className="flex flex-col overflow-hidden">
-                        <span className="font-bold text-slate-800 text-sm truncate">{witnessName}</span>
-                        <span className={`text-[10px] font-black uppercase tracking-widest mt-0.5 ${w.vote === 'approved' ? 'text-emerald-500' : w.vote === 'denied' ? 'text-rose-500' : 'text-slate-400'}`}>
+                        <span className="font-bold text-slate-800 dark:text-slate-100 text-sm truncate">{witnessName}</span>
+                        <span className={`text-[10px] font-black uppercase tracking-widest mt-0.5 ${w.vote === 'approved' ? 'text-emerald-500 dark:text-emerald-400' : w.vote === 'denied' ? 'text-rose-500 dark:text-rose-400' : 'text-slate-400 dark:text-slate-500'}`}>
                           {w.vote}
                         </span>
                       </div>
                     </div>
                     
                     {/* Vote Icon */}
-                    <div className="text-xl shrink-0 bg-white shadow-sm w-10 h-10 flex items-center justify-center rounded-full border border-slate-100">
+                    <div className="text-xl shrink-0 bg-white dark:bg-slate-800 shadow-sm dark:shadow-none w-10 h-10 flex items-center justify-center rounded-full border border-slate-100 dark:border-slate-700">
                       {w.vote === 'approved' ? '👍' : w.vote === 'denied' ? '👎' : '⏳'}
                     </div>
                   </div>
@@ -555,75 +557,75 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         >
           <div 
             onClick={(e) => e.stopPropagation()} 
-            className="bg-white rounded-[32px] p-6 sm:p-8 max-w-sm w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200"
+            className="bg-white dark:bg-slate-900 rounded-[32px] p-6 sm:p-8 max-w-sm w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 border border-slate-100 dark:border-slate-800"
           >
             <button 
               onClick={() => {
                 setShowAuthModal(false);
                 if (isEmailSent) setIsEmailSent(false);
               }} 
-              className="absolute top-4 right-4 w-8 h-8 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200 transition"
+              className="absolute top-4 right-4 w-8 h-8 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 rounded-full flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition"
             >
               <X className="w-4 h-4" />
             </button>
             
             {isEmailSent ? (
               <div className="flex flex-col items-center text-center py-4">
-                <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
-                  <Mail className="w-8 h-8 text-emerald-500" />
+                <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-500/15 rounded-full flex items-center justify-center mb-4">
+                  <Mail className="w-8 h-8 text-emerald-500 dark:text-emerald-400" />
                 </div>
-                <h2 className="text-2xl font-black text-slate-800 mb-2">Check your email!</h2>
-                <p className="text-slate-500 text-sm mb-8 px-2">
-                  We sent a secure verification link to <strong className="text-slate-800">{authEmail}</strong>. Click it to activate your account and join the conversation.
+                <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100 mb-2">Check your email!</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mb-8 px-2">
+                  We sent a secure verification link to <strong className="text-slate-800 dark:text-slate-100">{authEmail}</strong>. Click it to activate your account and join the conversation.
                 </p>
                 <button 
                   onClick={() => {
                     setShowAuthModal(false);
                     setIsEmailSent(false);
                   }} 
-                  className="w-full bg-black text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 active:scale-95 transition"
+                  className="w-full bg-black dark:bg-white text-white dark:text-slate-950 font-bold py-3.5 rounded-xl hover:opacity-90 dark:hover:bg-slate-200 active:scale-95 transition"
                 >
                   Got it
                 </button>
               </div>
             ) : (
               <>
-                <h2 className="text-2xl font-black text-slate-800 mb-2">
+                <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100 mb-2">
                   {isLogin ? 'Welcome back' : 'Claim your space'}
                 </h2>
-                <p className="text-slate-500 text-sm mb-6">
+                <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
                   {isLogin ? 'Log in to continue.' : 'Create a free account to unlock all features.'}
                 </p>
 
-                <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl mb-6">
                   <button
                     type="button"
                     onClick={() => setIsLogin(false)}
-                    className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${!isLogin ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${!isLogin ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                   >
                     Sign Up
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsLogin(true)}
-                    className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${isLogin ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${isLogin ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                   >
                     Log In
                   </button>
                 </div>
                 
-                {authError && <div className="mb-4 p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100">{authError}</div>}
+                {authError && <div className="mb-4 p-3 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-xs font-bold rounded-xl border border-red-100 dark:border-red-500/25">{authError}</div>}
 
                 <form onSubmit={handleInContextAuth} className="space-y-3">
                   {!isLogin && (
                     <div className="relative">
-                      <span className="absolute inset-y-0 left-4 flex items-center text-slate-400 font-bold">@</span>
+                      <span className="absolute inset-y-0 left-4 flex items-center text-slate-400 dark:text-slate-500 font-bold">@</span>
                       <input 
                         type="text" 
                         placeholder="username" 
                         value={authUsername}
                         onChange={e => setAuthUsername(e.target.value)} 
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all font-medium"
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-3 outline-none focus:border-emerald-400 dark:focus:border-emerald-500 focus:ring-4 focus:ring-emerald-400/10 dark:focus:ring-emerald-500/10 transition-all font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                         required={!isLogin} 
                         maxLength={20}
                       />
@@ -635,7 +637,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
                     placeholder="Email address" 
                     value={authEmail}
                     onChange={e => setAuthEmail(e.target.value)} 
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all font-medium"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-emerald-400 dark:focus:border-emerald-500 focus:ring-4 focus:ring-emerald-400/10 dark:focus:ring-emerald-500/10 transition-all font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     required 
                   />
                   
@@ -644,14 +646,14 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
                     placeholder="Password" 
                     value={authPassword}
                     onChange={e => setAuthPassword(e.target.value)} 
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all font-medium"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-emerald-400 dark:focus:border-emerald-500 focus:ring-4 focus:ring-emerald-400/10 dark:focus:ring-emerald-500/10 transition-all font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     required 
                   />
                   
                   <button 
                     type="submit" 
                     disabled={authLoading}
-                    className="w-full bg-black text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+                    className="w-full bg-black dark:bg-white text-white dark:text-slate-950 font-bold py-3.5 rounded-xl hover:opacity-90 dark:hover:bg-slate-200 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
                   >
                     {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? 'Log In' : 'Create Account')}
                   </button>

@@ -36,12 +36,12 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex justify-center font-sans selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex justify-center font-sans transition-colors duration-200">
       
       <div className="w-full max-w-350 flex flex-col lg:flex-row relative">
         
         {/* Mobile Header */}
-        <header className="lg:hidden sticky top-0 z-40 bg-white dark:bg-slate-950 md:bg-white/80 md:dark:bg-slate-950/80 md:backdrop-blur-md pt-5 pb-3 px-6 flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800 shadow-sm will-change-transform transition-colors duration-200">
+        <header className="lg:hidden sticky top-0 z-40 bg-white dark:bg-slate-950/90 md:bg-white/80 md:dark:bg-slate-950/80 md:backdrop-blur-md pt-5 pb-3 px-6 flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/70 shadow-sm will-change-transform transition-colors duration-200">
           <Link href="/feed" className="dark:invert transition-all">
             <Image src="/PinQuote-Logo.png" alt="PinQuo Logo" width={110} height={35} priority className="h-8 w-auto object-contain" />
           </Link>
@@ -54,7 +54,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             {profile ? (
               <NotificationBell />
             ) : (
-              <Link href="/login" className="bg-black dark:bg-white text-white dark:text-black text-xs font-bold px-4 py-2 ml-1 rounded-full active:scale-95 transition-transform">
+              <Link href="/login" className="bg-black dark:bg-white text-white dark:text-slate-950 text-xs font-bold px-4 py-2 ml-1 rounded-full hover:opacity-90 dark:hover:bg-slate-200 active:scale-95 transition-all">
                 Login
               </Link>
             )}
@@ -69,37 +69,37 @@ export default async function MainLayout({ children }: { children: React.ReactNo
           </Link>
 
           <nav className="flex flex-col gap-2 flex-1">
-            <Link href="/feed" className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-800 dark:text-slate-200 hover:text-black dark:hover:text-white group">
+            <Link href="/feed" className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors text-slate-800 dark:text-slate-200 hover:text-black dark:hover:text-white group">
               <Home className="w-7 h-7 stroke-[2.5] group-hover:scale-110 transition-transform" />
               <span className="text-[19px] font-bold">Home</span>
             </Link>
 
-            <Link href="/profile" className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-800 dark:text-slate-200 hover:text-black dark:hover:text-white group">
+            <Link href="/profile" className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors text-slate-800 dark:text-slate-200 hover:text-black dark:hover:text-white group">
               <User className="w-7 h-7 stroke-[2.5] group-hover:scale-110 transition-transform" />
               <span className="text-[19px] font-bold">Profile</span>
             </Link>
 
-            <div className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-400 dark:text-slate-500 cursor-not-allowed group" title="Coming Soon">
+            <div className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors text-slate-400 dark:text-slate-500 cursor-not-allowed group" title="Coming Soon">
               <Award className="w-7 h-7 stroke-[2.5]" />
               <span className="text-[19px] font-bold">Achievements</span>
             </div>
 
-            <Link href="/templates" className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-800 dark:text-slate-200 hover:text-black dark:hover:text-white group">
+            <Link href="/templates" className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors text-slate-800 dark:text-slate-200 hover:text-black dark:hover:text-white group">
               <Layers className="w-7 h-7 stroke-[2.5] group-hover:scale-110 transition-transform" />
               <span className="text-[19px] font-bold">Templates</span>
             </Link>
 
-            <div className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-400 dark:text-slate-500 cursor-not-allowed group" title="Coming Soon">
+            <div className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors text-slate-400 dark:text-slate-500 cursor-not-allowed group" title="Coming Soon">
               <ShoppingCart className="w-7 h-7 stroke-[2.5]" />
               <span className="text-[19px] font-bold">Store</span>
             </div>
             
-            <div className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-400 dark:text-slate-500 cursor-not-allowed group" title="Coming Soon">
+            <div className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors text-slate-400 dark:text-slate-500 cursor-not-allowed group" title="Coming Soon">
               <Trophy className="w-7 h-7 stroke-[2.5]" />
               <span className="text-[19px] font-bold">Tournament</span>
             </div>
 
-            <Link href="/settings" className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-800 dark:text-slate-200 hover:text-black dark:hover:text-white group">
+            <Link href="/settings" className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors text-slate-800 dark:text-slate-200 hover:text-black dark:hover:text-white group">
               <SettingsIcon className="w-7 h-7 stroke-[2.5] group-hover:scale-110 transition-transform" />
               <span className="text-[19px] font-bold">Settings</span>
             </Link>
@@ -113,13 +113,13 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             </Link>
           </nav>
 
-          <div className="mt-auto pt-6 text-sm font-bold text-slate-800 dark:text-slate-500 pl-4 transition-colors">
+          <div className="mt-auto pt-6 text-sm font-bold text-slate-500 dark:text-slate-600 pl-4 transition-colors">
             <p>© 2026 PinQuote</p>
           </div>
         </aside>
 
         {/* CENTER CONTENT COLUMN */}
-        <main className="flex-1 max-w-2xl w-full mx-auto min-h-screen pb-32 lg:pb-10 lg:border-r border-slate-200/60 dark:border-slate-800 bg-white dark:bg-black shadow-[0_0_40px_rgba(0,0,0,0.02)] transition-colors duration-200">
+        <main className="flex-1 max-w-2xl w-full mx-auto min-h-screen pb-32 lg:pb-10 lg:border-r border-slate-200/60 dark:border-slate-800/70 bg-white dark:bg-slate-950 shadow-[0_0_40px_rgba(0,0,0,0.02)] dark:shadow-none transition-colors duration-200">
           {children}
         </main>
 
@@ -128,11 +128,11 @@ export default async function MainLayout({ children }: { children: React.ReactNo
           
           {/* User Profile & Notification Cluster */}
           {profile ? (
-            <div className="relative z-50 flex items-center justify-between gap-1 mb-8 bg-white dark:bg-slate-800 p-2 pr-3 rounded-full shadow-sm border border-slate-100 dark:border-slate-800 shrink-0 w-full transition-colors duration-200">
+            <div className="relative z-50 flex items-center justify-between gap-1 mb-8 bg-white dark:bg-slate-900 p-2 pr-3 rounded-full shadow-sm dark:shadow-none border border-slate-100 dark:border-slate-800 shrink-0 w-full transition-colors duration-200">
               
               <Link href="/profile" className="flex flex-1 min-w-0 items-center gap-2.5 hover:opacity-80 transition cursor-pointer pl-2">
                 
-                <div className="w-9 h-9 shrink-0 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden border-2 border-white dark:border-slate-700 shadow-sm flex items-center justify-center transition-colors">
+                <div className="w-9 h-9 shrink-0 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden border-2 border-white dark:border-slate-700 shadow-sm dark:shadow-none flex items-center justify-center transition-colors">
                   {profile.avatar_url ? (
                     <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
                   ) : (
@@ -141,9 +141,9 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                 </div>
               </Link>
               
-              <div className="w-[1px] h-5 bg-slate-200 dark:text-white dark:bg-slate-700 mx-1 shrink-0 transition-colors"></div>
+              <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-700 mx-1 shrink-0 transition-colors"></div>
           
-              <div className="flex items-center shrink-0 dark:text-white dark:shadow-amber-50">
+              <div className="flex items-center shrink-0">
                 <ThemeToggle />
                 <UpdatesWidget />
                 <NotificationBell />
@@ -155,7 +155,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
               <UpdatesWidget />
               <Link 
                 href="/login" 
-                className="px-6 py-2.5 bg-black dark:bg-white text-white dark:text-black font-bold rounded-full hover:bg-slate-800 dark:hover:bg-slate-200 transition shadow-[0_4px_14px_rgba(0,0,0,0.1)] active:scale-95 text-sm"
+                className="px-6 py-2.5 bg-black dark:bg-white text-white dark:text-slate-950 font-bold rounded-full hover:opacity-90 dark:hover:bg-slate-200 transition-all shadow-[0_4px_14px_rgba(0,0,0,0.1)] dark:shadow-none active:scale-95 text-sm"
               >
                 Log In / Sign Up
               </Link>
@@ -170,15 +170,15 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         </aside>
 
         {/* MOBILE BOTTOM NAV */}
-        <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-white dark:bg-slate-950 md:bg-white/90 md:dark:bg-slate-950/90 md:backdrop-blur-lg border-t border-slate-100 dark:border-slate-800 flex items-center justify-around px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] will-change-transform transition-colors duration-200">
-          <Link href="/feed" className="p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all group">
-            <Home className="w-7 h-7 text-black dark:text-white transition-colors" />
+        <nav className="lg:hidden fixed bottom-0 left-0 w-full bg-white dark:bg-slate-950/90 md:bg-white/90 md:dark:bg-slate-950/90 md:backdrop-blur-lg border-t border-slate-100 dark:border-slate-800/70 flex items-center justify-around px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] will-change-transform transition-colors duration-200">
+          <Link href="/feed" className="p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800/70 active:scale-95 transition-all group">
+            <Home className="w-7 h-7 text-black dark:text-slate-200 transition-colors" />
           </Link>
-          <Link href="/create" className="p-3 -mt-5 bg-black dark:bg-white rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl text-white dark:text-black group">
+          <Link href="/create" className="p-3 -mt-5 bg-black dark:bg-white rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl dark:shadow-none text-white dark:text-slate-950 group">
             <PlusSquare className="w-7 h-7 transition-colors" />
           </Link>
-          <Link href="/profile" className="p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all group">
-            <User className="w-7 h-7 text-black dark:text-white transition-colors" />
+          <Link href="/profile" className="p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800/70 active:scale-95 transition-all group">
+            <User className="w-7 h-7 text-black dark:text-slate-200 transition-colors" />
           </Link>
         </nav>
 
