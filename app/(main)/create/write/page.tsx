@@ -411,7 +411,7 @@ function WriteQuoteForm() {
         onClick={() => isLocked ? handleLockedClick(template) : handleSelectTemplate(template)}
         className={`relative rounded-[20px] overflow-hidden transition-all duration-200 group will-change-transform ${sizingClasses} ${
           isSelected 
-            ? 'ring-4 ring-emerald-400 scale-[1.02] shadow-lg z-10' 
+            ? 'ring-4 ring-emerald-400 dark:ring-emerald-600 scale-[1.02] shadow-lg z-10' 
             : isLocked 
               ? 'grayscale opacity-60 hover:opacity-80 border-2 border-slate-200' 
               : 'opacity-90 hover:opacity-100 border border-slate-200 shadow-sm'
@@ -431,7 +431,7 @@ function WriteQuoteForm() {
           </div>
         )}
 
-        <div className="absolute bottom-0 left-0 w-full p-2 text-center text-[10px] sm:text-xs font-black uppercase tracking-wide text-white truncate drop-shadow-md">
+        <div className="absolute bottom-0 left-0 w-full p-2 text-center text-[10px] sm:text-xs font-black uppercase tracking-wide dark:text-white text-white truncate drop-shadow-md">
           {template.name}
         </div>
       </button>
@@ -439,7 +439,7 @@ function WriteQuoteForm() {
   }
 
   return (
-    <div className="flex flex-col pt-6 w-full max-w-2xl mx-auto min-h-[100dvh] bg-[#f8fafc] relative">
+    <div className="flex flex-col pt-6 w-full max-w-2xl mx-auto min-h-[100dvh] bg-[#f8fafc] dark:bg-black relative">
       
       {/* Hardware Viewfinder */}
       {isCameraActive && (
@@ -470,12 +470,12 @@ function WriteQuoteForm() {
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6 px-4">
-        <button onClick={() => router.back()} className="p-2 hover:bg-slate-200 rounded-full transition text-slate-700 -ml-2">
+        <button onClick={() => router.back()} className="p-2 hover:bg-slate-200 rounded-full transition dark:text-white text-slate-700 -ml-2">
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div className="flex flex-col items-center">
-          <h1 className="text-xl font-black text-slate-900">PinQuo</h1>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Editor</p>
+          <h1 className="text-xl font-black dark:text-white text-slate-900">PinQuote</h1>
+          <p className="text-xs font-bold text-slate-400 dark:text-slate-300 uppercase tracking-widest">Editor</p>
         </div>
         <div className="w-10"></div>
       </div>
@@ -485,17 +485,17 @@ function WriteQuoteForm() {
         {/* Quote Input Area */}
         <div className="px-4 mb-8">
           <div className="flex items-center justify-between mb-3">
-            <label className="text-sm font-bold text-slate-800 ml-1">What did <span className="text-emerald-600">{displayTarget}</span> say?</label>
+            <label className="text-sm font-bold dark:text-slate-300 text-slate-800 ml-1">What did <span className="text-emerald-600">{displayTarget}</span> say?</label>
           </div>
-          <div className="relative w-full bg-white rounded-[32px] p-6 shadow-[0_2px_15px_rgb(0,0,0,0.03)] border border-slate-100 focus-within:border-emerald-300 focus-within:ring-4 focus-within:ring-emerald-100 transition-all">
-            <span className="absolute top-4 left-4 text-4xl font-serif font-black text-slate-200 select-none">“</span>
+          <div className="relative w-full dark:bg-slate-900 dark:border-amber-900 bg-white rounded-[32px] p-6 shadow-[0_2px_15px_rgb(0,0,0,0.03)] border border-slate-100 focus-within:border-emerald-300 focus-within:ring-4 focus-within:ring-emerald-100 transition-all">
+            <span className="absolute top-4 left-4 text-4xl font-serif font-black dark:text-slate-400 text-slate-200 select-none">“</span>
             <textarea
               value={quoteText}
               onChange={(e) => setQuoteText(e.target.value)}
               placeholder="Type the quote here..."
               className="w-full h-28 bg-transparent text-slate-900 text-xl md:text-2xl font-medium resize-none focus:outline-none placeholder:text-slate-300 px-6 py-2 leading-snug font-serif"
             />
-            <span className="absolute bottom-2 right-4 text-4xl font-serif font-black text-slate-200 select-none">”</span>
+            <span className="absolute bottom-2 right-4 text-4xl font-serif font-black dark:text-slate-400 text-slate-200 select-none">”</span>
             <WitnessManager witnesses={witnesses} onChange={setWitnesses} />
           </div>
         </div>
@@ -504,12 +504,12 @@ function WriteQuoteForm() {
         <div className="w-full flex flex-col">
           <div className="flex items-center justify-between mb-4 px-4">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-slate-800" />
-              <h2 className="text-xl font-black text-slate-800 tracking-tight">Backgrounds</h2>
+              <Sparkles className="w-5 h-5 dark:text-slate-300 text-slate-800" />
+              <h2 className="text-xl font-black text-slate-800 dark:text-slate-300 tracking-tight">Backgrounds</h2>
             </div>
             <button 
               onClick={() => router.push('/templates')}
-              className="flex items-center gap-1 text-sm font-bold text-slate-400 hover:text-emerald-600 transition-colors group"
+              className="flex items-center gap-1 text-sm font-bold text-slate-400 dark:text-white hover:text-emerald-600 transition-colors group"
             >
               Manage 
               <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -524,7 +524,7 @@ function WriteQuoteForm() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search templates, packs, or vibes..." 
-                className="w-full bg-white border border-slate-200 rounded-full py-3 pl-11 pr-4 text-sm font-medium focus:outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 transition-all shadow-sm"
+                className="w-full dark:text-white dark:bg-slate-900 dark:border-amber-900 bg-white border border-slate-200 rounded-full py-3 pl-11 pr-4 text-sm font-medium focus:outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 transition-all shadow-sm"
               />
             </div>
           </div>
@@ -535,10 +535,10 @@ function WriteQuoteForm() {
               <button 
                 key={filter}
                 onClick={() => setActiveFilter(filter)}
-                className={`shrink-0 px-5 py-2 rounded-full text-sm font-bold transition-all border ${
+                className={`shrink-0 px-5 py-2 rounded-full dark:bg-slate-900 dark:text-white dark:border-amber-900 text-sm font-bold transition-all border ${
                   activeFilter === filter 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' 
-                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm dark:bg-emerald-50 dark:text-emerald-700 dark:border-emerald-200 dark:shadow-sm' 
+                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 dark:border-amber-900 dark:hover:bg-emerald-900'
                 }`}
               >
                 {filter.charAt(0).toUpperCase() + filter.slice(1)}
@@ -556,11 +556,11 @@ function WriteQuoteForm() {
               className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] flex flex-col items-center justify-center snap-start transition-all duration-200 overflow-hidden ${
                 bgType === 'snap' 
                   ? 'ring-4 ring-emerald-400 scale-[1.02] shadow-md bg-emerald-50 border-none' 
-                  : 'bg-white border-2 border-slate-200 shadow-sm opacity-90 hover:opacity-100'
+                  : 'bg-white border-2 border-slate-200 dark:border-amber-900 dark:bg-slate-800 shadow-sm opacity-90 hover:opacity-100'
               }`}
             >
-              <Camera className={`w-6 h-6 mb-2 relative z-10 ${bgType === 'snap' ? 'text-white drop-shadow-md' : 'text-slate-400'}`} strokeWidth={2.5} />
-              <span className={`text-[10px] font-black uppercase tracking-widest text-center leading-tight relative z-10 ${bgType === 'snap' ? 'text-white drop-shadow-md' : 'text-slate-400'}`}>Live<br/>Snap</span>
+              <Camera className={`w-6 h-6 mb-2 relative z-10 ${bgType === 'snap' ? 'text-white drop-shadow-md' : 'text-slate-400 dark:text-white'}`} strokeWidth={2.5} />
+              <span className={`text-[10px] font-black uppercase tracking-widest text-center leading-tight relative z-10 ${bgType === 'snap' ? 'text-white drop-shadow-md' : 'text-slate-400 dark:text-white'}`}>Live<br/>Snap</span>
 
               {bgType === 'snap' && snapImageUrl && (
                 <div className="absolute inset-0 z-0">
@@ -575,7 +575,7 @@ function WriteQuoteForm() {
               <button
                 onClick={() => setBgType('avatar')}
                 className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] flex flex-col items-center justify-center snap-start transition-all duration-200 overflow-hidden ${
-                  bgType === 'avatar' ? 'ring-4 ring-emerald-400 scale-[1.02] shadow-md bg-emerald-50 border-none' : 'bg-white border-2 border-slate-200 shadow-sm opacity-90 hover:opacity-100'
+                  bgType === 'avatar' ? 'ring-4 ring-emerald-400 scale-[1.02] shadow-md bg-emerald border-none' : 'bg-white border-2 dark:border-amber-900 dark:bg-slate-800 border-slate-200 shadow-sm opacity-90 hover:opacity-100'
                 }`}
               >
                 <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center mb-2 overflow-hidden ${bgType === 'avatar' ? 'bg-emerald-200 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
@@ -586,7 +586,7 @@ function WriteQuoteForm() {
                   )}
                 </div>
                 
-                <span className={`relative z-10 text-[10px] font-black uppercase tracking-widest text-center leading-tight ${bgType === 'avatar' ? 'text-emerald-800' : 'text-slate-500'}`}>
+                <span className={`relative z-10 text-[10px] font-black uppercase tracking-widest text-center leading-tight ${bgType === 'avatar' ? 'text-emerald-800' : 'text-slate-500 dark:text-white'}`}>
                   Use<br/>Avatar
                 </span>
 
@@ -628,14 +628,14 @@ function WriteQuoteForm() {
                     <button
                       key={`pack-${pack.name}`}
                       onClick={() => setActivePack(pack)}
-                      className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] overflow-hidden snap-start transition-all duration-200 border-2 border-slate-200 group ${isLocked ? 'grayscale opacity-70 hover:opacity-90' : 'shadow-sm hover:shadow-md'}`}
+                      className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] overflow-hidden snap-start dark:border-amber-900 transition-all duration-200 border-2 border-slate-200 group ${isLocked ? 'grayscale opacity-70 hover:opacity-90' : 'shadow-sm hover:shadow-md'}`}
                     >
                       {pack.cover_image_url ? (
                         <img src={pack.cover_image_url} alt="" className="absolute inset-0 w-full h-full object-cover" crossOrigin="anonymous" />
                       ) : (
                         <div className="absolute inset-0 bg-slate-200"></div>
                       )}
-                      <div className="absolute top-1.5 left-1.5 right-1.5 bottom-1.5 border border-white/40 rounded-xl pointer-events-none z-10"></div>
+                      <div className="absolute top-1.5 left-1.5 right-1.5 bottom-1.5 rounded-xl pointer-events-none z-10"></div>
                       
                       {isLocked ? (
                         <div className="absolute inset-0 bg-slate-900/50 flex flex-col items-center justify-center z-20 will-change-transform">
@@ -663,7 +663,7 @@ function WriteQuoteForm() {
         <button
           onClick={handlePreview}
           disabled={!isFormValid}
-          className="w-full bg-[#bbf7d0] text-emerald-950 hover:bg-[#86efac] active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-[#bbf7d0] disabled:active:scale-100 font-black text-xl py-4 px-6 rounded-full transition-all duration-200 shadow-lg shadow-emerald-200/50 border-4 border-emerald-200 flex items-center justify-center"
+          className="w-full bg-[#bbf7d0] text-emerald-950 dark:bg-emerald-800 dark:text-white dark:border-amber-800 dark:shadow-sm dark:shadow-emerald-700 hover:bg-[#86efac] active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-[#bbf7d0] disabled:active:scale-100 font-black text-xl py-4 px-6 rounded-full transition-all duration-200 shadow-lg shadow-emerald-200/50 border-4 border-emerald-200 flex items-center justify-center"
         >
           Preview
         </button>
@@ -671,21 +671,21 @@ function WriteQuoteForm() {
 
       {/* Sheet drawer */}
       <div 
-        className={`fixed inset-0 bg-black/60 md:bg-black/40 md:backdrop-blur-sm z-40 transition-opacity duration-300 ${activePack ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 dark:bg-black/600 bg-black/60 md:bg-black/40 md:backdrop-blur-sm z-40 transition-opacity duration-300 ${activePack ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setActivePack(null)}
         style={{ willChange: 'opacity' }}
       ></div>
       
-      <div className={`fixed bottom-0 left-0 right-0 ${isPackLocked ? 'h-auto pb-8' : 'h-[70vh]'} bg-white rounded-t-[40px] z-50 transition-transform duration-300 ease-in-out flex flex-col shadow-2xl ${activePack ? 'translate-y-0' : 'translate-y-full'}`}>
+      <div className={`fixed bottom-0 dark:bg-black left-0 right-0 ${isPackLocked ? 'h-auto pb-8' : 'h-[70vh]'} bg-white rounded-t-[40px] z-50 transition-transform duration-300 ease-in-out flex flex-col shadow-2xl ${activePack ? 'translate-y-0' : 'translate-y-full'}`}>
         
-        <div className="flex items-center justify-between p-6 pb-2 border-b border-slate-100 shrink-0">
+        <div className="flex items-center justify-between p-6 pb-2 border-b dark:bg-black border-slate-100 shrink-0">
           <div className="flex flex-col">
-            <h2 className="text-xl font-black text-slate-900">{activePack?.name}</h2>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+            <h2 className="text-xl font-black dark:text-white text-slate-900">{activePack?.name}</h2>
+            <span className="text-xs font-bold text-slate-400 dark:text-white uppercase tracking-widest">
               {activePack?.is_pro ? 'Pro Collection' : 'Free Collection'}
             </span>
           </div>
-          <button onClick={() => setActivePack(null)} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full transition text-slate-600">
+          <button onClick={() => setActivePack(null)} className="p-2 bg-slate-100 hover:bg-red-950 rounded-full transition text-slate-600">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -693,11 +693,11 @@ function WriteQuoteForm() {
         <div className="flex-1 overflow-y-auto p-4 no-scrollbar relative">
           
           {isPackLocked ? (
-            <div className="flex flex-col items-center justify-center p-6 text-center">
-              <div className="w-16 h-16 bg-yellow-50 text-yellow-500 rounded-full flex items-center justify-center mb-4 border border-yellow-100">
+            <div className="flex flex-col items-center  dark:border-amber-900 justify-center p-6 text-center">
+              <div className="w-16 h-16 bg-yellow-50 dark:border-amber-900  text-yellow-500 rounded-full flex items-center justify-center mb-4 border border-yellow-100">
                 <Lock className="w-8 h-8" />
               </div>
-              <h3 className="text-2xl font-black text-slate-900 mb-2">Unlock {activePack?.name}</h3>
+              <h3 className="text-2xl font-black dark:text-white text-slate-900 mb-2">Unlock {activePack?.name}</h3>
               <p className="text-slate-500 font-medium mb-8">
                 {isGuest ? 'Create a free account to unlock premium templates and features.' : 'Upgrade to Pro to use this template and 100+ more.'}
               </p>
