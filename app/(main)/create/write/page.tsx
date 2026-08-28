@@ -36,7 +36,6 @@ const canAccessTemplate = (isProUser: boolean, itemTier: AccessTier) => {
   return itemTier === 'pro' ? isProUser : true
 }
 
-// 💥 FIX 1: Made regex more resilient to bucket name changes
 const extractPackNameFromUrl = (url: string | undefined): string | null => {
   if (!url) return null
   const match = url.match(/(?:paid_templates|free_templates|templates)\/([^\/]+)/)
@@ -52,8 +51,7 @@ const extractPackNameFromUrl = (url: string | undefined): string | null => {
 function WriteQuoteForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  
-  // 💥 FIX 2: Memoize the Supabase client to prevent infinite re-render loops in hooks
+
   const supabase = useMemo(() => createClient(), [])
   
   // WebRTC
@@ -78,6 +76,7 @@ function WriteQuoteForm() {
 
   const [isHydrated, setIsHydrated] = useState(false)
   const draftKey = `pinquo_draft_${targetId || targetUsername || inviteEmail || customName || 'unknown'}`
+  const [targetAvatarUrl, setTargetAvatarUrl] = useState<string | null>(null)
 
   // Draft Hydration
   useEffect(() => {
@@ -104,8 +103,6 @@ function WriteQuoteForm() {
 
     return () => clearTimeout(timer)
   }, [draftKey, isExistingUser])
-
-  const [targetAvatarUrl, setTargetAvatarUrl] = useState<string | null>(null)
 
   // Fetch Target User's Avatar for the button preview
   useEffect(() => {
@@ -196,8 +193,7 @@ function WriteQuoteForm() {
         const processedTemplates: Template[] = []
 
         ;(templatesData as Template[]).forEach((t) => {
-          // 💥 FIX 3: Stripped out frontend folder-sniffing completely. 
-          // It now purely trusts whatever is in your database's `access_tier` column.
+          // Access_Tier
           const computedTier: AccessTier = t.access_tier === 'pro' ? 'pro' : 'free'
           
           const parsedFolderName = extractPackNameFromUrl(t.image_url)
