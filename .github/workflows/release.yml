@@ -1,0 +1,12 @@
+# Repository: YourAppRepo/.github/workflows/release.yml
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  call-global-workflow:
+    # Replace with your actual GitHub username and the central repo name
+    uses: DanielPallin/shared-github-actions/.github/workflows/global-release-please.yml@main
