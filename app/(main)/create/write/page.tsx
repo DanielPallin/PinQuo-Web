@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense, useRef, useCallback } from 'react'
+import { useState, useEffect, Suspense, useRef, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Camera, ArrowLeft, Loader2, Sparkles, ChevronRight, User as UserIcon, X, Lock, Search, Heart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -36,9 +36,10 @@ const canAccessTemplate = (isProUser: boolean, itemTier: AccessTier) => {
   return itemTier === 'pro' ? isProUser : true
 }
 
+// 💥 FIX 1: Made regex more resilient to bucket name changes
 const extractPackNameFromUrl = (url: string | undefined): string | null => {
   if (!url) return null
-  const match = url.match(/(?:paid_templates|free_templates)\/([^\/]+)/)
+  const match = url.match(/(?:paid_templates|free_templates|templates)\/([^\/]+)/)
   if (match && match[1]) {
     return match[1]
       .split('-')
@@ -51,7 +52,9 @@ const extractPackNameFromUrl = (url: string | undefined): string | null => {
 function WriteQuoteForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = createClient()
+  
+  // 💥 FIX 2: Memoize the Supabase client to prevent infinite re-render loops in hooks
+  const supabase = useMemo(() => createClient(), [])
   
   // WebRTC
   const [isCameraActive, setIsCameraActive] = useState(false)
@@ -76,35 +79,61 @@ function WriteQuoteForm() {
   const [isHydrated, setIsHydrated] = useState(false)
   const draftKey = `pinquo_draft_${targetId || targetUsername || inviteEmail || customName || 'unknown'}`
 
-  // Draft
+  // Draft Hydration
   useEffect(() => {
-    const saved = sessionStorage.getItem(draftKey)
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        if (parsed.quoteText) setQuoteText(parsed.quoteText)
-        if (parsed.witnesses) setWitnesses(parsed.witnesses)
-        if (parsed.selectedTemplate) setSelectedTemplate(parsed.selectedTemplate)
-        
-        if (parsed.bgType === 'snap') {
-          setBgType(isExistingUser ? 'avatar' : 'template')
-        } else if (parsed.bgType) {
-          setBgType(parsed.bgType)
+    const timer = setTimeout(() => {
+      const saved = sessionStorage.getItem(draftKey)
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          if (parsed.quoteText) setQuoteText(parsed.quoteText)
+          if (parsed.witnesses) setWitnesses(parsed.witnesses)
+          if (parsed.selectedTemplate) setSelectedTemplate(parsed.selectedTemplate)
+          
+          if (parsed.bgType === 'snap') {
+            setBgType(isExistingUser ? 'avatar' : 'template')
+          } else if (parsed.bgType) {
+            setBgType(parsed.bgType)
+          }
+        } catch (e) {
+          console.error("Failed to parse draft", e)
         }
-      } catch (e) {
-        console.error("Failed to parse draft", e)
       }
-    }
-    setIsHydrated(true)
+      setIsHydrated(true)
+    }, 0)
+
+    return () => clearTimeout(timer)
   }, [draftKey, isExistingUser])
 
+  const [targetAvatarUrl, setTargetAvatarUrl] = useState<string | null>(null)
+
+  // Fetch Target User's Avatar for the button preview
+  useEffect(() => {
+    let isMounted = true
+    if (targetId) {
+      const fetchTargetAvatar = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', targetId)
+          .single()
+          
+        if (isMounted && data?.avatar_url) {
+          setTargetAvatarUrl(data.avatar_url)
+        }
+      }
+      fetchTargetAvatar()
+    }
+    return () => { isMounted = false }
+  }, [targetId, supabase])
+
+  // Draft Saving
   useEffect(() => {
     if (isHydrated) {
       sessionStorage.setItem(draftKey, JSON.stringify({
         quoteText,
         witnesses,
-        // 💥 FIX: Intentionally omit snapImageUrl so it never persists across sessions
-        bgType: bgType === 'snap' ? 'template' : bgType, // Don't save 'snap' as the default bgType
+        bgType: bgType === 'snap' ? 'template' : bgType,
         selectedTemplate,
       }))
     }
@@ -167,8 +196,9 @@ function WriteQuoteForm() {
         const processedTemplates: Template[] = []
 
         ;(templatesData as Template[]).forEach((t) => {
-          const isPaidFolder = t.image_url?.includes('paid_templates')
-          const computedTier: AccessTier = isPaidFolder ? 'pro' : (t.access_tier === 'pro' ? 'pro' : 'free')
+          // 💥 FIX 3: Stripped out frontend folder-sniffing completely. 
+          // It now purely trusts whatever is in your database's `access_tier` column.
+          const computedTier: AccessTier = t.access_tier === 'pro' ? 'pro' : 'free'
           
           const parsedFolderName = extractPackNameFromUrl(t.image_url)
           let packName = parsedFolderName || t.category
@@ -248,22 +278,20 @@ function WriteQuoteForm() {
 
   const filteredFavorites = favorites.filter(t => t.name.toLowerCase().includes(lowercaseQuery))
 
-  // 1. Just open the modal
   const startCamera = () => {
     setIsCameraActive(true)
   }
 
-  // 2. Safely attach the hardware stream ONLY after the <video> element is rendered
   useEffect(() => {
     let activeStream: MediaStream | null = null;
 
     if (isCameraActive) {
       const initCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: { ideal: 'environment' } },
-        audio: false
-      })
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: { ideal: 'environment' } },
+            audio: false
+          })
           streamRef.current = stream
           activeStream = stream
           
@@ -279,7 +307,6 @@ function WriteQuoteForm() {
       initCamera()
     }
 
-    // Cleanup: If the modal closes, kill the stream immediately
     return () => {
       if (activeStream) {
         activeStream.getTracks().forEach(track => track.stop())
@@ -287,7 +314,6 @@ function WriteQuoteForm() {
     }
   }, [isCameraActive])
 
-  // 3. Stop Hardware Camera
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop())
@@ -429,12 +455,11 @@ function WriteQuoteForm() {
             </button>
           </div>
 
-          {/* The live video stream from hardware */}
           <video 
             ref={videoRef} 
             autoPlay 
             playsInline 
-            muted // 👈 Add this!
+            muted
             className="w-full h-full object-cover"
           />
           <canvas ref={canvasRef} className="hidden" />
@@ -530,7 +555,6 @@ function WriteQuoteForm() {
             ref={carouselRef} 
             className="relative w-full flex overflow-x-auto snap-x snap-mandatory pt-4 pb-8 px-4 gap-3 no-scrollbar items-center"
           >
-            {/* 💥 UNIVERSAL LIVE SNAP BUTTON */}
             <button 
               onClick={startCamera}
               className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] flex flex-col items-center justify-center snap-start transition-all duration-200 overflow-hidden ${
@@ -554,14 +578,28 @@ function WriteQuoteForm() {
             {isExistingUser && (
               <button
                 onClick={() => setBgType('avatar')}
-                className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] flex flex-col items-center justify-center snap-start transition-all duration-200 ${
+                className={`relative shrink-0 w-[100px] h-[130px] rounded-[20px] flex flex-col items-center justify-center snap-start transition-all duration-200 overflow-hidden ${
                   bgType === 'avatar' ? 'ring-4 ring-emerald-400 scale-[1.02] shadow-md bg-emerald-50 border-none' : 'bg-white border-2 border-slate-200 shadow-sm opacity-90 hover:opacity-100'
                 }`}
               >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${bgType === 'avatar' ? 'bg-emerald-200 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                  <UserIcon className="w-5 h-5" />
+                <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center mb-2 overflow-hidden ${bgType === 'avatar' ? 'bg-emerald-200 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                  {targetAvatarUrl ? (
+                    <img src={targetAvatarUrl} alt="Avatar" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                  ) : (
+                    <UserIcon className="w-5 h-5" />
+                  )}
                 </div>
-                <span className={`text-[10px] font-black uppercase tracking-widest text-center leading-tight ${bgType === 'avatar' ? 'text-emerald-800' : 'text-slate-500'}`}>Use<br/>Avatar</span>
+                
+                <span className={`relative z-10 text-[10px] font-black uppercase tracking-widest text-center leading-tight ${bgType === 'avatar' ? 'text-emerald-800' : 'text-slate-500'}`}>
+                  Use<br/>Avatar
+                </span>
+
+                {/* Faint background overlay of their avatar for extra UI polish */}
+                {targetAvatarUrl && (
+                  <div className="absolute inset-0 z-0 pointer-events-none">
+                    <img src={targetAvatarUrl} alt="" className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${bgType === 'avatar' ? 'opacity-20' : 'opacity-[0.03] grayscale'}`} crossOrigin="anonymous" />
+                  </div>
+                )}
               </button>
             )}
 
