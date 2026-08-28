@@ -1,0 +1,16 @@
+name: Global Automated Release
+
+on:
+  workflow_call:
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Release Please
+        uses: googleapis/release-please-action@v4
+        with:
+          release-type: simple
