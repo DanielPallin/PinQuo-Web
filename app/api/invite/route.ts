@@ -34,9 +34,7 @@ export async function POST(request: Request) {
 
     const publisherName = profile?.username || 'Someone'
 
-    const host = request.headers.get('host') || 'pinquo.app'
-    const protocol = host.includes('localhost:') ? 'http' : 'https'
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${host}`
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pinquo.app'
 
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',

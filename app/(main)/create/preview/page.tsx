@@ -110,7 +110,7 @@ function PreviewQuoteForm() {
           const uniqueId = typeof crypto !== 'undefined' ? crypto.randomUUID() : new Date().getTime()
           const fileName = `${user.id}/web_snap_${uniqueId}.jpg`
           
-          // Supabase bucket: quote_media
+          // Supabase bucket: quotes_media
           const { data: uploadData, error: uploadErr } = await supabase.storage
             .from('quotes_media') 
             .upload(fileName, blob, { contentType: 'image/jpeg' })
@@ -257,16 +257,16 @@ function PreviewQuoteForm() {
   }
 
   return (
-    <div className="flex flex-col pt-6 px-4 w-full max-w-lg mx-auto min-h-[100dvh] pb-6 bg-slate-50/50 relative">
+    <div className="flex flex-col pt-6 px-4 w-full max-w-lg mx-auto min-h-[100dvh] dark:bg-black pb-6 bg-slate-50/50 relative">
       
       {/* Sleek Modern Header */}
       <div className="relative text-center mb-6 shrink-0 flex items-center justify-center">
         <button onClick={() => router.back()} className="absolute left-0 p-2 hover:bg-slate-200 rounded-full transition text-slate-700">
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className="w-6 h-6 dark:text-white" />
         </button>
         <div className="flex flex-col items-center">
-          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-            Preview <Sparkles className="w-5 h-5 text-emerald-500" />
+          <h1 className="text-2xl font-black dark:text-white text-slate-900 flex items-center gap-2">
+            Preview 
           </h1>
         </div>
       </div>
@@ -274,14 +274,14 @@ function PreviewQuoteForm() {
       <div className="flex-1 flex flex-col items-center justify-start w-full">
         
         {/* Info Pill */}
-        <div className="flex items-center gap-1.5 mb-6 text-xs font-bold text-slate-500 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100">
+        <div className="flex items-center gap-1.5 mb-6 text-xs font-bold scale-120 text-slate-500 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100">
           <span className="text-slate-800">{displayTarget}</span>
-          <span className="text-slate-400 font-medium">quoted by</span>
+          <span className="text-slate-600 font-medium">quoted by</span>
           <span className="text-slate-800">{currentUsername}</span>
         </div>
 
         {/* Preview Card */}
-        <div className="w-full max-w-[420px] bg-slate-900 rounded-[32px] overflow-hidden flex flex-col relative aspect-square shadow-2xl mb-8 border border-slate-200/50">
+        <div className="w-full max-w-[420px] dark:border-amber-900 bg-slate-900 rounded-[32px] overflow-hidden flex flex-col relative aspect-square shadow-2xl mb-8 border border-slate-200/50">
           
           <img 
             src="/PinQuote-Logo.png" 

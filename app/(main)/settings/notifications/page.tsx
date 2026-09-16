@@ -62,47 +62,47 @@ export default function NotificationsPage() {
   if (isLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
 
   return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50 pb-24">
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md px-4 py-4 flex items-center border-b border-slate-100 will-change-transform">
+    <div className="flex flex-col dark:bg-black w-full max-w-2xl mx-auto min-h-screen bg-slate-50 pb-24">
+      <header className="sticky top-0 z-40 dark:bg-black bg-white/90 backdrop-blur-md px-4 py-4 flex dark:border-amber-800 items-center border-b border-slate-100 will-change-transform">
         <button onClick={() => router.back()} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-700 transition">
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className="w-6 h-6 dark:text-white" />
         </button>
-        <h1 className="font-black text-lg text-slate-800 ml-2">Notifications</h1>
+        <h1 className="font-black text-lg dark:text-white text-slate-800 ml-2">Notifications</h1>
       </header>
 
       <div className="p-4 sm:p-6 mt-2">
-        <p className="text-sm font-bold text-slate-500 mb-4 px-2 tracking-wide">PUSH NOTIFICATIONS</p>
+        <p className="text-sm font-bold text-slate-500  dark:text-white mb-4 px-2 tracking-wide">PUSH NOTIFICATIONS</p>
         
-        <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+        <div className="bg-white dark:bg-black dark:border-amber-900 rounded-[32px] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
           
-          <div className="flex items-center justify-between p-5 border-b border-slate-50">
+          <div className="flex items-center justify-between p-5 border-b dark:border-amber-800 border-slate-50">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-50"><SmilePlus className="w-5 h-5 text-blue-500" /></div>
               <div className="flex flex-col">
-                <span className="font-bold text-slate-800">Reactions</span>
-                <span className="text-xs font-medium text-slate-400">When someone reacts to your content</span>
+                <span className="font-bold dark:text-white text-slate-800">Reactions</span>
+                <span className="text-xs font-medium dark:text-white text-slate-400">When someone reacts to your content</span>
               </div>
             </div>
             <Toggle enabled={settings?.notify_reactions ?? true} onClick={() => toggleSetting('notify_reactions')} />
           </div>
 
-          <div className="flex items-center justify-between p-5 border-b border-slate-50">
+          <div className="flex items-center justify-between p-5 border-b dark:border-amber-800 border-slate-50">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-50"><MessageCircle className="w-5 h-5 text-emerald-500" /></div>
-              <div className="flex flex-col">
-                <span className="font-bold text-slate-800">Comments</span>
-                <span className="text-xs font-medium text-slate-400">When users comment on your quotes</span>
+              <div className="flex flex-col ">
+                <span className="font-bold dark:text-white text-slate-800">Comments</span>
+                <span className="text-xs font-medium dark:text-white text-slate-400">When users comment on your quotes</span>
               </div>
             </div>
             <Toggle enabled={settings?.notify_comments ?? true} onClick={() => toggleSetting('notify_comments')} />
           </div>
 
-          <div className="flex items-center justify-between p-5 border-b border-slate-50">
+          <div className="flex items-center justify-between p-5 border-b dark:border-amber-800 border-slate-50">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-50"><Quote className="w-5 h-5 text-purple-500" /></div>
               <div className="flex flex-col">
-                <span className="font-bold text-slate-800">Quoted In</span>
-                <span className="text-xs font-medium text-slate-400">When someone quotes you</span>
+                <span className="font-bold dark:text-white text-slate-800">Quoted In</span>
+                <span className="text-xs font-medium dark:text-white text-slate-400">When someone quotes you</span>
               </div>
             </div>
             <Toggle enabled={settings?.notify_quotes ?? true} onClick={() => toggleSetting('notify_quotes')} />
@@ -112,8 +112,8 @@ export default function NotificationsPage() {
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full flex items-center justify-center bg-amber-50"><UserPlus className="w-5 h-5 text-amber-500" /></div>
               <div className="flex flex-col">
-                <span className="font-bold text-slate-800">New Followers</span>
-                <span className="text-xs font-medium text-slate-400">When someone follows your profile</span>
+                <span className="font-bold dark:text-white text-slate-800">New Followers</span>
+                <span className="text-xs font-medium dark:text-white text-slate-400">When someone follows your profile</span>
               </div>
             </div>
             <Toggle enabled={settings?.notify_followers ?? true} onClick={() => toggleSetting('notify_followers')} />

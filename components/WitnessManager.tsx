@@ -10,6 +10,13 @@ export type Witness = {
   display: string
 }
 
+// Minimal profile shape returned by the username search below.
+type SearchedProfile = {
+  id: string
+  username: string
+  avatar_url: string | null
+}
+
 interface WitnessManagerProps {
   witnesses: Witness[]
   onChange: (witnesses: Witness[]) => void
@@ -19,9 +26,9 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
   const supabase = createClient()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searchResults, setSearchResults] = useState<SearchedProfile[]>([])
   const [isSearching, setIsSearching] = useState(false)
-  
+
   const containerRef = useRef<HTMLDivElement>(null)
 
   const maxWitnesses = 5
@@ -49,8 +56,8 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
         .select('id, username, avatar_url')
         .ilike('username', `%${searchQuery}%`)
         .limit(5)
-      
-      if (data) setSearchResults(data)
+
+      if (data) setSearchResults(data as SearchedProfile[])
       setIsSearching(false)
     }
 
@@ -58,7 +65,7 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
     return () => clearTimeout(timer)
   }, [searchQuery, supabase])
 
-  const handleAddUser = (user: any) => {
+  const handleAddUser = (user: SearchedProfile) => {
     if (!canAddMore || witnesses.some(w => w.value === user.id)) return
     onChange([...witnesses, { type: 'user', value: user.id, display: user.username }])
     setSearchQuery('')
@@ -69,7 +76,7 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
     e.preventDefault()
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!canAddMore || !emailRegex.test(searchQuery) || witnesses.some(w => w.value === searchQuery)) return
-    
+
     onChange([...witnesses, { type: 'email', value: searchQuery, display: searchQuery }])
     setSearchQuery('')
     setIsOpen(false)
@@ -81,7 +88,7 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
 
   return (
     <div className="relative flex flex-col gap-3 w-full my-4" ref={containerRef}>
-      
+
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -107,7 +114,7 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
       {/* Dropdown Modal */}
       {isOpen && (
         <div className="absolute top-full left-0 mt-3 w-full sm:w-[350px] bg-white rounded-[24px] shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-          
+
           <div className="p-3 border-b border-slate-100 flex items-center gap-3 relative bg-slate-50/50">
             <Search className="w-5 h-5 text-slate-400 absolute left-6" />
             <form onSubmit={handleAddEmail} className="w-full">
@@ -117,24 +124,24 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
                 placeholder="Search username or enter email..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all text-sm font-medium shadow-sm"
+                className="w-full bg-white border dark:text-black border-slate-200 rounded-xl py-2.5 pl-10 pr-4 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 transition-all text-sm font-medium shadow-sm"
               />
             </form>
           </div>
 
-          <div className="max-h-[260px] overflow-y-auto p-2 no-scrollbar bg-white">
+          <div className="max-h-[260px] overflow-y-auto p-2 no-scrollbar dark:text-black bg-white">
             {searchResults.length > 0 ? (
               searchResults.map(user => (
-                <button key={user.id} onClick={() => handleAddUser(user)} className="w-full flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-colors text-left">
-                  <div className="w-9 h-9 rounded-full bg-slate-200 flex-shrink-0 overflow-hidden border border-slate-100">
-                    {user.avatar_url && <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />}
+                <button key={user.id} onClick={() => handleAddUser(user)} className="w-full flex items-center gap-3 p-2.5 dark:text-black hover:bg-slate-50 rounded-xl transition-colors text-left">
+                  <div className="w-9 h-9 rounded-full bg-slate-200 flex-shrink-0 overflow-hidden border dark:text-black border-slate-100">
+                    {user.avatar_url && <img src={user.avatar_url} alt={user.username} className="w-full dark:text-black h-full object-cover" />}
                   </div>
-                  <span className="font-bold text-slate-800 text-sm">@{user.username}</span>
+                  <span className="font-bold text-slate-800 dark:text-black text-sm">@{user.username}</span>
                 </button>
               ))
             ) : searchQuery.includes('@') ? (
-              <button onClick={handleAddEmail} className="w-full flex items-center gap-3 p-2.5 hover:bg-emerald-50 rounded-xl transition-colors text-left group">
-                <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-200 transition-colors border border-emerald-200/50">
+              <button onClick={handleAddEmail} className="w-full flex items-center gap-3 p-2.5 dark:text-black hover:bg-emerald-50 rounded-xl transition-colors text-left group">
+                <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 dark:text-black group-hover:bg-emerald-200 transition-colors border border-emerald-200/50">
                   <Mail className="w-4 h-4 text-emerald-600" />
                 </div>
                 <div className="flex flex-col">
@@ -148,7 +155,7 @@ export default function WitnessManager({ witnesses, onChange }: WitnessManagerPr
               </div>
             )}
           </div>
-          
+
         </div>
       )}
     </div>

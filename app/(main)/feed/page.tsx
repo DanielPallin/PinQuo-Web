@@ -8,6 +8,7 @@ import QuoteCard, { FeedQuote, GroupedReaction, WitnessRecord } from '@/componen
 import Link from 'next/link'
 import { EmojiClickData } from 'emoji-picker-react'
 import CustomEmojiPicker from '@/components/CustomEmojiPicker'
+import { useQuoteInteractions, QuoteComment } from '@/hooks/useQuoteInteractions'
 
 // --- TYPES & CONSTANTS ---
 const ITEMS_PER_PAGE = 5
@@ -34,14 +35,6 @@ type RawQuoteData = {
   favorites: { user_id: string }[] | null
   comments: { count: number }[] | null
   quote_witnesses: WitnessRecord[] | null
-}
-
-type CommentType = {
-  id: string
-  content: string
-  created_at: string
-  user: { id: string, username: string, avatar_url: string | null }
-  reactions: { reaction_type: string, user_id: string }[]
 }
 
 type SearchProfile = {
@@ -72,7 +65,7 @@ const formatQuote = (q: RawQuoteData, userId: string | null): FeedQuote => {
   }
 }
 
-// --- COMPONENT 1: ISOLATED SEARCH BAR ---
+// --- COMPONENT 1: ISOLATED SEARCH BAR (unchanged) ---
 function FeedSearch({ isSearchVisible }: { isSearchVisible: boolean }) {
   const [supabase] = useState(() => createClient())
   const [searchQuery, setSearchQuery] = useState('')
@@ -117,8 +110,8 @@ function FeedSearch({ isSearchVisible }: { isSearchVisible: boolean }) {
   }, [])
 
   return (
-    <div className={`sticky top-4 z-40 mb-6 transition-transform duration-300 ease-in-out will-change-transform ${isSearchVisible ? 'translate-y-0 opacity-100' : '-translate-y-[150%] opacity-0 pointer-events-none'}`} ref={searchContainerRef}>
-      <div className="relative flex items-center bg-white md:bg-white/90 md:backdrop-blur-md border border-slate-200 rounded-full px-4 py-3 shadow-[0_4px_20px_rgb(0,0,0,0.05)] focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all">
+    <div className={`sticky top-4 z-40 mb-6 mt-2 transition-transform duration-300 ease-in-out will-change-transform ${isSearchVisible ? 'translate-y-0 opacity-100' : '-translate-y-[150%] opacity-0 pointer-events-none'}`} ref={searchContainerRef}>
+      <div className="relative flex items-center mt-4 bg-white md:bg-white/90 md:backdrop-blur-md border border-slate-200 rounded-full px-4 py-3 shadow-[0_4px_20px_rgb(0,0,0,0.05)] focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all">
         <Search className="w-5 h-5 text-slate-400 mr-2 shrink-0" />
         <input
           type="text"
@@ -163,11 +156,12 @@ function FeedSearch({ isSearchVisible }: { isSearchVisible: boolean }) {
 // --- COMPONENT 2: ISOLATED QUOTE DETAIL MODAL ---
 interface QuoteDetailModalProps {
   expandedQuote: FeedQuote
-  comments: CommentType[]
+  comments: QuoteComment[]
   currentUserId: string | null
   onClose: () => void
   onReactToQuote: (emoji: EmojiClickData, quoteId: string, type: 'quote', publisherId?: string) => void
-  onReactToComment: (emojiObj: EmojiClickData, commentId: string) => void
+  // 💥 CHANGED: now takes the comment owner's id so comment reactions can notify
+  onReactToComment: (emojiObj: EmojiClickData, commentId: string, ownerId?: string) => void
   onFavoriteQuote: (quoteId: string) => void
   onVoteWitness: (quoteId: string, voteType: 'approved' | 'denied') => void
   onPostComment: (text: string) => Promise<void>
@@ -179,7 +173,6 @@ function QuoteDetailModal({ expandedQuote, comments, currentUserId, onClose, onR
   const [activeCommentEmojiPicker, setActiveCommentEmojiPicker] = useState<string | null>(null)
   const commentInputRef = useRef<HTMLInputElement>(null)
 
-  // Manage body scroll lock safely inside the modal lifecycle
   useEffect(() => {
     document.body.style.overflow = 'hidden'
     setTimeout(() => commentInputRef.current?.focus(), 150)
@@ -207,9 +200,9 @@ function QuoteDetailModal({ expandedQuote, comments, currentUserId, onClose, onR
              <QuoteCard quote={expandedQuote} isExpanded={true} onReact={onReactToQuote} onFavorite={onFavoriteQuote} onVoteWitness={onVoteWitness} />
            </div>
 
-           <div className="p-4 sm:p-6 space-y-6 flex-1 bg-white">
+           <div className="p-4 sm:p-6 space-y-6 flex-1 dark:bg-slate-900 bg-white">
               {comments.length === 0 ? (
-                <div className="text-center text-slate-400 font-medium mt-10">No comments yet. Start the conversation!</div>
+                <div className="text-center dark:text-white text-slate-400 font-medium mt-10">No comments yet. Start the conversation!</div>
               ) : (
                 comments.map(comment => {
                     const cReacts: Record<string, GroupedReaction> = {}
@@ -221,20 +214,20 @@ function QuoteDetailModal({ expandedQuote, comments, currentUserId, onClose, onR
                     const groupedCommentReacts = Object.values(cReacts).sort((a,b) => b.count - a.count)
 
                     return (
-                      <div key={comment.id} className="flex gap-3 items-start group">
-                        <div className="w-9 h-9 rounded-full bg-slate-100 shrink-0 border border-slate-200 overflow-hidden flex items-center justify-center mt-0.5">
+                      <div key={comment.id} className="flex gap-3 dark:text-white items-start group">
+                        <div className="w-9 h-9 rounded-full bg-slate-100 shrink-0 border dark:text-white border-slate-200 overflow-hidden flex items-center justify-center mt-0.5">
                           {comment.user.avatar_url ? <img src={comment.user.avatar_url} alt="" className="w-full h-full object-cover"/> : <User className="w-5 h-5 text-slate-400"/>}
                         </div>
                         <div className="flex-1 flex flex-col min-w-0">
-                            <div className="text-[14px] sm:text-[15px] leading-snug text-slate-800 break-words">
-                              <span className="font-bold text-slate-900 mr-2">{comment.user.username}</span>
+                            <div className="text-[14px] dark:text-white dark:bg-slate-900 sm:text-[15px] leading-snug text-slate-800 break-words">
+                              <span className="font-bold dark:text-white text-slate-900 mr-2">{comment.user.username}</span>
                               {comment.content}
                             </div>
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-1.5">
                               <span className="text-[12px] text-slate-400 font-medium">{timeAgo(comment.created_at)}</span>
                               <div className="flex items-center gap-1.5">
                                 {groupedCommentReacts.map(r => (
-                                  <button key={r.emoji} onClick={() => { setActiveCommentEmojiPicker(null); onReactToComment({emoji: r.emoji} as EmojiClickData, comment.id) }} className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-bold transition ${r.hasReacted ? 'bg-emerald-50 text-emerald-700' : 'bg-transparent text-slate-500 hover:bg-slate-100'}`}>
+                                  <button key={r.emoji} onClick={() => { setActiveCommentEmojiPicker(null); onReactToComment({emoji: r.emoji} as EmojiClickData, comment.id, comment.user.id) }} className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-bold transition ${r.hasReacted ? 'bg-emerald-50 text-emerald-700' : 'bg-transparent text-slate-500 hover:bg-slate-100'}`}>
                                     <span>{r.emoji}</span> <span>{r.count}</span>
                                   </button>
                                 ))}
@@ -244,7 +237,7 @@ function QuoteDetailModal({ expandedQuote, comments, currentUserId, onClose, onR
                                   </button>
                                   {activeCommentEmojiPicker === comment.id && (
                                     <div className="absolute z-50 top-full mt-1 left-0 shadow-xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 border border-slate-100">
-                                      <CustomEmojiPicker onEmojiClick={(e) => { setActiveCommentEmojiPicker(null); onReactToComment(e, comment.id) }} />
+                                      <CustomEmojiPicker onEmojiClick={(e) => { setActiveCommentEmojiPicker(null); onReactToComment(e, comment.id, comment.user.id) }} />
                                     </div>
                                   )}
                                 </div>
@@ -258,7 +251,7 @@ function QuoteDetailModal({ expandedQuote, comments, currentUserId, onClose, onR
            </div>
         </div>
 
-        <div className="p-3 sm:p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-white border-t border-slate-100 shrink-0 z-20 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
+        <div className="p-3 sm:p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:bg-slate-900 bg-white border-t border-slate-100 shrink-0 z-20 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
            <div className="relative flex items-center max-w-2xl mx-auto">
               <input 
                 ref={commentInputRef}
@@ -297,16 +290,25 @@ function FeedContent() {
   const [isPaginationLoading, setIsPaginationLoading] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   
-  // Expanded Quote & Interaction State
   const [expandedQuote, setExpandedQuote] = useState<FeedQuote | null>(null)
-  const [comments, setComments] = useState<CommentType[]>([])
+  const [comments, setComments] = useState<QuoteComment[]>([])
 
-  // Scroll & Pagination State
   const [isSearchVisible, setIsSearchVisible] = useState(true)
   const lastScrollY = useRef(0)
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const observer = useRef<IntersectionObserver | null>(null)
+
+  const { fetchComments, handleReaction, postComment, toggleFavorite } = useQuoteInteractions({
+    supabase,
+    currentUserId,
+    quotes,
+    setQuotes,
+    expandedQuote,
+    setExpandedQuote,
+    comments,
+    setComments,
+  })
   
   const bottomBoundaryRef = useCallback((node: HTMLDivElement | null) => {
     if (isPaginationLoading) return
@@ -319,7 +321,6 @@ function FeedContent() {
     if (node) observer.current.observe(node)
   }, [isPaginationLoading, hasMore])
 
-  // Scroll Listener for Sticky Search Header
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY
@@ -331,14 +332,12 @@ function FeedContent() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Fetch Specific Quote for Modal Sharing
   useEffect(() => {
     let isMounted = true
     const fetchSpecificQuote = async () => {
       if (!quoteIdParam) return
       const { data: { user } } = await supabase.auth.getUser()
 
-      // 💥 BUG FIX: Added live_photo_url to the select query
       const { data, error } = await supabase
         .from('quotes')
         .select(`
@@ -364,7 +363,6 @@ function FeedContent() {
     return () => { isMounted = false }
   }, [quoteIdParam, supabase])
 
-  // Fetch Main Feed
   useEffect(() => {
     let isMounted = true
     const fetchFeed = async () => {
@@ -377,7 +375,6 @@ function FeedContent() {
       const start = page * ITEMS_PER_PAGE
       const end = start + ITEMS_PER_PAGE - 1
 
-      // 💥 BUG FIX: Added live_photo_url to the select query
       const { data } = await supabase
         .from('quotes')
         .select(`
@@ -416,24 +413,10 @@ function FeedContent() {
     return () => { isMounted = false }
   }, [supabase, page])
 
-  // Fetch Comments for Expanded Quote
   useEffect(() => {
     if (!expandedQuote) return
-    const fetchComments = async () => {
-      const { data } = await supabase
-        .from('comments')
-        .select(`
-          id, content, created_at,
-          user:profiles!comments_user_id_fkey(id, username, avatar_url),
-          reactions(reaction_type, user_id)
-        `)
-        .eq('quote_id', expandedQuote.id)
-        .order('created_at', { ascending: true })
-
-      if (data) setComments(data as unknown as CommentType[])
-    }
-    fetchComments()
-  }, [expandedQuote, supabase])
+    void fetchComments(expandedQuote.id)
+  }, [expandedQuote, fetchComments])
 
   const handleCloseModal = () => {
     setExpandedQuote(null)
@@ -442,7 +425,6 @@ function FeedContent() {
     }
   }
 
-  // Interaction Handlers (passed down to UI components)
   const handleVoteWitness = async (quoteId: string, voteType: 'approved' | 'denied') => {
     if (!currentUserId) return
 
@@ -459,100 +441,8 @@ function FeedContent() {
     await supabase.from('quote_witnesses').update({ vote: voteType }).match({ quote_id: quoteId, witness_user_id: currentUserId })
   }
 
-  const handleDynamicReaction = async (emojiObj: EmojiClickData, targetId: string, type: 'quote' | 'comment') => {
-    if (!currentUserId) return
-    const emoji = emojiObj.emoji
-    let action: 'ADD' | 'REMOVE' | 'SWAP' = 'ADD'
-    let previousEmoji: string | null = null
-
-    if (type === 'quote') {
-      const quote = quotes.find(q => q.id === targetId) || (expandedQuote?.id === targetId ? expandedQuote : undefined)
-      const existingReact = quote?.groupedReactions.find(r => r.hasReacted)
-      
-      if (existingReact) {
-        previousEmoji = existingReact.emoji
-        action = existingReact.emoji === emoji ? 'REMOVE' : 'SWAP'
-      }
-
-      const updateQuoteState = (q: FeedQuote) => {
-        let newReactions = [...q.groupedReactions]
-        if (action === 'REMOVE' || action === 'SWAP') {
-          const old = newReactions.find(r => r.emoji === previousEmoji)
-          if (old) {
-            old.count--
-            old.hasReacted = false
-            if (old.count === 0) newReactions = newReactions.filter(r => r.emoji !== previousEmoji)
-          }
-        }
-        if (action === 'SWAP' || action === 'ADD') {
-          const newR = newReactions.find(r => r.emoji === emoji)
-          if (newR) { newR.count++; newR.hasReacted = true }
-          else { newReactions.push({ emoji, count: 1, hasReacted: true }) }
-        }
-        return { ...q, groupedReactions: newReactions.sort((a,b) => b.count - a.count) }
-      }
-
-      setQuotes(prev => prev.map(q => q.id === targetId ? updateQuoteState(q) : q))
-      if (expandedQuote?.id === targetId) setExpandedQuote(updateQuoteState(expandedQuote))
-      
-    } else {
-      const comment = comments.find(c => c.id === targetId)
-      const existingReact = comment?.reactions.find(r => r.user_id === currentUserId)
-      
-      if (existingReact) {
-        previousEmoji = existingReact.reaction_type
-        action = existingReact.reaction_type === emoji ? 'REMOVE' : 'SWAP'
-      }
-
-      setComments(prev => prev.map(c => {
-        if (c.id !== targetId) return c
-        let newReactions = [...c.reactions]
-        if (action === 'REMOVE' || action === 'SWAP') newReactions = newReactions.filter(r => !(r.user_id === currentUserId))
-        if (action === 'SWAP' || action === 'ADD') newReactions.push({ reaction_type: emoji, user_id: currentUserId })
-        return { ...c, reactions: newReactions }
-      }))
-    }
-
-    const matchCriteria = type === 'quote' ? { quote_id: targetId, user_id: currentUserId } : { comment_id: targetId, user_id: currentUserId }
-    await supabase.from('reactions').delete().match(matchCriteria)
-
-    if (action !== 'REMOVE') {
-      await supabase.from('reactions').insert({ ...matchCriteria, reaction_type: emoji })
-    }
-  }
-
-  const handlePostComment = async (text: string) => {
-    if (!expandedQuote || !currentUserId) return
-
-    const { data } = await supabase.from('comments').insert({
-      quote_id: expandedQuote.id,
-      user_id: currentUserId,
-      content: text
-    }).select('id, content, created_at, user:profiles(id, username, avatar_url), reactions(reaction_type, user_id)').single()
-
-    if (data) {
-      setComments(prev => [...prev, data as unknown as CommentType])
-      setQuotes(prev => prev.map(q => q.id === expandedQuote.id ? { ...q, commentCount: q.commentCount + 1 } : q))
-      setExpandedQuote(prev => prev ? { ...prev, commentCount: prev.commentCount + 1 } : null)
-    }
-  }
-
-  const toggleFavorite = async (quoteId: string) => {
-    if (!currentUserId) return
-    const quote = quotes.find((q) => q.id === quoteId) || (expandedQuote?.id === quoteId ? expandedQuote : null)
-    if (!quote) return
-    const isAdding = !quote.isFavorited
-    const updateFavoriteState = (q: FeedQuote) => ({ ...q, favoriteCount: q.favoriteCount + (isAdding ? 1 : -1), isFavorited: isAdding })
-    
-    setQuotes((prev) => prev.map((q) => q.id === quoteId ? updateFavoriteState(q) : q))
-    if (expandedQuote?.id === quoteId) setExpandedQuote(updateFavoriteState(expandedQuote))
-    
-    if (isAdding) await supabase.from('favorites').insert({ quote_id: quoteId, user_id: currentUserId })
-    else await supabase.from('favorites').delete().match({ quote_id: quoteId, user_id: currentUserId })
-  }
-
   return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50/50 pb-24 relative px-4 mt-4">
+    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50/50 pb-24 dark:bg-black relative px-4 mt-4">
       
       <FeedSearch isSearchVisible={isSearchVisible} />
 
@@ -564,7 +454,7 @@ function FeedContent() {
             <QuoteCard 
               key={quote.id} 
               quote={quote} 
-              onReact={handleDynamicReaction} 
+              onReact={handleReaction} 
               onExpand={setExpandedQuote} 
               onFavorite={toggleFavorite} 
               onVoteWitness={handleVoteWitness}
@@ -591,11 +481,11 @@ function FeedContent() {
           comments={comments}
           currentUserId={currentUserId}
           onClose={handleCloseModal}
-          onReactToQuote={handleDynamicReaction}
-          onReactToComment={(e, id) => handleDynamicReaction(e, id, 'comment')}
+          onReactToQuote={handleReaction}
+          onReactToComment={(e, id, ownerId) => handleReaction(e, id, 'comment', ownerId)}
           onFavoriteQuote={toggleFavorite}
           onVoteWitness={handleVoteWitness}
-          onPostComment={handlePostComment}
+          onPostComment={postComment}
         />
       )}
     </div>

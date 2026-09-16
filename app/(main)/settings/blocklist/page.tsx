@@ -49,19 +49,19 @@ export default function BlocklistPage() {
   if (isLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
 
   return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50 pb-24">
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md px-4 py-4 flex items-center border-b border-slate-100 will-change-transform">
+    <div className="flex dark:bg-black flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50 pb-24">
+      <header className="sticky top-0 z-40 dark:bg-black bg-white/90 backdrop-blur-md px-4 py-4 flex dark:border-amber-800 items-center border-b border-slate-100 will-change-transform">
         <button onClick={() => router.back()} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-700 transition">
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className="w-6 h-6 dark:text-white"  />
         </button>
-        <h1 className="font-black text-lg text-slate-800 ml-2">Blocklist</h1>
+        <h1 className="font-black text-lg dark:text-white text-slate-800 ml-2">Blocklist</h1>
       </header>
 
-      <div className="p-4 sm:p-6 mt-2">
+      <div className="p-4 dark:bg-black sm:p-6 mt-2">
         {blockedUsers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center text-center p-10 bg-white rounded-[32px] border border-slate-100">
+          <div className="flex flex-col dark:bg-slate-900 dark:border-amber-900 items-center justify-center text-center p-10 bg-white rounded-[32px] border border-slate-100">
             <ShieldBan className="w-12 h-12 text-slate-200 mb-4" />
-            <h2 className="font-bold text-slate-800 text-lg">No blocked users</h2>
+            <h2 className="font-bold dark:text-white text-slate-800 text-lg">No blocked users</h2>
             <p className="text-sm font-medium text-slate-400 mt-1">When you block someone, they will show up here.</p>
           </div>
         ) : (

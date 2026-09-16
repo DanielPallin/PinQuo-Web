@@ -57,7 +57,7 @@ export default function SinglePackPage() {
       </div>
 
       {/* Template Grid */}
-      <div className="p-4 sm:p-6">
+      <div className="p-4 border-r-2 sm:p-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {templates.map(template => (
             <div 
