@@ -43,7 +43,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         
         {/* Mobile Header */}
         <header className="lg:hidden sticky top-0 z-40 bg-white dark:bg-slate-950/90 md:bg-white/80 md:dark:bg-slate-950/80 md:backdrop-blur-md pt-5 pb-3 px-6 flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/70 shadow-sm will-change-transform transition-colors duration-200">
-          <Link href="/feed" className="dark:invert transition-all">
+          <Link href="/feed" className="dark: transition-all">
             <Image src="/PinQuote-Logo.png" alt="PinQuo Logo" width={110} height={35} priority className="h-8 w-auto object-contain" />
           </Link>
 
