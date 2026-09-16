@@ -90,8 +90,8 @@ export default function AuthPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      <div className="w-full max-w-md bg-white rounded-[32px] shadow-xl border border-slate-100 p-8">
+    <main className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4">
+      <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-[32px] shadow-xl border border-slate-100 dark:border-amber-800 p-8">
         
         <div className="flex flex-col items-center text-center mb-8">
             <Image
@@ -102,10 +102,10 @@ export default function AuthPage() {
               priority
               className="h-9 w-auto object-contain mb-6" 
             />
-          <h1 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
             {isLogin ? 'PinQuote' : 'Join PinQuote'}
           </h1>
-          <p className="text-slate-500 text-sm font-medium">
+          <p className="text-slate-500 text-sm dark:text-white font-medium">
             The social network for memorable quotes.
           </p>
         </div>
@@ -134,7 +134,7 @@ export default function AuthPage() {
         <form onSubmit={handleAuth} className="space-y-5">
           
           <div>
-            <label htmlFor="email" className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">
+            <label htmlFor="email" className="block text-sm font-bold dark:text-white text-slate-700 mb-1.5 ml-1">
               Email Address
             </label>
             <input
@@ -144,18 +144,18 @@ export default function AuthPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              className="w-full px-4 py-3.5 bg-slate-50 text-slate-900 rounded-xl border border-slate-200 focus:ring-2 focus:ring-black focus:border-black outline-none transition disabled:opacity-50 font-medium"
+              className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white rounded-xl border border-slate-200 dark:border-amber-800 focus:ring-2 focus:ring-black focus:border-black outline-none transition disabled:opacity-50 font-medium"
               placeholder="you@example.com"
             />
           </div>
 
           {!isLogin && (
             <div>
-              <label htmlFor="username" className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">
+              <label htmlFor="username" className="block text-sm font-bold dark:text-white text-slate-700 mb-1.5 ml-1">
                 Username
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-4 flex items-center text-slate-400 font-bold">@</span>
+                <span className="absolute inset-y-0 left-4 flex items-center text-slate-400 dark:text-white font-bold">@</span>
                 <input
                   id="username"
                   type="text"
@@ -164,7 +164,7 @@ export default function AuthPage() {
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={loading}
                   maxLength={20}
-                  className="w-full pl-10 pr-4 py-3.5 bg-slate-50 text-slate-900 rounded-xl border border-slate-200 focus:ring-2 focus:ring-black focus:border-black outline-none transition disabled:opacity-50 font-medium"
+                  className="w-full pl-10 pr-4 py-3.5 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white rounded-xl border border-slate-200 dark:border-amber-800 focus:ring-2 focus:ring-black focus:border-black outline-none transition disabled:opacity-50 font-medium"
                   placeholder="username"
                 />
               </div>
@@ -172,7 +172,7 @@ export default function AuthPage() {
           )}
 
           <div>
-            <label htmlFor="password" className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">
+            <label htmlFor="password" className="block text-sm font-bold dark:text-white text-slate-700 mb-1.5 ml-1">
               Password
             </label>
             <input
@@ -182,7 +182,7 @@ export default function AuthPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              className="w-full px-4 py-3.5 bg-slate-50 text-slate-900 rounded-xl border border-slate-200 focus:ring-2 focus:ring-black focus:border-black outline-none transition disabled:opacity-50 font-medium"
+              className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white rounded-xl border border-slate-200 dark:border-amber-800 focus:ring-2 focus:ring-black focus:border-black outline-none transition disabled:opacity-50 font-medium"
               placeholder="••••••••"
             />
           </div>

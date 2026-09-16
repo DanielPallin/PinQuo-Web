@@ -236,18 +236,18 @@ export default function TemplatesPage() {
   if (isLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
 
   return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white pb-24">
+    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen dark:bg-black bg-white pb-24">
       
       {/* Header & Search */}
-      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-slate-100 pt-4 pb-2 px-4 sm:px-6 will-change-transform">
+      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b dark:bg-black dark:border-slate-800 border-slate-100 pt-4 pb-2 px-4 sm:px-6 will-change-transform">
         <div className="relative flex items-center bg-slate-50 border border-slate-200 rounded-full px-4 py-3 shadow-inner focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all mb-3">
-          <Search className="w-5 h-5 text-slate-400 mr-2 shrink-0" />
+          <Search className="w-5 h-5 dark:text-black text-slate-400 mr-2 shrink-0" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search templates & packs..."
-            className="flex-1 bg-transparent border-none outline-none text-[15px] font-bold text-slate-800 placeholder:text-slate-400"
+            className="flex-1 bg-transparent border-none outline-none text-[15px] font-bold text-slate-800  placeholder:text-slate-400"
           />
         </div>
 
@@ -259,7 +259,7 @@ export default function TemplatesPage() {
               className={`px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all active:scale-95 ${
                 activeFilter === filter 
                   ? 'bg-slate-800 text-white shadow-md' 
-                  : 'bg-white text-slate-500 border border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                  : 'bg-white text-slate-500 border border-slate-200 dark:text-black hover:border-slate-300 hover:bg-slate-50'
               }`}
             >
               {filter}
@@ -271,7 +271,7 @@ export default function TemplatesPage() {
       <div className="flex flex-col">
         {searchQuery.length > 0 ? (
           <div className="px-4 sm:px-6 mt-6">
-            <h2 className="font-black text-lg text-slate-800 mb-4">Results for "{searchQuery}"</h2>
+            <h2 className="font-black text-lg dark:text-white text-slate-800 mb-4">Results for "{searchQuery}"</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {filteredTemplates.map(t => (
                 <TemplateCard 
@@ -296,11 +296,11 @@ export default function TemplatesPage() {
               <div className="mt-8">
                 <div className="flex items-center justify-between px-4 sm:px-6 mb-4">
                   <div className="flex items-center gap-2">
-                    <Layers className="w-5 h-5 text-slate-800" />
-                    <h2 className="font-black text-lg sm:text-xl text-slate-800 tracking-tight">Template Packs</h2>
+                    <Layers className="w-5 h-5 text-slate-800 dark:text-white" />
+                    <h2 className="font-black text-lg sm:text-xl text-slate-800 dark:border-amber-800 dark:text-white tracking-tight">Template Packs</h2>
                   </div>
                   {activeFilter === 'All' && (
-                     <button onClick={() => setActiveFilter('Packs')} className="text-sm font-bold text-slate-400 hover:text-black flex items-center transition-colors">
+                     <button onClick={() => setActiveFilter('Packs')} className="text-sm font-bold dark:border-amber-800 dark:text-white text-slate-400 dark:hover-slate-300 hover:text-black flex items-center transition-colors">
                        See all <ChevronRight className="w-4 h-4 ml-0.5" />
                      </button>
                   )}
@@ -311,7 +311,7 @@ export default function TemplatesPage() {
                     {packs.map(pack => (
                       <div key={pack.id} onClick={() => setSelectedPack(pack)} className="relative w-full h-48 rounded-[28px] overflow-hidden group cursor-pointer shadow-sm border border-slate-100">
                         <img src={pack.cover_image_url || '/placeholder-pack.jpg'} alt={pack.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t dark:border-amber-800 from-black/80 via-black/20 to-transparent"></div>
                         <div className="absolute bottom-0 left-0 p-5">
                           <h3 className="text-white font-black text-xl mb-1">{pack.name}</h3>
                           <p className="text-white/80 font-medium text-sm line-clamp-1">{pack.description}</p>
@@ -324,8 +324,8 @@ export default function TemplatesPage() {
                     {packs.map(pack => (
                       <div key={pack.id} onClick={() => setSelectedPack(pack)} className="relative w-72 h-44 rounded-[28px] overflow-hidden shrink-0 snap-center group cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300">
                         <img src={pack.cover_image_url || '/placeholder-pack.jpg'} alt={pack.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                        <div className="absolute bottom-0 left-0 p-5">
+                        <div className="absolute inset-0 bg-gradient-to-t dark:border-amber-800 from-black/80 via-black/20 to-transparent"></div>
+                        <div className="absolute bottom-0 dark:border-amber-800 left-0 p-5">
                           <h3 className="text-white font-black text-xl mb-1">{pack.name}</h3>
                           <p className="text-white/80 font-medium text-sm line-clamp-1">{pack.description}</p>
                         </div>
@@ -366,12 +366,12 @@ export default function TemplatesPage() {
 
       {/* Template Preview */}
       {selectedTemplate && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 sm:p-6 transition-opacity">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center dark:border-amber-800 bg-slate-900/40 backdrop-blur-sm p-4 sm:p-6 transition-opacity">
           <div className="absolute inset-0" onClick={() => setSelectedTemplate(null)}></div>
           
-            <div className="relative w-full max-w-sm bg-white rounded-[32px] sm:rounded-[40px] p-6 shadow-2xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-4 fade-in duration-300">
+            <div className="relative w-full max-w-sm bg-white dark:border-amber-800 dark:bg-slate-900 rounded-[32px] sm:rounded-[40px] p-6 shadow-2xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-4 fade-in duration-300">
              <div className="w-full flex justify-center mb-6">
-            <div className="w-[200px] aspect-[3/4] rounded-2xl overflow-hidden border border-slate-200 shadow-xl relative bg-slate-100">
+            <div className="w-[200px] aspect-[3/4] rounded-2xl overflow-hidden border dark:border-amber-800 border-slate-200 shadow-xl relative bg-slate-100">
                 {selectedTemplate.image_url ? (
                 <img 
                     src={selectedTemplate.image_url} 
@@ -384,16 +384,9 @@ export default function TemplatesPage() {
             </div>
             </div>
 
-            <h3 className="text-2xl font-black text-slate-800 text-center mb-6">{selectedTemplate.name}</h3>
+            <h3 className="text-2xl font-black text-slate-800 dark:text-white text-center mb-6">{selectedTemplate.name}</h3>
 
             <div className="flex flex-col gap-3">
-              <button 
-                onClick={() => router.push(`/create?template=${selectedTemplate.id}`)}
-                className="w-full bg-slate-900 text-white font-bold text-lg py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-black active:scale-95 transition-all shadow-md hover:shadow-lg"
-              >
-                <Paintbrush className="w-5 h-5" />
-                Use Template
-              </button>
               
               <div className="flex gap-3">
                 {templatePackMap[selectedTemplate.id] && (

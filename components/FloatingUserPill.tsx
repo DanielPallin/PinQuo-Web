@@ -43,7 +43,7 @@ export default function FloatingUserPill() {
   }, [supabase])
 
   return (
-    <div className="flex w-max ml-auto items-center gap-1 sm:gap-2 bg-slate-900/95 dark:bg-slate-950/90 backdrop-blur-md border border-slate-800 dark:border-slate-800/80 rounded-full px-3 py-2 shadow-sm animate-in fade-in duration-300">
+    <div className="flex w-max ml-auto items-center gap-1 sm:gap-2 dark:border-1 bg-white dark:bg-slate-900 backdrop-blur-md animate-in fade-in border-slate-800 dark:border-amber-800 rounded-full px-3 py-2 dark:shadow-sm animate-in fade-in duration-300">
       
       {/* 1. Auth / Avatar */}
       {user ? (
@@ -57,7 +57,7 @@ export default function FloatingUserPill() {
           )}
         </Link>
       ) : (
-        <Link href="/login" className="text-sm font-bold text-white hover:text-emerald-400 transition-colors px-3 py-1">
+        <Link href="/login" className="text-sm font-bold text-black dark:text-white hover:text-emerald-400 transition-colors px-3 py-1">
           Log In
         </Link>
       )}

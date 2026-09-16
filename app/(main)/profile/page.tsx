@@ -147,17 +147,17 @@ export default function ProfilePage() {
 
   if (isGuest) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-center p-6 bg-white pb-24">
+      <div className="flex flex-col items-center justify-center min-h-screen text-center p-6 bg-white dark:bg-black pb-24">
         <div className="w-24 h-24 bg-slate-50 shadow-sm border border-slate-100 rounded-full flex items-center justify-center mb-6">
           <span className="text-5xl">🏡</span>
         </div>
-        <h2 className="text-3xl font-black text-slate-900 mb-3 tracking-tight">Claim your space</h2>
-        <p className="text-slate-500 font-medium max-w-sm mb-10 leading-relaxed">
+        <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-3 tracking-tight">Claim your space</h2>
+        <p className="text-slate-500 dark:text-white font-medium max-w-sm mb-10 leading-relaxed">
           Join PinQuote to customize your profile, track your quotes, and build your audience.
         </p>
         <button 
           onClick={() => router.push('/login')}
-          className="bg-black hover:bg-slate-800 text-white font-bold text-lg py-4 px-10 rounded-full shadow-[0_8px_20px_rgba(0,0,0,0.15)] active:scale-95 transition-all"
+          className="bg-white dark:text-black hover:bg-slate-300 font-bold text-lg py-4 px-10 rounded-full shadow-[0_8px_20px_rgba(0,0,0,0.15)] active:scale-95 transition-all"
         >
           Join PinQuote
         </button>
