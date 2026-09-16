@@ -290,22 +290,15 @@ function FeedContent() {
   const [isPaginationLoading, setIsPaginationLoading] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   
-  // Expanded Quote & Interaction State
   const [expandedQuote, setExpandedQuote] = useState<FeedQuote | null>(null)
   const [comments, setComments] = useState<QuoteComment[]>([])
 
-  // Scroll & Pagination State
   const [isSearchVisible, setIsSearchVisible] = useState(true)
   const lastScrollY = useRef(0)
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const observer = useRef<IntersectionObserver | null>(null)
 
-  // Shared reaction / comment / favorite logic (issue 3).
-  // 💥 NOTE: this brings feed's reactions in line with the rest of the app -
-  // multiple different emojis toggle independently (instead of the old
-  // "single reaction, click swaps it" model) - and reactions/comments here
-  // now trigger notifications too, which they never did before (issue 6).
   const { fetchComments, handleReaction, postComment, toggleFavorite } = useQuoteInteractions({
     supabase,
     currentUserId,
@@ -328,7 +321,6 @@ function FeedContent() {
     if (node) observer.current.observe(node)
   }, [isPaginationLoading, hasMore])
 
-  // Scroll Listener for Sticky Search Header
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY
@@ -340,7 +332,6 @@ function FeedContent() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Fetch Specific Quote for Modal Sharing
   useEffect(() => {
     let isMounted = true
     const fetchSpecificQuote = async () => {
@@ -372,7 +363,6 @@ function FeedContent() {
     return () => { isMounted = false }
   }, [quoteIdParam, supabase])
 
-  // Fetch Main Feed
   useEffect(() => {
     let isMounted = true
     const fetchFeed = async () => {
@@ -423,7 +413,6 @@ function FeedContent() {
     return () => { isMounted = false }
   }, [supabase, page])
 
-  // Fetch comments when a quote is expanded (now backed by the shared hook).
   useEffect(() => {
     if (!expandedQuote) return
     void fetchComments(expandedQuote.id)
@@ -436,7 +425,6 @@ function FeedContent() {
     }
   }
 
-  // Witness voting stays page-specific - not duplicated elsewhere.
   const handleVoteWitness = async (quoteId: string, voteType: 'approved' | 'denied') => {
     if (!currentUserId) return
 

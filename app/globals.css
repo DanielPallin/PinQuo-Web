@@ -7,27 +7,6 @@
   --font-serif: var(--font-playfair), ui-serif, Georgia, serif;
 }
 
-/* ============================================================
-   PINQUOTE — DARK MODE DESIGN SYSTEM
-   ------------------------------------------------------------
-   A layered, premium "deep navy" palette. Instead of pure
-   black, we stack slate surfaces for depth:
-
-     Page / surfaces ......... slate-950  (deepest)
-     Cards / inputs .......... slate-900
-     Wells / active states ... slate-800
-     Borders ................. slate-800  (use /60 for subtle)
-     Text (primary) .......... slate-100
-     Text (secondary) ........ slate-400
-     Text (muted) ............ slate-500
-     Brand accent (glow) ..... amber-400
-     Primary CTA ............. white bg + slate-950 text
-
-   The "cinematic" quote cards (bg-slate-900 + white text +
-   imagery) are intentionally theme-independent — they stay
-   rich and moody in both light and dark mode.
-   ============================================================ */
-
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;

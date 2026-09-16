@@ -65,7 +65,6 @@ export default function ProfilePage() {
         setFollowing(followingCount || 0)
       }
 
-      // 💥 FIX: Added live_photo_url to the root select statement
       const { data: pubData, count: pubCount } = await supabase
         .from('quotes')
         .select('id, live_photo_url, template:templates(style_config,image_url)', { count: 'exact' })
@@ -78,7 +77,6 @@ export default function ProfilePage() {
         setPublishedCount(pubCount || 0)
       }
 
-      // 💥 FIX: Corrected the syntax error and added live_photo_url correctly
       const { data: quotedData, count: quotedCount } = await supabase
         .from('quotes')
         .select('id, live_photo_url, template:templates(style_config,image_url)', { count: 'exact' })
@@ -108,7 +106,8 @@ export default function ProfilePage() {
           text: `Check out ${profile.username}'s quotes on PinQuo!`,
           url: profileUrl
         })
-      } catch (err) { /* User dismissed share sheet */ }
+      } catch (err) {
+        console.error('Error sharing:', err)}
     } else {
       navigator.clipboard.writeText(profileUrl)
       alert('Profile link copied to clipboard!')

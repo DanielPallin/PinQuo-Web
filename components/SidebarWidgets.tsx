@@ -150,7 +150,7 @@ export default function SidebarWidgets() {
   )
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-xs">
+    <div className="flex flex-col gap-6 w-full pt-15 max-w-xs">
       <div className="bg-white dark:bg-slate-900 rounded-[32px] p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none border border-slate-100 dark:border-slate-800 flex flex-col">
         <div className="flex items-center gap-2 mb-3 px-1">
           <Trophy className="w-4 h-4 text-amber-500 fill-amber-500 drop-shadow-sm" />

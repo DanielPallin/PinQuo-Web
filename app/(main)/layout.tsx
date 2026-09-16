@@ -8,6 +8,7 @@ import NotificationBell from '@/components/NotificationBell'
 import SidebarWidgets from '@/components/SidebarWidgets'
 import UpdatesWidget from '@/components/UpdatesWidget'
 import ThemeToggle from '@/components/ThemeToggle'
+import FloatingUserPill from '@/components/FloatingUserPill'
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta' })
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' })
@@ -151,15 +152,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             </div>
           ) : (
             // PLG: Guest CTA for the Desktop Sidebar
-            <div className="relative z-50 flex items-center justify-end gap-3 mb-8 shrink-0 w-full">
-              <UpdatesWidget />
-              <Link 
-                href="/login" 
-                className="px-6 py-2.5 bg-black dark:bg-white text-white dark:text-slate-950 font-bold rounded-full hover:opacity-90 dark:hover:bg-slate-200 transition-all shadow-[0_4px_14px_rgba(0,0,0,0.1)] dark:shadow-none active:scale-95 text-sm"
-              >
-                Log In / Sign Up
-              </Link>
-            </div>
+            <FloatingUserPill />
           )}
 
           {/* DYNAMIC WIDGETS */}
