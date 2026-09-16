@@ -87,7 +87,7 @@ export default function CreateQuotePage() {
   const isFormValid = selectedUser || inviteEmail.trim().length > 0 || searchTerm.trim().length > 0
 
   return (
-    <div className="flex flex-col pt-6 px-4 w-full max-w-md mx-auto min-h-[calc(100vh-100px)] pb-8 bg-slate-50/50">
+    <div className="flex flex-col pt-6 px-4 w-full max-w-md mx-auto min-h-[calc(100vh-100px)] pb-8 dark:bg-black bg-slate-50/50">
       
       {/* Sleek App Header */}
       <div className="flex items-center justify-between mb-8">
@@ -95,22 +95,21 @@ export default function CreateQuotePage() {
           onClick={() => router.back()}
           className="p-2 hover:bg-slate-200 rounded-full transition text-slate-700 -ml-2"
         >
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className="w-6 h-6 dark:text-white"  />
         </button>
         <div className="flex flex-col items-center">
-          <h1 className="text-xl font-black text-slate-900 tracking-tight">PinQuo</h1>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select Target</p>
+          <h1 className="text-xl font-black dark:text-white text-slate-900 tracking-tight">PinQuo</h1>
         </div>
         <div className="w-10"></div> 
       </div>
 
       <form onSubmit={handleContinue} className="w-full flex flex-col flex-1">
         
-        <div className="bg-white rounded-[32px] shadow-xl shadow-slate-200/40 border border-slate-100 p-6 sm:p-8 flex flex-col gap-6 relative z-20">
+        <div className="bg-white dark:bg-slate-900 dark:shadow-amber-950 dark:border-amber-800 rounded-[32px] shadow-xl shadow-slate-200/40 border border-slate-100 p-6 sm:p-8 flex flex-col gap-6 relative z-20">
           
           <div className="text-center mb-2">
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Who said it?</h2>
-            <p className="text-sm font-medium text-slate-500 mt-2">Search for an existing user, type a custom name, or invite via email.</p>
+            <h2 className="text-2xl font-black dark:text-white text-slate-800 tracking-tight">Who said it?</h2>
+            <p className="text-sm font-medium dark:text-white text-slate-500 mt-2">Search for an existing user, type a custom name, or invite via email.</p>
           </div>
 
           {/* Section 1: App Search / Custom Name */}

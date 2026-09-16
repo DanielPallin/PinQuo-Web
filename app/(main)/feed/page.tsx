@@ -110,8 +110,8 @@ function FeedSearch({ isSearchVisible }: { isSearchVisible: boolean }) {
   }, [])
 
   return (
-    <div className={`sticky top-4 z-40 mb-6 transition-transform duration-300 ease-in-out will-change-transform ${isSearchVisible ? 'translate-y-0 opacity-100' : '-translate-y-[150%] opacity-0 pointer-events-none'}`} ref={searchContainerRef}>
-      <div className="relative flex items-center bg-white md:bg-white/90 md:backdrop-blur-md border border-slate-200 rounded-full px-4 py-3 shadow-[0_4px_20px_rgb(0,0,0,0.05)] focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all">
+    <div className={`sticky top-4 z-40 mb-6 mt-2 transition-transform duration-300 ease-in-out will-change-transform ${isSearchVisible ? 'translate-y-0 opacity-100' : '-translate-y-[150%] opacity-0 pointer-events-none'}`} ref={searchContainerRef}>
+      <div className="relative flex items-center mt-4 bg-white md:bg-white/90 md:backdrop-blur-md border border-slate-200 rounded-full px-4 py-3 shadow-[0_4px_20px_rgb(0,0,0,0.05)] focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all">
         <Search className="w-5 h-5 text-slate-400 mr-2 shrink-0" />
         <input
           type="text"

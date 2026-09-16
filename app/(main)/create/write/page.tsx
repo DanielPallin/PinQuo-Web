@@ -493,7 +493,7 @@ function WriteQuoteForm() {
               value={quoteText}
               onChange={(e) => setQuoteText(e.target.value)}
               placeholder="Type the quote here..."
-              className="w-full h-28 bg-transparent text-slate-900 text-xl md:text-2xl font-medium resize-none focus:outline-none placeholder:text-slate-300 px-6 py-2 leading-snug font-serif"
+              className="w-full h-28 bg-transparent text-slate-900 dark:text-white text-xl md:text-2xl font-medium resize-none focus:outline-none placeholder:text-slate-300 px-6 py-2 leading-snug font-serif"
             />
             <span className="absolute bottom-2 right-4 text-4xl font-serif font-black dark:text-slate-400 text-slate-200 select-none">”</span>
             <WitnessManager witnesses={witnesses} onChange={setWitnesses} />
@@ -663,7 +663,7 @@ function WriteQuoteForm() {
         <button
           onClick={handlePreview}
           disabled={!isFormValid}
-          className="w-full bg-[#bbf7d0] text-emerald-950 dark:bg-emerald-800 dark:text-white dark:border-amber-800 dark:shadow-sm dark:shadow-emerald-700 hover:bg-[#86efac] active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-[#bbf7d0] disabled:active:scale-100 font-black text-xl py-4 px-6 rounded-full transition-all duration-200 shadow-lg shadow-emerald-200/50 border-4 border-emerald-200 flex items-center justify-center"
+          className="w-full bg-[#bbf7d0] text-emerald-950 dark:bg-emerald-800 dark:text-white dark:border-amber-800 dark:shadow-sm dark:shadow-emerald-700 hover:bg-[#0d933e] active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-[#4ebe76] disabled:active:scale-100 font-black text-xl py-4 px-6 rounded-full transition-all duration-200 shadow-lg shadow-emerald-200/50 border-2 flex items-center justify-center"
         >
           Preview
         </button>
