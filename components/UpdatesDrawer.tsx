@@ -127,7 +127,7 @@ export default function UpdatesDrawer({ isOpen, onClose }: UpdatesDrawerProps) {
                 {/* Use this for Work in progress: <div className="w-2.5 h-2.5 rounded-full bg-blue-700 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div> }
 
 
-              {/* Pipeline Item 2 */}
+              {/* Pipeline Item */}
               <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 sm:p-5 border border-slate-100 dark:border-slate-800 flex gap-4">
                 <div className="mt-1">
                   <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>
@@ -138,7 +138,7 @@ export default function UpdatesDrawer({ isOpen, onClose }: UpdatesDrawerProps) {
                 </div>
               </div>
 
-              {/* Pipeline Item 3 */}
+              {/* Pipeline Item */}
               <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 sm:p-5 border border-slate-100 dark:border-slate-800 flex gap-4">
                 <div className="mt-1">
                   <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>
@@ -149,7 +149,7 @@ export default function UpdatesDrawer({ isOpen, onClose }: UpdatesDrawerProps) {
                 </div>
               </div>
 
-              {/* Pipeline Item 3 */}
+              {/* Pipeline Item */}
               <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 sm:p-5 border border-slate-100 dark:border-slate-800 flex gap-4">
                 <div className="mt-1">
                   <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>
@@ -157,6 +157,17 @@ export default function UpdatesDrawer({ isOpen, onClose }: UpdatesDrawerProps) {
                 <div>
                   <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">PinQuo Pro <Crown className="inline w-4 h-4 text-amber-500" /></h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1.5 leading-relaxed">Creator tools and exclusive features.</p>
+                </div>
+              </div>
+
+              {/* Pipeline Item */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 sm:p-5 border border-slate-100 dark:border-slate-800 flex gap-4">
+                <div className="mt-1">
+                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">iOS/Play Store Integration <Crown className="inline w-4 h-4 text-amber-500" /></h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1.5 leading-relaxed">App is coming to iOS and Play Store.</p>
                 </div>
               </div>
 
