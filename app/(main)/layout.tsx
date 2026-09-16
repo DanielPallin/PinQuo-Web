@@ -37,9 +37,9 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex justify-center font-sans transition-colors duration-200">
+    <div className="min-h-screen w-full overflow-x-hidden bg-slate-50 dark:bg-slate-950 flex justify-center font-sans transition-colors duration-200">
       
-      <div className="w-full max-w-350 flex flex-col lg:flex-row relative">
+      <div className="w-full max-w-[1400px] flex flex-col lg:flex-row relative">
         
         {/* Mobile Header */}
         <header className="lg:hidden sticky top-0 z-40 bg-white dark:bg-slate-950/90 md:bg-white/80 md:dark:bg-slate-950/80 md:backdrop-blur-md pt-5 pb-3 px-6 flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/70 shadow-sm will-change-transform transition-colors duration-200">

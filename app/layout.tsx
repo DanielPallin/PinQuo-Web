@@ -30,10 +30,10 @@ export default function RootLayout({
       suppressHydrationWarning 
       className={`${jakarta.variable} ${playfair.variable}`}
     >
-      {/* 💥 FIX: Added suppressHydrationWarning here */}
-      <body 
+      {/* suppressHydrationWarning */} 
+        <body 
         suppressHydrationWarning
-        className="font-sans antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200"
+        className="font-sans antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200 overflow-x-hidden"
       >
         <ThemeProvider
           attribute="class"
