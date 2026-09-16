@@ -131,34 +131,26 @@ export default function PublicProfilePage() {
 
   const earnedAchievements = useMemo(() => {
     if (!targetStats) return []
+
     const earned: any[] = []
 
-    ACHIEVEMENTS_CATALOG.forEach(ach => {
-      const earnedAchievements = useMemo(() => {
-    if (!targetStats) return []
-    const earned: any[] = []
-
-    ACHIEVEMENTS_CATALOG.forEach(ach => {
+    ACHIEVEMENTS_CATALOG.forEach((ach) => {
       const currentValue = targetStats[ach.metric] || 0
       const isUnlocked = currentValue >= ach.target
-      
+
       if (isUnlocked) {
         let earnedDate = null
-        
         const achData = ach as Record<string, any>
-        
+
         if (achData.dateDictKey && targetStats[achData.dateDictKey]) {
-          earnedDate = targetStats[achData.dateDictKey][ach.target.toString()] 
+          earnedDate = targetStats[achData.dateDictKey][ach.target.toString()]
         } else if (achData.exactDateField) {
           earnedDate = targetStats[achData.exactDateField]
         }
-        
+
         earned.push({ ...ach, currentValue, isUnlocked: true, earnedDate })
       }
     })
-
-    return earned.sort((a, b) => a.title.localeCompare(b.title))
-  }, [targetStats])
 
     return earned.sort((a, b) => a.title.localeCompare(b.title))
   }, [targetStats])
