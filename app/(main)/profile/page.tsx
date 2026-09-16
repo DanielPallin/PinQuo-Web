@@ -120,7 +120,7 @@ export default function ProfilePage() {
     return (
       <div 
         onClick={onClick}
-        className="grid grid-cols-2 border-r-2gap-2 w-full p-2.5 bg-white border border-slate-100 rounded-[32px] cursor-pointer hover:shadow-md hover:border-slate-200 transition-all active:scale-95 group shadow-sm will-change-transform"
+        className="grid grid-cols-2 border-r-2 gap-2 w-full p-2.5 bg-white border dark:bg-black border-slate-100 dark:border-amber-800 rounded-[32px] cursor-pointer hover:shadow-md hover:border-slate-200 transition-all active:scale-95 group shadow-sm will-change-transform"
       >
         {slots.map((index) => {
           const quote = quotesToRender[index]

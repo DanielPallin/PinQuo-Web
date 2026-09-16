@@ -206,7 +206,7 @@ export default function QuotedInPage() {
               <Link 
                 key={quote.id} 
                 href={`/feed?quoteId=${quote.id}`}
-                className="relative aspect-square rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95 bg-slate-800"
+                className="relative aspect-square dark:border-amber-800 rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95 bg-slate-800"
               >
                 {quote.live_photo_url ? (
                   <img 
