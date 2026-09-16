@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Loader2, CheckCircle2, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, Loader2, CheckCircle2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 // Types & Helpers
