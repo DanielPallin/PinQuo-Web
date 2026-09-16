@@ -80,10 +80,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
               <span className="text-[19px] font-bold">Profile</span>
             </Link>
 
-            <div className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors text-slate-400 dark:text-slate-500 cursor-not-allowed group" title="Coming Soon">
-              <Award className="w-7 h-7 stroke-[2.5]" />
+            <Link href="/achievements" className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors text-slate-800 dark:text-slate-200 hover:text-black dark:hover:text-white group">
+              <Award className="w-7 h-7 stroke-[2.5] group-hover:scale-110 transition-transform" />
               <span className="text-[19px] font-bold">Achievements</span>
-            </div>
+            </Link>
 
             <Link href="/templates" className="flex items-center gap-4 px-4 py-3.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors text-slate-800 dark:text-slate-200 hover:text-black dark:hover:text-white group">
               <Layers className="w-7 h-7 stroke-[2.5] group-hover:scale-110 transition-transform" />
@@ -127,33 +127,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         {/* RIGHT SIDEBAR (Desktop Only) */}
         <aside className="hidden xl:flex w-[320px] flex-col sticky top-0 h-screen px-4 pt-6 shrink-0 z-40">
           
-          {/* User Profile & Notification Cluster */}
-          {profile ? (
-            <div className="relative z-50 flex items-center justify-between gap-1 mb-8 bg-white dark:bg-slate-900 p-2 pr-3 rounded-full shadow-sm dark:shadow-none border border-slate-100 dark:border-slate-800 shrink-0 w-full transition-colors duration-200">
-              
-              <Link href="/profile" className="flex flex-1 min-w-0 items-center gap-2.5 hover:opacity-80 transition cursor-pointer pl-2">
-                
-                <div className="w-9 h-9 shrink-0 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden border-2 border-white dark:border-slate-700 shadow-sm dark:shadow-none flex items-center justify-center transition-colors">
-                  {profile.avatar_url ? (
-                    <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <User className="w-5 h-5 text-slate-400 dark:text-slate-500" />
-                  )}
-                </div>
-              </Link>
-              
-              <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-700 mx-1 shrink-0 transition-colors"></div>
-          
-              <div className="flex items-center shrink-0">
-                <ThemeToggle />
-                <UpdatesWidget />
-                <NotificationBell />
-              </div>
-            </div>
-          ) : (
-            // PLG: Guest CTA for the Desktop Sidebar
+          {/* 💥 FIX: Let the smart component handle the UI cluster entirely on its own! */}
+          <div className="w-full flex justify-end mb-8 relative z-50">
             <FloatingUserPill />
-          )}
+          </div>
 
           {/* DYNAMIC WIDGETS */}
           <div className="flex-1 overflow-y-auto no-scrollbar pb-10 relative z-0">
