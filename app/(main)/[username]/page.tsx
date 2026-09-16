@@ -129,8 +129,12 @@ export default function PublicProfilePage() {
     return () => { isMounted = false }
   }, [supabase, usernameParam])
 
-  // 💥 NEW: Process only the achievements they have ACTUALLY earned
   const earnedAchievements = useMemo(() => {
+    if (!targetStats) return []
+    const earned: any[] = []
+
+    ACHIEVEMENTS_CATALOG.forEach(ach => {
+      const earnedAchievements = useMemo(() => {
     if (!targetStats) return []
     const earned: any[] = []
 
@@ -140,14 +144,21 @@ export default function PublicProfilePage() {
       
       if (isUnlocked) {
         let earnedDate = null
-        if (ach.dateDictKey && targetStats[ach.dateDictKey]) {
-          earnedDate = targetStats[ach.dateDictKey][ach.target.toString()] 
-        } else if (ach.exactDateField) {
-          earnedDate = targetStats[ach.exactDateField]
+        
+        const achData = ach as Record<string, any>
+        
+        if (achData.dateDictKey && targetStats[achData.dateDictKey]) {
+          earnedDate = targetStats[achData.dateDictKey][ach.target.toString()] 
+        } else if (achData.exactDateField) {
+          earnedDate = targetStats[achData.exactDateField]
         }
+        
         earned.push({ ...ach, currentValue, isUnlocked: true, earnedDate })
       }
     })
+
+    return earned.sort((a, b) => a.title.localeCompare(b.title))
+  }, [targetStats])
 
     return earned.sort((a, b) => a.title.localeCompare(b.title))
   }, [targetStats])
