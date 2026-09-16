@@ -247,7 +247,7 @@ export default function ProfilePage() {
       {/* Add achievement button under the quoted in / published grid. Center it and link to the achievement page */}
       <div className="flex justify-center mt-4">
         <Link
-          href="/profile/achievements"
+          href="/achievements"
           className="flex items-center mt-5 justify-center gap-2 py-2.5 px-4 bg-white dark:bg-slate-800 dark:text-white dark:border-amber-700 text-slate-700 font-bold rounded-full shadow-[0_4px_14px_rgba(0,0,0,0.05)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] active:translate-y-0 active:scale-95 border border-slate-200 transition-all duration-200 ease-out will-change-transform"
         >
           <Trophy className="w-4 h-4 text-slate-500 dark:text-amber-700" />
