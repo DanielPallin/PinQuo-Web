@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Rocket, Hammer } from 'lucide-react'
+import { X, Rocket, Hammer, Crown } from 'lucide-react'
 
 interface UpdatesDrawerProps {
   isOpen: boolean
@@ -78,6 +78,18 @@ export default function UpdatesDrawer({ isOpen, onClose }: UpdatesDrawerProps) {
                 <div className="w-6 h-6 rounded-full bg-emerald-50 dark:bg-slate-900 border-4 border-emerald-500 shrink-0 relative z-10 shadow-sm mt-0.5"></div>
                 <div className="flex flex-col gap-1.5 pb-2">
                   <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 tracking-wide uppercase">Just Shipped</span>
+                  <h4 className="text-lg font-black text-slate-800 dark:text-slate-100 leading-tight">Dark Mode</h4>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                    Dark Mode can now be set, please report any issues.
+                  </p>
+                </div>
+              </div>
+
+              {/* Update Item 1 */}
+              <div className="relative flex items-start gap-4">
+                <div className="w-6 h-6 rounded-full bg-emerald-50 dark:bg-slate-900 border-4 border-emerald-500 shrink-0 relative z-10 shadow-sm mt-0.5"></div>
+                <div className="flex flex-col gap-1.5 pb-2">
+                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 tracking-wide uppercase">Live</span>
                   <h4 className="text-lg font-black text-slate-800 dark:text-slate-100 leading-tight">Camera Snap</h4>
                   <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
                     Capture the moment when the quote was said.
@@ -93,18 +105,6 @@ export default function UpdatesDrawer({ isOpen, onClose }: UpdatesDrawerProps) {
                   <h4 className="text-lg font-black text-slate-800 dark:text-slate-100 leading-tight">The Witness Update 🕵️</h4>
                   <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
                     Quotes just got serious. You can now tag witnesses to verify or deny your quotes. This can be fun.
-                  </p>
-                </div>
-              </div>
-
-              {/* Update Item 3 */}
-              <div className="relative flex items-start gap-4">
-                <div className="w-6 h-6 rounded-full bg-slate-50 dark:bg-slate-900 border-4 border-green-500 shrink-0 relative z-10 mt-0.5"></div>
-                <div className="flex flex-col gap-1.5 pb-2">
-                  <span className="text-xs font-bold text-green-700 dark:text-green-400 tracking-wide uppercase">Live</span>
-                  <h4 className="text-lg font-black text-slate-800 dark:text-slate-100 leading-tight">Template Vault</h4>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                    Massive overhaul to the template system. Introduced Favourite-system, Packs and a Trending section to help you manage and find the perfect vibe faster.
                   </p>
                 </div>
               </div>
@@ -126,16 +126,6 @@ export default function UpdatesDrawer({ isOpen, onClose }: UpdatesDrawerProps) {
 
                 {/* Use this for Work in progress: <div className="w-2.5 h-2.5 rounded-full bg-blue-700 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div> }
 
-                {/* Pipeline Item 1 */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 sm:p-5 border border-slate-100 dark:border-slate-800 flex gap-4">
-                <div className="mt-1">
-                  <div className="w-2.5 h-2.5 rounded-full bg-blue-700 dark:bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Dark Mode 🌙</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1.5 leading-relaxed">Ofc there is a Dark Mode in the Pipeline for all you night-owls out there.</p>
-                </div>
-              </div>
 
               {/* Pipeline Item 2 */}
               <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 sm:p-5 border border-slate-100 dark:border-slate-800 flex gap-4">
@@ -156,6 +146,17 @@ export default function UpdatesDrawer({ isOpen, onClose }: UpdatesDrawerProps) {
                 <div>
                   <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Tournaments Mode 🏆</h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1.5 leading-relaxed">Global quote battles. The best quote in a specific setting or category wins & the publisher gets rewarded.</p>
+                </div>
+              </div>
+
+              {/* Pipeline Item 3 */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 sm:p-5 border border-slate-100 dark:border-slate-800 flex gap-4">
+                <div className="mt-1">
+                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">PinQuo Pro <Crown className="inline w-4 h-4 text-amber-500" /></h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1.5 leading-relaxed">Creator tools and exclusive features.</p>
                 </div>
               </div>
 
