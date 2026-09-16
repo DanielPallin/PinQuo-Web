@@ -78,6 +78,18 @@ export default function UpdatesDrawer({ isOpen, onClose }: UpdatesDrawerProps) {
                 <div className="w-6 h-6 rounded-full bg-emerald-50 dark:bg-slate-900 border-4 border-emerald-500 shrink-0 relative z-10 shadow-sm mt-0.5"></div>
                 <div className="flex flex-col gap-1.5 pb-2">
                   <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 tracking-wide uppercase">Just Shipped</span>
+                  <h4 className="text-lg font-black text-slate-800 dark:text-slate-100 leading-tight">Achievements</h4>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                    Earn Achievements as you use PinQuo! Visit the Achievement page to see your progress. Some are hidden.
+                  </p>
+                </div>
+              </div>
+
+              {/* Update Item 1 */}
+              <div className="relative flex items-start gap-4">
+                <div className="w-6 h-6 rounded-full bg-emerald-50 dark:bg-slate-900 border-4 border-emerald-500 shrink-0 relative z-10 shadow-sm mt-0.5"></div>
+                <div className="flex flex-col gap-1.5 pb-2">
+                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 tracking-wide uppercase">Just Shipped</span>
                   <h4 className="text-lg font-black text-slate-800 dark:text-slate-100 leading-tight">Dark Mode</h4>
                   <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
                     Dark Mode can now be set, please report any issues.
@@ -125,18 +137,6 @@ export default function UpdatesDrawer({ isOpen, onClose }: UpdatesDrawerProps) {
             <div className="flex flex-col gap-3">
 
                 {/* Use this for Work in progress: <div className="w-2.5 h-2.5 rounded-full bg-blue-700 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div> }
-
-
-              {/* Pipeline Item */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 sm:p-5 border border-slate-100 dark:border-slate-800 flex gap-4">
-                <div className="mt-1">
-                  <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Achivements ⭐</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1.5 leading-relaxed">Let you browse, hunt and collect Achievements.</p>
-                </div>
-              </div>
 
               {/* Pipeline Item */}
               <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 sm:p-5 border border-slate-100 dark:border-slate-800 flex gap-4">

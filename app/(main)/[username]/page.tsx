@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Crown, User, Loader2, Ban } from 'lucide-react'
+import { ArrowLeft, Crown, User, Loader2, Ban, Trophy, CheckCircle2, X } from 'lucide-react'
+import { ACHIEVEMENTS_CATALOG, calculateUnlockedCount } from '@/lib/achievements'
 
 type Profile = {
   id: string
@@ -31,6 +32,10 @@ export default function PublicProfilePage() {
   const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null)
   const [targetProfile, setTargetProfile] = useState<Profile | null>(null)
   
+  // 💥 NEW: State to hold the visited user's gamification stats
+  const [targetStats, setTargetStats] = useState<Record<string, any> | null>(null)
+  const [showAchievementsDrawer, setShowAchievementsDrawer] = useState(false)
+
   const [followers, setFollowers] = useState(0)
   const [following, setFollowing] = useState(0)
   const [isFollowing, setIsFollowing] = useState(false)
@@ -39,7 +44,6 @@ export default function PublicProfilePage() {
   const [isBlocked, setIsBlocked] = useState(false)
   const [isTogglingBlock, setIsTogglingBlock] = useState(false)
   
-  // 💥 NEW: State for controlling the custom modal visibility
   const [showBlockModal, setShowBlockModal] = useState(false)
   
   const [published, setPublished] = useState<MiniQuote[]>([])
@@ -66,6 +70,12 @@ export default function PublicProfilePage() {
       }
 
       if (isMounted) setTargetProfile(profileData)
+
+      // 💥 NEW: Fetch the achievements for this specific user
+      const { data: statsData } = await supabase.rpc('get_user_gamification_stats', { target_user_id: profileData.id })
+      if (isMounted && statsData) {
+        setTargetStats(statsData as Record<string, any>)
+      }
 
       const { count: followerCount } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profileData.id)
       const { count: followingCount } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profileData.id)
@@ -119,6 +129,30 @@ export default function PublicProfilePage() {
     return () => { isMounted = false }
   }, [supabase, usernameParam])
 
+  // 💥 NEW: Process only the achievements they have ACTUALLY earned
+  const earnedAchievements = useMemo(() => {
+    if (!targetStats) return []
+    const earned: any[] = []
+
+    ACHIEVEMENTS_CATALOG.forEach(ach => {
+      const currentValue = targetStats[ach.metric] || 0
+      const isUnlocked = currentValue >= ach.target
+      
+      if (isUnlocked) {
+        let earnedDate = null
+        if (ach.dateDictKey && targetStats[ach.dateDictKey]) {
+          earnedDate = targetStats[ach.dateDictKey][ach.target.toString()] 
+        } else if (ach.exactDateField) {
+          earnedDate = targetStats[ach.exactDateField]
+        }
+        earned.push({ ...ach, currentValue, isUnlocked: true, earnedDate })
+      }
+    })
+
+    return earned.sort((a, b) => a.title.localeCompare(b.title))
+  }, [targetStats])
+
+
   const handleToggleFollow = async () => {
     if (!currentUser || !targetProfile || isTogglingFollow) return
     if (currentUser.id === targetProfile.id) return
@@ -135,7 +169,6 @@ export default function PublicProfilePage() {
         .insert({ follower_id: currentUser.id, following_id: targetProfile.id })
       
       if (followErr) {
-        console.error("DEBUG - Follow Error:", followErr)
         setIsFollowing(currentlyFollowing)
         setFollowers(prev => prev + (currentlyFollowing ? 1 : -1))
       }
@@ -147,7 +180,6 @@ export default function PublicProfilePage() {
         .eq('following_id', targetProfile.id)
 
       if (unfollowErr) {
-        console.error("DEBUG - Unfollow Error:", unfollowErr)
         setIsFollowing(currentlyFollowing)
         setFollowers(prev => prev + (currentlyFollowing ? 1 : -1))
       }
@@ -156,7 +188,6 @@ export default function PublicProfilePage() {
     setIsTogglingFollow(false)
   }
 
-  // 💥 NEW: Trigger for handling block / unblock execution
   const executeBlockAction = async () => {
     if (!currentUser || !targetProfile || isTogglingBlock) return
 
@@ -229,6 +260,7 @@ export default function PublicProfilePage() {
   )
 
   const isOwnProfile = currentUser?.id === targetProfile?.id
+  const totalUnlocked = calculateUnlockedCount(targetStats)
 
   if (isBlocked) return (
     <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white dark:bg-slate-950 pb-24 relative overflow-x-hidden">
@@ -248,7 +280,7 @@ export default function PublicProfilePage() {
 
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white dark:bg-black pb-24 relative overflow-x-hidden">
-      <div className="absolute top-0 left-0 w-full h-64 bg-linear-to-b from-slate-100 to-white -z-10" />
+      <div className="absolute top-0 left-0 w-full h-64 bg-linear-to-b from-slate-100 to-white dark:from-slate-950 dark:to-black -z-10" />
       <div className="flex justify-between items-center pt-6 px-6 mb-2 shrink-0">
         <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black dark:text-slate-100" /></button>
         
@@ -256,13 +288,13 @@ export default function PublicProfilePage() {
           <button 
             onClick={() => {
               if (isBlocked) {
-                executeBlockAction() // Unblock instantly without confirmation popup
+                executeBlockAction() 
               } else {
-                setShowBlockModal(true) // Open custom modal for blocking
+                setShowBlockModal(true) 
               }
             }} 
             disabled={isTogglingBlock}
-            className="p-2 -mr-2 rounded-full transition bg-slate-100 text-slate-600 hover:bg-red-200 hover:text-red-600"
+            className="p-2 -mr-2 rounded-full transition bg-slate-100 text-slate-600 hover:bg-red-200 hover:text-red-600 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-red-900/40 dark:hover:text-red-500"
             title="Block User"
           >
             <Ban className="w-6 h-6" />
@@ -273,7 +305,7 @@ export default function PublicProfilePage() {
       <div className="flex flex-col items-center px-6 mt-2 mb-8">
         <div className="relative mb-3 flex flex-col items-center">
           <Crown className="w-6 h-6 text-yellow-500 fill-yellow-500/20 mb-1 drop-shadow-sm" />
-          <div className="w-28 h-28 rounded-full bg-slate-200 border-4 border-white shadow-lg flex items-center justify-center overflow-hidden">
+          <div className="w-28 h-28 rounded-full bg-slate-200 border-4 border-white dark:border-slate-900 shadow-lg flex items-center justify-center overflow-hidden">
             {targetProfile?.avatar_url ? (
               <img src={targetProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
@@ -300,13 +332,22 @@ export default function PublicProfilePage() {
           disabled={isOwnProfile || isTogglingFollow}
           className={`w-full max-w-[280px] py-4 rounded-full font-black text-[15px] transition-all duration-200 shadow-md ${
             isOwnProfile 
-              ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+              ? 'bg-slate-100 dark:bg-slate-900 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none'
               : isFollowing 
-                ? 'bg-slate-900 text-slate-600 dark:text-white hover:bg-slate-200 border-2 border-transparent' 
-                : 'bg-slate-700 text-white hover:scale-[1.1] active:scale-[0.98]'
+                ? 'bg-slate-900 text-slate-600 dark:bg-white dark:text-slate-900 hover:opacity-90 border-2 border-transparent' 
+                : 'bg-slate-700 dark:bg-slate-800 text-white hover:scale-[1.02] active:scale-[0.98]'
           }`}
         >
           {isOwnProfile ? 'This is you' : isFollowing ? 'Following' : 'Follow'}
+        </button>
+
+        {/* 💥 NEW: Achievements Button exactly as requested in the mockup */}
+        <button 
+          onClick={() => setShowAchievementsDrawer(true)}
+          className="mt-6 flex items-center gap-2 px-5 py-2.5 rounded-full border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-all shadow-sm"
+        >
+          <Trophy className="w-4 h-4 fill-amber-500/20" />
+          <span className="text-sm font-bold tracking-wider">Achievements earned by {targetProfile?.username}</span>
         </button>
       </div>
 
@@ -315,27 +356,105 @@ export default function PublicProfilePage() {
         {renderHorizontalGrid(quotedIn, `${targetProfile?.username} was quoted in`, `/${targetProfile?.username}/quoted-in`)}
       </div>
 
+      {/* 💥 NEW: Achievements Bottom Sheet / Drawer */}
+      {showAchievementsDrawer && (
+        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex flex-col justify-end sm:justify-center items-center p-0 sm:p-4 animate-in fade-in duration-200">
+          
+          <div className="absolute inset-0" onClick={() => setShowAchievementsDrawer(false)}></div>
+          
+          <div className="relative bg-slate-50 dark:bg-slate-950 sm:rounded-[32px] rounded-t-[32px] w-full max-w-2xl h-[85vh] sm:h-auto sm:max-h-[85vh] shadow-2xl border border-slate-100 dark:border-slate-800 flex flex-col animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-300 overflow-hidden">
+            
+            {/* Drawer Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0 bg-white dark:bg-slate-900">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center">
+                  <Trophy className="w-5 h-5 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg text-slate-900 dark:text-white leading-none mb-1">
+                    {targetProfile?.username}&apos;s Trophies
+                  </h3>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                    Unlocked <strong className="text-amber-500">{totalUnlocked}</strong> out of {ACHIEVEMENTS_CATALOG.length}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowAchievementsDrawer(false)} 
+                className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-600 dark:text-slate-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Drawer Content (Scrollable Grid) */}
+            <div className="p-4 sm:p-6 overflow-y-auto no-scrollbar grid grid-cols-1 sm:grid-cols-2 gap-4 pb-[max(2rem,env(safe-area-inset-bottom))]">
+              {earnedAchievements.length === 0 ? (
+                <div className="col-span-1 sm:col-span-2 py-12 flex flex-col items-center justify-center text-center">
+                  <Trophy className="w-12 h-12 text-slate-300 dark:text-slate-700 mb-3" />
+                  <p className="text-slate-500 dark:text-slate-400 font-medium">No achievements unlocked yet.</p>
+                </div>
+              ) : (
+                earnedAchievements.map((ach) => {
+                  const Icon = ach.icon
+                  const formattedDate = ach.earnedDate 
+                    ? new Date(ach.earnedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    : 'Recently'
+
+                  return (
+                    <div 
+                      key={ach.id} 
+                      className="relative flex flex-col p-5 rounded-[24px] bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-900/50 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-100 dark:bg-black dark:border-amber-800 dark:border text-emerald-600 dark:text-emerald-400">
+                          <Icon className="w-5 h-5 dark:text-amber-800" />
+                        </div>
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                      </div>
+                      <h3 className="font-black text-base text-slate-900 dark:text-white mb-1">
+                        {ach.title}
+                      </h3>
+                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-snug mb-4 flex-1">
+                        {ach.description}
+                      </p>
+                      <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
+                        <span className="text-emerald-600 dark:text-emerald-500">Completed</span>
+                        <span className="text-slate-400">
+                          {formattedDate === 'Recently' ? 'Recently' : `Earned ${formattedDate}`}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* Block Modal */}
       {showBlockModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[32px] p-6 max-w-sm w-full shadow-2xl border border-slate-100 flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-[32px] p-6 max-w-sm w-full shadow-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
             
-            <div className="w-14 h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4 shadow-inner">
+            <div className="w-14 h-14 bg-red-50 dark:bg-red-900/30 text-red-500 rounded-full flex items-center justify-center mb-4 shadow-inner">
               <Ban className="w-7 h-7" />
             </div>
 
-            <h3 className="text-xl font-black text-slate-900 mb-2">
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">
               Block @{targetProfile?.username}?
             </h3>
 
-            <p className="text-slate-500 font-medium text-sm leading-relaxed mb-6">
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm leading-relaxed mb-6">
               Are you sure you want to block @{targetProfile?.username}? You will no longer see @{targetProfile?.username}&apos;s publications and @{targetProfile?.username} will not be able to interact on your quotes.
             </p>
 
             <div className="flex items-center gap-3 w-full">
               <button 
                 onClick={() => setShowBlockModal(false)}
-                className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-full transition-all active:scale-95 text-sm"
+                className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-full transition-all active:scale-95 text-sm"
               >
                 Cancel
               </button>
