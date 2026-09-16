@@ -197,21 +197,21 @@ export default function PublishedPage() {
   if (isNotFound) return (
     <div className="flex flex-col min-h-screen items-center justify-center p-6 text-center">
       <h2 className="text-2xl font-black text-slate-800 mb-2">Not Found</h2>
-      <button onClick={() => router.back()} className="px-6 py-3 bg-black text-white font-bold rounded-full">Go Back</button>
+      <button onClick={() => router.back()} className="px-6 py-3 bg-black border-r-2 text-white font-bold rounded-full">Go Back</button>
     </div>
   )
 
   const isOwnProfile = currentUserId === targetProfile?.id
 
   return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen  bg-slate-50/30 pb-24 relative overflow-x-hidden">
+    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen  dark:bg-black bg-slate-50/30 pb-24 relative overflow-x-hidden">
       
       <div className="absolute top-0 left-0 w-full h-64 bg-linear-to-b from-slate-100 to-transparent -z-10" />
 
       {/* Grid Header */}
       <div className="flex flex-col items-center pt-6 pb-6 px-6 relative shrink-0">
         <button title="Go Back" onClick={() => router.back()} className="absolute left-6 top-6 p-2 -ml-2 hover:bg-slate-200/50 rounded-full transition">
-          <ArrowLeft className="w-8 h-8 text-black" />
+          <ArrowLeft className="w-8 h-8 dark:text-white text-black" />
         </button>
         
         <Crown className="w-6 h-6 text-yellow-500 fill-yellow-500/20 mb-1 drop-shadow-sm mt-2" />
@@ -222,23 +222,23 @@ export default function PublishedPage() {
             <User className="w-8 h-8 text-slate-400" />
           )}
         </div>
-        <h1 className="text-xl font-black text-slate-900 mb-1">{targetProfile?.username}</h1>
-        <p className="text-slate-500 font-bold text-sm">
+        <h1 className="text-xl font-black dark:text-white text-slate-900 mb-1">{targetProfile?.username}</h1>
+        <p className="text-slate-500 font-bold dark:text-slate-300 text-sm">
           {isOwnProfile ? 'Published by You' : `Published by ${targetProfile?.username}`}
         </p>
       </div>
 
       {/* 3-Column Grid */}
-      <div className="px-6 dark:bg-slate-800 w-full">
+      <div className="px-6 border-r-2 dark:bg-black w-full">
         {quotes.length === 0 ? (
-          <div className="text-center mt-10"><p className="text-slate-400 font-bold">No quotes found.</p></div>
+          <div className="text-center border-r-2 mt-10"><p className="text-slate-400 font-bold">No quotes found.</p></div>
         ) : (
-          <div className="grid grid-cols-3 dark:bg-slate-800 gap-2 w-full">
+          <div className="grid grid-cols-3 dark:bg-black gap-2 w-full">
             {quotes.map((quote) => (
               <Link 
                 key={quote.id} 
                 href={`/feed?quoteId=${quote.id}`}
-                className="relative aspect-square dark:bg-slate-800 rounded-2xl overflow-hidden block group shadow-sm border border-slate-200/60 transition-transform active:scale-95"
+                className="relative aspect-square dark:bg-black rounded-2xl overflow-hidden block group shadow-sm border border-amber-800 transition-transform active:scale-95"
               >
                 {quote.live_photo_url ? (
                   <img 

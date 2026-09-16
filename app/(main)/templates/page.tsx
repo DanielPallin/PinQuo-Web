@@ -11,8 +11,8 @@ type Template = {
   name: string
   style_config: { gradient?: string; baseColor?: string }
   image_url: string | null
-  tags: string[]
-  is_pro_only: boolean
+  tags: string[] | null
+  access_tier: string 
   usage_count?: number
 }
 
@@ -22,6 +22,7 @@ type Pack = {
   description: string
   cover_image_url: string
   is_pro: boolean
+  templates: Template[]
 }
 
 const FILTERS = ['All', 'Templates', 'Packs']
@@ -42,7 +43,7 @@ const TemplateCard = ({
 }) => (
   <div 
     onClick={onClick}
-    className="relative w-36 sm:w-44 aspect-[3/4] rounded-2xl overflow-hidden shrink-0 snap-start group cursor-pointer border border-slate-100 shadow-[0_4px_14px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 ease-out will-change-transform"
+    className="relative w-36 sm:w-44 aspect-[3/4] rounded-2xl overflow-hidden shrink-0 snap-start group cursor-pointer border border-slate-100 shadow-[0_4px_14px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 ease-out will-change-transform dark:border-slate-800"
   >
     {template.image_url ? (
       <img src={template.image_url} alt={template.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
@@ -71,7 +72,7 @@ const TemplateCard = ({
 
     <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 flex items-center justify-between gap-2">
       <h3 className="text-white font-bold text-sm sm:text-base leading-snug truncate drop-shadow-md">{template.name}</h3>
-      {template.is_pro_only && (
+      {template.access_tier === 'pro' && (
         <Sparkles className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400 shrink-0 drop-shadow-md" />
       )}
     </div>
@@ -102,11 +103,11 @@ const CarouselRow = ({
     <div className="mt-8">
       <div className="flex items-center justify-between px-4 sm:px-6 mb-4">
         <div className="flex items-center gap-2">
-          {Icon && <Icon className="w-5 h-5 text-slate-800" />}
-          <h2 className="font-black text-lg sm:text-xl text-slate-800 tracking-tight">{title}</h2>
+          {Icon && <Icon className="w-5 h-5 text-slate-800 dark:text-slate-200" />}
+          <h2 className="font-black text-lg sm:text-xl text-slate-800 dark:text-white tracking-tight">{title}</h2>
         </div>
         {onSeeAll && (
-          <button onClick={onSeeAll} className="text-sm font-bold text-slate-400 hover:text-black flex items-center transition-colors">
+          <button onClick={onSeeAll} className="text-sm font-bold text-slate-400 hover:text-black dark:hover:text-white flex items-center transition-colors">
             See all <ChevronRight className="w-4 h-4 ml-0.5" />
           </button>
         )}
@@ -141,6 +142,9 @@ export default function TemplatesPage() {
   const [favorites, setFavorites] = useState<Template[]>([])
   const [allTemplates, setAllTemplates] = useState<Template[]>([])
   const [trendingTemplates, setTrendingTemplates] = useState<Template[]>([])
+  
+  const [packs, setPacks] = useState<Pack[]>([])
+  const [templatePackMap, setTemplatePackMap] = useState<Record<string, string>>({})
 
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
   const [selectedPack, setSelectedPack] = useState<Pack | null>(null)
@@ -150,10 +154,12 @@ export default function TemplatesPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) setUserId(user.id)
 
-      const [recentRes, trendingRes, favsRes] = await Promise.all([
+      const [recentRes, trendingRes, favsRes, packsRes] = await Promise.all([
         supabase.from('templates').select('*').order('created_at', { ascending: false }),
         supabase.from('templates').select('*').gt('usage_count', 0).order('usage_count', { ascending: false }).limit(20),
-        user ? supabase.from('user_template_interactions').select('template_id, templates(*)').eq('user_id', user.id).eq('is_favorite', true) : Promise.resolve({ data: null })
+        user ? supabase.from('user_template_interactions').select('template_id, templates(*)').eq('user_id', user.id).eq('is_favorite', true) : Promise.resolve({ data: null }),
+        // 💥 Fetching the new Many-to-Many architecture
+        supabase.from('packs').select(`id, name, pack_templates(templates(*))`)
       ])
 
       if (recentRes.data) setAllTemplates(recentRes.data as Template[])
@@ -164,42 +170,38 @@ export default function TemplatesPage() {
         setFavorites(extractedFavs as Template[])
       }
 
+      if (packsRes.data) {
+        const formattedPacks: Pack[] = []
+        const packMap: Record<string, string> = {}
+
+        packsRes.data.forEach((p: any) => {
+          // Extract the actual templates from the join table response
+          const packTpls = p.pack_templates.map((pt: any) => pt.templates).filter(Boolean) as Template[]
+          
+          if (packTpls.length > 0) {
+            formattedPacks.push({
+              id: p.id,
+              name: p.name,
+              description: `Collection of ${packTpls.length} templates.`,
+              cover_image_url: packTpls.find(t => t.image_url)?.image_url || '/placeholder-pack.jpg',
+              is_pro: packTpls.some(t => t.access_tier === 'pro'),
+              templates: packTpls
+            })
+
+            packTpls.forEach(t => {
+              packMap[t.id] = p.id
+            })
+          }
+        })
+
+        setPacks(formattedPacks)
+        setTemplatePackMap(packMap)
+      }
+
       setIsLoading(false)
     }
     fetchData()
   }, [supabase])
-
-  const packs = useMemo(() => {
-    const packMap: Record<string, Pack> = {}
-    allTemplates.forEach(t => {
-      if (!t.image_url) return
-      const match = t.image_url.match(/paid_templates\/([^/]+)\//)
-      if (match && match[1]) {
-        const packSlug = match[1]
-        if (!packMap[packSlug]) {
-          const formattedName = packSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-          packMap[packSlug] = {
-            id: packSlug,
-            name: formattedName,
-            description: `Collection of 10 ${formattedName} templates.`,
-            cover_image_url: t.image_url,
-            is_pro: t.is_pro_only
-          }
-        }
-      }
-    })
-    return Object.values(packMap)
-  }, [allTemplates])
-
-  const templatePackMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    allTemplates.forEach(t => {
-      if (!t.image_url) return
-      const match = t.image_url.match(/paid_templates\/([^/]+)\//)
-      if (match && match[1]) map[t.id] = match[1]
-    })
-    return map
-  }, [allTemplates])
 
   // Heart Toggler
   const handleToggleFavorite = async (e: React.MouseEvent, template: Template) => {
@@ -230,24 +232,24 @@ export default function TemplatesPage() {
 
   const filteredTemplates = allTemplates.filter(t => 
     t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    (t.tags && t.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())))
+    ((t.tags || []).some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())))
   )
 
-  if (isLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
+  if (isLoading) return <div className="flex min-h-screen items-center justify-center dark:bg-black"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
 
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen dark:bg-black bg-white pb-24">
       
       {/* Header & Search */}
       <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b dark:bg-black dark:border-slate-800 border-slate-100 pt-4 pb-2 px-4 sm:px-6 will-change-transform">
-        <div className="relative flex items-center bg-slate-50 border border-slate-200 rounded-full px-4 py-3 shadow-inner focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all mb-3">
-          <Search className="w-5 h-5 dark:text-black text-slate-400 mr-2 shrink-0" />
+        <div className="relative flex items-center bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-800 rounded-full px-4 py-3 shadow-inner focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-300 transition-all mb-3">
+          <Search className="w-5 h-5 dark:text-slate-400 text-slate-400 mr-2 shrink-0" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search templates & packs..."
-            className="flex-1 bg-transparent border-none outline-none text-[15px] font-bold text-slate-800  placeholder:text-slate-400"
+            className="flex-1 bg-transparent border-none outline-none text-[15px] font-bold text-slate-800 dark:text-white placeholder:text-slate-400"
           />
         </div>
 
@@ -258,8 +260,8 @@ export default function TemplatesPage() {
               onClick={() => setActiveFilter(filter)}
               className={`px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all active:scale-95 ${
                 activeFilter === filter 
-                  ? 'bg-slate-800 text-white shadow-md' 
-                  : 'bg-white text-slate-500 border border-slate-200 dark:text-black hover:border-slate-300 hover:bg-slate-50'
+                  ? 'bg-slate-800 dark:bg-emerald-600 text-white shadow-md' 
+                  : 'bg-white text-slate-500 border border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 hover:border-slate-300 hover:bg-slate-50'
               }`}
             >
               {filter}
@@ -296,11 +298,11 @@ export default function TemplatesPage() {
               <div className="mt-8">
                 <div className="flex items-center justify-between px-4 sm:px-6 mb-4">
                   <div className="flex items-center gap-2">
-                    <Layers className="w-5 h-5 text-slate-800 dark:text-white" />
+                    <Layers className="w-5 h-5 text-slate-800 dark:text-slate-200" />
                     <h2 className="font-black text-lg sm:text-xl text-slate-800 dark:border-amber-800 dark:text-white tracking-tight">Template Packs</h2>
                   </div>
                   {activeFilter === 'All' && (
-                     <button onClick={() => setActiveFilter('Packs')} className="text-sm font-bold dark:border-amber-800 dark:text-white text-slate-400 dark:hover-slate-300 hover:text-black flex items-center transition-colors">
+                     <button onClick={() => setActiveFilter('Packs')} className="text-sm font-bold dark:border-amber-800 dark:text-white text-slate-400 dark:hover:text-slate-300 hover:text-black flex items-center transition-colors">
                        See all <ChevronRight className="w-4 h-4 ml-0.5" />
                      </button>
                   )}
@@ -309,7 +311,7 @@ export default function TemplatesPage() {
                 {activeFilter === 'Packs' ? (
                   <div className="grid grid-cols-1 gap-4 px-4 sm:px-6">
                     {packs.map(pack => (
-                      <div key={pack.id} onClick={() => setSelectedPack(pack)} className="relative w-full h-48 rounded-[28px] overflow-hidden group cursor-pointer shadow-sm border border-slate-100">
+                      <div key={pack.id} onClick={() => setSelectedPack(pack)} className="relative w-full h-48 rounded-[28px] overflow-hidden group cursor-pointer shadow-sm border border-slate-100 dark:border-slate-800">
                         <img src={pack.cover_image_url || '/placeholder-pack.jpg'} alt={pack.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                         <div className="absolute inset-0 bg-gradient-to-t dark:border-amber-800 from-black/80 via-black/20 to-transparent"></div>
                         <div className="absolute bottom-0 left-0 p-5">
@@ -322,7 +324,7 @@ export default function TemplatesPage() {
                 ) : (
                   <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar gap-4 px-4 sm:px-6 pb-4 -mx-4 sm:mx-0">
                     {packs.map(pack => (
-                      <div key={pack.id} onClick={() => setSelectedPack(pack)} className="relative w-72 h-44 rounded-[28px] overflow-hidden shrink-0 snap-center group cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300">
+                      <div key={pack.id} onClick={() => setSelectedPack(pack)} className="relative w-72 h-44 rounded-[28px] overflow-hidden shrink-0 snap-center group cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300 dark:border-slate-800 border border-slate-100">
                         <img src={pack.cover_image_url || '/placeholder-pack.jpg'} alt={pack.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                         <div className="absolute inset-0 bg-gradient-to-t dark:border-amber-800 from-black/80 via-black/20 to-transparent"></div>
                         <div className="absolute bottom-0 dark:border-amber-800 left-0 p-5">
@@ -396,7 +398,7 @@ export default function TemplatesPage() {
                       const targetPack = packs.find(p => p.id === templatePackMap[selectedTemplate.id])
                       if (targetPack) setSelectedPack(targetPack)
                     }}
-                    className="flex-1 bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold py-3.5 rounded-2xl hover:bg-emerald-100 active:scale-95 transition-all"
+                    className="flex-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-bold py-3.5 rounded-2xl hover:bg-emerald-100 dark:hover:bg-emerald-900/50 active:scale-95 transition-all"
                   >
                     View Pack
                   </button>
@@ -406,8 +408,8 @@ export default function TemplatesPage() {
                   onClick={() => toggleModalFavorite(selectedTemplate)}
                   className={`flex-1 flex items-center justify-center gap-2 font-bold py-3.5 rounded-2xl border transition-all active:scale-95 ${
                     favorites.some(f => f.id === selectedTemplate.id) 
-                      ? 'bg-rose-50 text-rose-500 border-rose-200 hover:bg-rose-100' 
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      ? 'bg-rose-50 text-rose-500 border-rose-200 dark:bg-rose-900/30 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/50' 
+                      : 'bg-white text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
                   }`}
                 >
                   <Heart className={`w-5 h-5 ${favorites.some(f => f.id === selectedTemplate.id) ? 'fill-rose-500' : ''}`} />
@@ -425,22 +427,21 @@ export default function TemplatesPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-0 sm:p-6 transition-opacity">
           <div className="absolute inset-0" onClick={() => setSelectedPack(null)}></div>
           
-          <div className="relative w-full max-w-2xl bg-white rounded-t-[32px] sm:rounded-[40px] shadow-2xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-4 fade-in duration-300 flex flex-col max-h-[90vh]">
+          <div className="relative w-full max-w-2xl bg-white dark:bg-slate-950 rounded-t-[32px] sm:rounded-[40px] shadow-2xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-4 fade-in duration-300 flex flex-col max-h-[90vh]">
             
-            <div className="p-6 pb-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <div className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
               <div>
-                <h3 className="text-2xl font-black text-slate-800">{selectedPack.name}</h3>
-                <p className="text-slate-500 text-sm font-medium mt-1">{selectedPack.description}</p>
+                <h3 className="text-2xl font-black text-slate-800 dark:text-white">{selectedPack.name}</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">{selectedPack.description}</p>
               </div>
-              <button onClick={() => setSelectedPack(null)} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors text-slate-600">
+              <button onClick={() => setSelectedPack(null)} className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-600 dark:text-slate-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-6 overflow-y-auto no-scrollbar grid grid-cols-2 sm:grid-cols-3 gap-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-              {allTemplates
-                .filter(t => templatePackMap[t.id] === selectedPack.id)
-                .map(t => (
+              {/* 💥 Instantly map the templates already stored inside the selected pack! */}
+              {selectedPack.templates.map(t => (
                   <TemplateCard 
                     key={t.id} 
                     template={t} 

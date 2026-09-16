@@ -723,7 +723,7 @@ function WriteQuoteForm() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 sm:gap-4 pb-24 px-1">
+            <div className="grid grid-cols-3 border-r-2 sm:grid-cols-4 gap-3 sm:gap-4 pb-24 px-1">
               {activePack?.templates.map(t => renderTemplateCard(t, true))}
             </div>
           )}

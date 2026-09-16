@@ -172,7 +172,7 @@ export default function QuotedInPage() {
   const isOwnProfile = currentUserId === targetProfile?.id
 
   return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-slate-50/30 pb-24 relative overflow-x-hidden">
+    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-black pb-24 relative overflow-x-hidden">
       
       <div className="absolute top-0 left-0 w-full h-64 bg-linear-to-b from-slate-100 to-transparent -z-10" />
 
@@ -190,18 +190,18 @@ export default function QuotedInPage() {
             <User className="w-8 h-8 text-black" />
           )}
         </div>
-        <h1 className="text-xl font-black dark:text-amber-700 text-slate-900 mb-1">{targetProfile?.username}</h1>
+        <h1 className="text-xl font-black dark:text-white text-slate-900 mb-1">{targetProfile?.username}</h1>
         <p className="text-slate-500 font-bold text-sm dark:text-white">
           {isOwnProfile ? 'You were Quoted in' : `${targetProfile?.username} was Quoted in`}
         </p>
       </div>
 
       {/* 3-Column Grid */}
-      <div className="px-6 w-full">
+      <div className="px-6 dark:bg-black w-full">
         {quotes.length === 0 ? (
           <div className="text-center mt-10"><p className="text-slate-400 font-bold">No quotes found.</p></div>
         ) : (
-          <div className="grid grid-cols-3 gap-2 w-full">
+          <div className="grid grid-cols-3 border-r-2 gap-2 w-full">
             {quotes.map((quote) => (
               <Link 
                 key={quote.id} 

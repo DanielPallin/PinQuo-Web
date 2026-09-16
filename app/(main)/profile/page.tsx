@@ -120,21 +120,21 @@ export default function ProfilePage() {
     return (
       <div 
         onClick={onClick}
-        className="grid grid-cols-2 gap-2 w-full p-2.5 bg-white border border-slate-100 rounded-[32px] cursor-pointer hover:shadow-md hover:border-slate-200 transition-all active:scale-95 group shadow-sm will-change-transform"
+        className="grid grid-cols-2 border-r-2gap-2 w-full p-2.5 bg-white border border-slate-100 rounded-[32px] cursor-pointer hover:shadow-md hover:border-slate-200 transition-all active:scale-95 group shadow-sm will-change-transform"
       >
         {slots.map((index) => {
           const quote = quotesToRender[index]
-          if (!quote) return <div key={`empty-${index}`} className="aspect-square bg-slate-50 border border-slate-100/50 rounded-[20px]"></div>
+          if (!quote) return <div key={`empty-${index}`} className="aspect-square border-r-2 bg-slate-50 border border-slate-100/50 rounded-[20px]"></div>
 
           return (
-            <div key={quote.id} className="relative aspect-square rounded-[20px] overflow-hidden bg-slate-200">
+            <div key={quote.id} className="relative aspect-square border-r-2 rounded-[20px] overflow-hidden bg-slate-200">
               {/* THE WATERFALL LOGIC */}
               {quote.live_photo_url ? (
                 <img src={quote.live_photo_url} alt="Live Snap" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
               ) : quote.template?.image_url ? (
                 <img src={quote.template.image_url} alt="Template" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
               ) : (
-                <div className={`absolute inset-0 bg-linear-to-br ${quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
+                <div className={`absolute inset-0 border-r-2 bg-linear-to-br ${quote.template?.style_config?.gradient || 'from-slate-200 to-slate-300'}`}></div>
               )}
             </div>
           )

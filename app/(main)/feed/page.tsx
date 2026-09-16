@@ -200,9 +200,9 @@ function QuoteDetailModal({ expandedQuote, comments, currentUserId, onClose, onR
              <QuoteCard quote={expandedQuote} isExpanded={true} onReact={onReactToQuote} onFavorite={onFavoriteQuote} onVoteWitness={onVoteWitness} />
            </div>
 
-           <div className="p-4 sm:p-6 space-y-6 flex-1 bg-white">
+           <div className="p-4 sm:p-6 space-y-6 flex-1 dark:bg-slate-900 bg-white">
               {comments.length === 0 ? (
-                <div className="text-center text-slate-400 font-medium mt-10">No comments yet. Start the conversation!</div>
+                <div className="text-center dark:text-white text-slate-400 font-medium mt-10">No comments yet. Start the conversation!</div>
               ) : (
                 comments.map(comment => {
                     const cReacts: Record<string, GroupedReaction> = {}
@@ -214,13 +214,13 @@ function QuoteDetailModal({ expandedQuote, comments, currentUserId, onClose, onR
                     const groupedCommentReacts = Object.values(cReacts).sort((a,b) => b.count - a.count)
 
                     return (
-                      <div key={comment.id} className="flex gap-3 items-start group">
-                        <div className="w-9 h-9 rounded-full bg-slate-100 shrink-0 border border-slate-200 overflow-hidden flex items-center justify-center mt-0.5">
+                      <div key={comment.id} className="flex gap-3 dark:text-white items-start group">
+                        <div className="w-9 h-9 rounded-full bg-slate-100 shrink-0 border dark:text-white border-slate-200 overflow-hidden flex items-center justify-center mt-0.5">
                           {comment.user.avatar_url ? <img src={comment.user.avatar_url} alt="" className="w-full h-full object-cover"/> : <User className="w-5 h-5 text-slate-400"/>}
                         </div>
                         <div className="flex-1 flex flex-col min-w-0">
-                            <div className="text-[14px] sm:text-[15px] leading-snug text-slate-800 break-words">
-                              <span className="font-bold text-slate-900 mr-2">{comment.user.username}</span>
+                            <div className="text-[14px] dark:text-white dark:bg-slate-900 sm:text-[15px] leading-snug text-slate-800 break-words">
+                              <span className="font-bold dark:text-white text-slate-900 mr-2">{comment.user.username}</span>
                               {comment.content}
                             </div>
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-1.5">
@@ -251,7 +251,7 @@ function QuoteDetailModal({ expandedQuote, comments, currentUserId, onClose, onR
            </div>
         </div>
 
-        <div className="p-3 sm:p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-white border-t border-slate-100 shrink-0 z-20 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
+        <div className="p-3 sm:p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:bg-slate-900 bg-white border-t border-slate-100 shrink-0 z-20 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
            <div className="relative flex items-center max-w-2xl mx-auto">
               <input 
                 ref={commentInputRef}

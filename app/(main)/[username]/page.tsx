@@ -188,21 +188,21 @@ export default function PublicProfilePage() {
     return (
       <div className="flex flex-col w-full mb-8">
         <div className="flex items-center justify-between px-2 mb-3">
-          <h3 className="font-black text-[15px] text-slate-800 dark:text-slate-100 tracking-tight">{title}</h3>
+          <h3 className="font-black text-[15px] text-slate-800 dark:text-white tracking-tight">{title}</h3>
         </div>
         <div 
           onClick={() => router.push(navigateTo)}
-          className="grid grid-cols-3 gap-3 w-full bg-slate-50/50 dark:bg-slate-900/60 p-3 rounded-[28px] border-[3px] border-slate-50 dark:border-slate-800 shadow-inner cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform"
+          className="grid grid-cols-3 gap-3 w-full dark:text-white bg-slate-50/50 dark:bg-black p-3 rounded-[28px] border-1 dark:border-amber-800 shadow-inner cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform"
         >
           {slots.map((q, i) => {
             if (!q) {
-              return <div key={i} className="w-full aspect-square rounded-[18px] bg-slate-200/40 dark:bg-slate-800/60 shadow-sm" />
+              return <div key={i} className="w-full aspect-square rounded-[18px] bg-slate-200/40 dark:bg-slate-900 shadow-sm" />
             }
 
             return (
               <div 
                 key={i} 
-                className="w-full aspect-square rounded-[18px] shadow-sm relative overflow-hidden flex items-center justify-center bg-slate-800"
+                className="w-full border-r-2 aspect-square rounded-[18px] shadow-sm relative overflow-hidden flex items-center justify-center bg-slate-800"
               >
                 {q.live_photo_url ? (
                   <img src={q.live_photo_url} alt="Live Snap" className="absolute inset-0 w-full h-full object-cover" />
@@ -247,10 +247,10 @@ export default function PublicProfilePage() {
   )
 
   return (
-    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white pb-24 relative overflow-x-hidden">
+    <div className="flex flex-col w-full max-w-2xl mx-auto min-h-screen bg-white dark:bg-black pb-24 relative overflow-x-hidden">
       <div className="absolute top-0 left-0 w-full h-64 bg-linear-to-b from-slate-100 to-white -z-10" />
       <div className="flex justify-between items-center pt-6 px-6 mb-2 shrink-0">
-        <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-200/50 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black" /></button>
+        <button title="Back" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-full transition"><ArrowLeft className="w-8 h-8 text-black dark:text-slate-100" /></button>
         
         {!isOwnProfile && currentUser && (
           <button 
@@ -277,21 +277,21 @@ export default function PublicProfilePage() {
             {targetProfile?.avatar_url ? (
               <img src={targetProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
-              <User className="w-12 h-12 text-slate-400" />
+              <User className="w-12 h-12 dark:text-white text-slate-400" />
             )}
           </div>
         </div>
 
-        <h1 className="text-2xl font-black text-slate-900 mb-5">{targetProfile?.username}</h1>
+        <h1 className="text-2xl font-black dark:text-white text-slate-900 mb-5">{targetProfile?.username}</h1>
 
         <div className="flex items-center justify-center gap-12 w-full mb-6">
           <div className="flex flex-col items-center">
-            <span className="font-black text-xl text-black">{followers}</span>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-0.5">Followers</span>
+            <span className="font-black text-xl dark:text-white text-black">{followers}</span>
+            <span className="text-xs font-bold dark:text-white text-slate-400 uppercase tracking-wider mt-0.5">Followers</span>
           </div>
           <div className="flex flex-col items-center">
-            <span className="font-black text-xl text-black">{following}</span>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-0.5">Following</span>
+            <span className="font-black text-xl dark:text-white text-black">{following}</span>
+            <span className="text-xs font-bold dark:text-white text-slate-400 uppercase tracking-wider mt-0.5">Following</span>
           </div>
         </div>
 
@@ -302,8 +302,8 @@ export default function PublicProfilePage() {
             isOwnProfile 
               ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
               : isFollowing 
-                ? 'bg-slate-100 text-slate-600 hover:bg-slate-200 border-2 border-transparent' 
-                : 'bg-black text-white hover:scale-[1.02] active:scale-[0.98]'
+                ? 'bg-slate-900 text-slate-600 dark:text-white hover:bg-slate-200 border-2 border-transparent' 
+                : 'bg-slate-700 text-white hover:scale-[1.1] active:scale-[0.98]'
           }`}
         >
           {isOwnProfile ? 'This is you' : isFollowing ? 'Following' : 'Follow'}
