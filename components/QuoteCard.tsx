@@ -560,8 +560,8 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
 
             <div className="flex flex-col gap-3 w-full">
               
-              {/* Renderas bara på enheter som stöder inbyggd delning (t.ex. iOS/Android) */}
-              {typeof navigator !== 'undefined' && navigator.canShare && (
+              {/* 💥 FIX: Kollar explicit typeof === 'function' istället för bara funktionen i sig */}
+              {typeof navigator !== 'undefined' && typeof navigator.canShare === 'function' && (
                 <button 
                   onClick={handleNativeShare}
                   disabled={isExporting}
