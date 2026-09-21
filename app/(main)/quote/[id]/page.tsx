@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import QuoteCard, { FeedQuote, EmojiClickData, GroupedReaction } from '@/components/QuoteCard'
+import QuoteCard, { FeedQuote, GroupedReaction } from '@/components/QuoteCard'
+import { EmojiClickData } from 'emoji-picker-react'
 import { Loader2, ArrowLeft, Send, SmilePlus, User } from 'lucide-react'
 import { useQuoteInteractions, QuoteComment } from '@/hooks/useQuoteInteractions'
 import CustomEmojiPicker from '@/components/CustomEmojiPicker'
@@ -144,17 +145,14 @@ export default function SingleQuotePage() {
   return (
     <div className="flex flex-col w-full min-h-screen bg-slate-50 dark:bg-slate-950 pt-6 px-4 pb-24 overflow-x-hidden">
       
-      {/* Tillbaka-knapp */}
       <div className="w-full max-w-[550px] mx-auto mb-4 flex items-center">
         <button title="Tillbaka" onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 rounded-full transition">
           <ArrowLeft className="w-7 h-7 text-black dark:text-slate-100" />
         </button>
       </div>
 
-      {/* 💥 ALLT I EN OCH SAMMA CONTAINER - PRECIS SOM I BILD 3b53e6 */}
       <div className="w-full max-w-[550px] mx-auto bg-white dark:bg-slate-900 sm:rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden flex flex-col mb-12">
         
-        {/* Själva citatkortet */}
         <div className="shrink-0 z-10">
           <QuoteCard 
             quote={quote} 
@@ -165,7 +163,6 @@ export default function SingleQuotePage() {
           />
         </div>
 
-        {/* Kommentarer direkt integrerat nedanför */}
         <div className="flex-1 px-4 sm:px-6 py-4 space-y-6 bg-slate-50 dark:bg-slate-900/50">
           {comments.length === 0 ? (
             <div className="text-center dark:text-slate-400 text-slate-400 font-medium py-6">Inga kommentarer än. Bli den första!</div>
@@ -216,7 +213,6 @@ export default function SingleQuotePage() {
           )}
         </div>
 
-        {/* Inmatningsfältet fäst direkt i kortets botten */}
         <div className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 shrink-0">
           <div className="relative flex items-center">
             <input 
