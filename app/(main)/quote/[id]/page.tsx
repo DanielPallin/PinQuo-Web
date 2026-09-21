@@ -23,11 +23,11 @@ export default function SingleQuotePage() {
   const supabase = createClient()
   
   const quoteId = typeof params?.id === 'string' ? params.id : ''
-  
+
   const [quote, setQuote] = useState<FeedQuote | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  
+
   const [comments, setComments] = useState<QuoteComment[]>([])
   const [newComment, setNewComment] = useState('')
   const [isPostingComment, setIsPostingComment] = useState(false)
@@ -38,7 +38,7 @@ export default function SingleQuotePage() {
     supabase,
     currentUserId,
     quotes: quote ? [quote] : [],
-    setQuotes: () => {}, 
+    setQuotes: () => {},
     expandedQuote: quote,
     setExpandedQuote: setQuote,
     comments,
@@ -75,7 +75,7 @@ export default function SingleQuotePage() {
 
       const quoteReacts = (data.reactions || []).filter((r: any) => r.comment_id === null)
       const reactMap: Record<string, GroupedReaction> = {}
-      
+
       quoteReacts.forEach((r: any) => {
         if (!reactMap[r.reaction_type]) reactMap[r.reaction_type] = { emoji: r.reaction_type, count: 0, hasReacted: false }
         reactMap[r.reaction_type].count++
@@ -98,7 +98,12 @@ export default function SingleQuotePage() {
         commentCount: Array.isArray(data.comments) && data.comments[0] ? (data.comments[0] as any).count : 0,
         favoriteCount: Array.isArray(data.favorites) ? data.favorites.length : 0,
         isFavorited,
-        witnesses: Array.isArray(data.quote_witnesses) ? data.quote_witnesses : []
+        witnesses: Array.isArray(data.quote_witnesses)
+          ? data.quote_witnesses.map((w: any) => ({
+              ...w,
+              profile: Array.isArray(w.profile) ? w.profile[0] : w.profile
+            }))
+          : []
       }
 
       setQuote(formattedQuote)
