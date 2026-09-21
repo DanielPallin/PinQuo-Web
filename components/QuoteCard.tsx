@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { User, MessageCircle, Bookmark, SmilePlus, Share2, Loader2, X, Mail } from 'lucide-react'
+import { User, MessageCircle, Bookmark, SmilePlus, Share2, Loader2, X, Mail, Download } from 'lucide-react'
 import { EmojiClickData } from 'emoji-picker-react'
 import CustomEmojiPicker from './CustomEmojiPicker'
 import { createClient } from '@/lib/supabase/client'
+import { toBlob } from 'html-to-image'
 
 export type GroupedReaction = { emoji: string, count: number, hasReacted: boolean }
 
@@ -60,6 +61,10 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
   
+  // 💥 NEW: Ref to strictly target the visual card for image generation
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [isExporting, setIsExporting] = useState(false)
+
   const [isFav, setIsFav] = useState(quote.isFavorited)
   const [favCount, setFavCount] = useState(quote.favoriteCount)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -67,6 +72,7 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   // Modals
   const [showWitnessModal, setShowWitnessModal] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
   
   // State to store dynamically fetched witness profiles
   const [witnessProfiles, setWitnessProfiles] = useState<Record<string, { username: string; avatar_url: string | null }>>({})
@@ -166,6 +172,69 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
   const userWitnessEntry = witnesses.find(w => w.witness_user_id === currentUserId)
   const isUserWitness = !!userWitnessEntry
 
+  // Handle Image Export and Native Sharing
+  const handleDownloadImage = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!cardRef.current || isExporting) return
+    setIsExporting(true)
+
+    try {
+      const blob = await toBlob(cardRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        style: { transform: 'scale(1)', margin: '0' }
+      })
+
+      if (!blob) throw new Error('Failed to generate image blob')
+
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.download = `PinQuote_${publisherName}.png`
+      link.href = url
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Failed to download image', err)
+      alert("Något gick fel när bilden skulle sparas.")
+    } finally {
+      setIsExporting(false)
+      setShowShareModal(false)
+    }
+  }
+
+  const handleNativeShare = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!cardRef.current || isExporting) return
+    setIsExporting(true)
+
+    try {
+      const blob = await toBlob(cardRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        style: { transform: 'scale(1)', margin: '0' }
+      })
+
+      if (!blob) throw new Error('Failed to generate image blob')
+
+      const file = new File([blob], `PinQuote_${publisherName}.png`, { type: blob.type })
+      
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: 'PinQuote',
+          files: [file]
+        })
+      } else {
+        alert("Din enhet stöder inte direkt delning till appar. Använd 'Spara bild' istället.")
+      }
+    } catch (err) {
+      console.error('Failed to share image', err)
+    } finally {
+      setIsExporting(false)
+      setShowShareModal(false)
+    }
+  }
+
+
   const handleWitnessVoteAction = async (e: React.MouseEvent, voteType: 'approved' | 'denied') => {
     e.stopPropagation()
     if (isGuest) {
@@ -228,18 +297,14 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
     setShowWitnessModal(true)
   }
 
-  const handleShare = async (e: React.MouseEvent) => {
+  const handleCopyLink = async (e: React.MouseEvent) => {
     e.stopPropagation()
     const quoteUrl = `${window.location.origin}/quote/${quote.id}`
-    if (navigator.share) {
-      try { await navigator.share({ title: 'PinQuo', text: `Check out this quote by ${targetName} on PinQuo!`, url: quoteUrl }) } 
-      catch (err) { /* User dismissed */ }
-    } else {
-      try {
-        await navigator.clipboard.writeText(quoteUrl)
-        alert('Link copied to clipboard!')
-      } catch (err) { console.error('Failed to copy URL:', err) }
-    }
+    try {
+      await navigator.clipboard.writeText(quoteUrl)
+      alert('Länk kopierad till urklipp!')
+      setShowShareModal(false)
+    } catch (err) { console.error('Failed to copy URL:', err) }
   }
 
   const handleInContextAuth = async (e: React.FormEvent) => {
@@ -358,8 +423,9 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
         </div>
       </div>
 
-      {/* Cinematic Graphic */}
+      {/* Cinematic Graphic (Attached ref here for image generation) */}
       <div 
+        ref={cardRef}
         onClick={(e) => { e.stopPropagation(); if (!isExpanded && onExpand) onExpand(quote) }}
         className={`w-full bg-slate-900 rounded-[32px] overflow-hidden flex flex-col relative ${!isExpanded ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-lg aspect-square will-change-transform' : 'shadow-none aspect-square sm:aspect-auto sm:min-h-[400px]'}`}
       >
@@ -436,38 +502,95 @@ export default function QuoteCard({ quote, isExpanded = false, onReact, onExpand
       )}
 
       {/* Action Bar */}
-      {!isExpanded && (
-        <div className="relative flex items-center justify-between pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 px-2 h-12">
-          
-          <div className="flex items-center gap-4 relative z-20">
-            <div className="relative" ref={pickerRef}>
-              <button onClick={handleReactClick} className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors group">
-                <SmilePlus className="w-6 h-6 group-active:scale-95 transition-transform" />
-              </button>
-              {showEmojiPicker && !isGuest && (
-                <div onClick={(e) => e.stopPropagation()} className="absolute z-50 bottom-full left-0 mb-2 shadow-xl rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-                  <CustomEmojiPicker onEmojiClick={handleReactionSelection} />
-                </div>
+      <div className={`relative flex items-center justify-between pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 h-12 ${isExpanded ? 'px-6' : 'px-2'}`}>
+        
+        <div className="flex items-center gap-4 relative z-20">
+          <div className="relative" ref={pickerRef}>
+            <button onClick={handleReactClick} className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors group">
+              <SmilePlus className="w-6 h-6 group-active:scale-95 transition-transform" />
+            </button>
+            {showEmojiPicker && !isGuest && (
+              <div onClick={(e) => e.stopPropagation()} className="absolute z-50 bottom-full left-0 mb-2 shadow-xl rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <CustomEmojiPicker onEmojiClick={handleReactionSelection} />
+              </div>
+            )}
+          </div>
+
+          <button 
+            onClick={(e) => {
+              // Om vi redan är på /[id] (isExpanded), fokusera kommentarinslaget istället för att navigera
+              if (isExpanded) {
+                e.stopPropagation();
+                document.querySelector<HTMLInputElement>('input[placeholder="Lägg till kommentar..."]')?.focus();
+              } else {
+                handleCommentClick(e);
+              }
+            }} 
+            className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200 hover:text-blue-500 dark:hover:text-blue-400 transition-colors group"
+          >
+            <MessageCircle className="w-6 h-6 group-active:scale-95 transition-transform" />
+            {quote.commentCount > 0 && <span className="text-sm font-bold text-slate-700 dark:text-slate-300 mt-0.5">{quote.commentCount}</span>}
+          </button>
+
+          <button onClick={handleFavoriteClick} className={`flex items-center gap-1.5 transition-colors group ${isFav ? 'text-amber-500 dark:text-amber-400' : 'text-slate-800 dark:text-slate-200 hover:text-amber-500 dark:hover:text-amber-400'}`}>
+            <Bookmark className={`w-6 h-6 group-active:scale-95 transition-transform ${isFav ? 'fill-amber-500' : ''}`} />
+            {favCount > 0 && <span className={`text-sm font-bold mt-0.5 ${isFav ? 'text-amber-500 dark:text-amber-400' : 'text-slate-700 dark:text-slate-300'}`}>{favCount}</span>}
+          </button>
+        </div>
+
+        <div className="flex items-center relative z-20">
+          {/* TRIGGER: Share Modal instead of standard Share */}
+          <button onClick={(e) => { e.stopPropagation(); setShowShareModal(true); }} className="flex items-center text-slate-800 dark:text-slate-200 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors group">
+            <Share2 className="w-6 h-6 group-active:scale-95 transition-transform" />
+          </button>
+        </div>
+        
+      </div>
+
+      {/* Share / Download Modal */}
+      {showShareModal && (
+        <div onClick={(e) => { e.stopPropagation(); setShowShareModal(false); }} className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 cursor-default">
+          <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-slate-900 rounded-[32px] w-full max-w-sm shadow-2xl relative animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200 border border-slate-100 dark:border-slate-800 p-6 flex flex-col items-center">
+            
+            <button onClick={() => setShowShareModal(false)} className="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+              <X className="w-5 h-5 text-slate-500 dark:text-slate-300" />
+            </button>
+
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 mt-2">Dela citat</h3>
+
+            <div className="flex flex-col gap-3 w-full">
+              
+              {/* 💥 FIX: Kollar explicit typeof === 'function' istället för bara funktionen i sig */}
+              {typeof navigator !== 'undefined' && typeof navigator.canShare === 'function' && (
+                <button 
+                  onClick={handleNativeShare}
+                  disabled={isExporting}
+                  className="w-full py-4 flex items-center justify-center gap-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl transition active:scale-95 shadow-md shadow-emerald-500/20"
+                >
+                  {isExporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Share2 className="w-5 h-5" />}
+                  <span className="text-base font-bold">Dela till Instagram, TikTok...</span>
+                </button>
               )}
+
+              <button 
+                onClick={handleDownloadImage}
+                disabled={isExporting}
+                className="w-full py-4 flex items-center justify-center gap-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl transition active:scale-95 text-slate-800 dark:text-slate-100"
+              >
+                {isExporting ? <Loader2 className="w-5 h-5 animate-spin text-slate-600 dark:text-slate-300" /> : <Download className="w-5 h-5 text-slate-600 dark:text-slate-300" />}
+                <span className="text-base font-bold">Spara ner bild</span>
+              </button>
+
+              <button 
+                onClick={handleCopyLink}
+                className="w-full py-4 flex items-center justify-center gap-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl transition active:scale-95 text-slate-800 dark:text-slate-100"
+              >
+                <Share2 className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                <span className="text-base font-bold">Kopiera länk</span>
+              </button>
+
             </div>
-
-            <button onClick={handleCommentClick} className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200 hover:text-blue-500 dark:hover:text-blue-400 transition-colors group">
-              <MessageCircle className="w-6 h-6 group-active:scale-95 transition-transform" />
-              {quote.commentCount > 0 && <span className="text-sm font-bold text-slate-700 dark:text-slate-300 mt-0.5">{quote.commentCount}</span>}
-            </button>
-
-            <button onClick={handleFavoriteClick} className={`flex items-center gap-1.5 transition-colors group ${isFav ? 'text-amber-500 dark:text-amber-400' : 'text-slate-800 dark:text-slate-200 hover:text-amber-500 dark:hover:text-amber-400'}`}>
-              <Bookmark className={`w-6 h-6 group-active:scale-95 transition-transform ${isFav ? 'fill-amber-500' : ''}`} />
-              {favCount > 0 && <span className={`text-sm font-bold mt-0.5 ${isFav ? 'text-amber-500 dark:text-amber-400' : 'text-slate-700 dark:text-slate-300'}`}>{favCount}</span>}
-            </button>
           </div>
-
-          <div className="flex items-center relative z-20">
-            <button onClick={handleShare} className="flex items-center text-slate-800 dark:text-slate-200 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors group">
-              <Share2 className="w-6 h-6 group-active:scale-95 transition-transform" />
-            </button>
-          </div>
-          
         </div>
       )}
 
