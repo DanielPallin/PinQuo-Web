@@ -37,13 +37,14 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-slate-50 dark:bg-slate-950 flex justify-center font-sans transition-colors duration-200">
+    // 💥 FIX: Tog bort overflow-x-hidden härifrån för att låta 'sticky' fungera på barnen
+    <div className="min-h-screen w-full bg-slate-50 dark:bg-slate-950 flex justify-center font-sans transition-colors duration-200">
       
       <div className="w-full max-w-[1400px] flex flex-col lg:flex-row relative">
         
         {/* Mobile Header */}
         <header className="lg:hidden sticky top-0 z-40 bg-white dark:bg-slate-950/90 md:bg-white/80 md:dark:bg-slate-950/80 md:backdrop-blur-md pt-5 pb-3 px-6 flex justify-between items-center border-b border-slate-200/50 dark:border-slate-800/70 shadow-sm will-change-transform transition-colors duration-200">
-          <Link href="/feed" className="dark: transition-all">
+          <Link href="/feed" className="transition-all">
             <Image src="/PinQuote-Logo.png" alt="PinQuo Logo" width={110} height={35} priority className="h-8 w-auto object-contain" />
           </Link>
 
@@ -63,8 +64,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         </header>
         
 
-        {/* LEFT SIDEBAR (Desktop Only) */}
-        <aside className="hidden lg:flex w-70 xl:w-[320px] flex-col sticky top-0 h-screen border-r border-slate-200/60 dark:border-slate-800 px-6 py-8 overflow-y-auto shrink-0 bg-white dark:bg-slate-950 transition-colors duration-200">
+        {/* LEFT SIDEBAR (Desktop Only) - Nu låst på skärmen igen tack vare sticky top-0 */}
+        <aside className="hidden lg:flex w-70 xl:w-[320px] flex-col sticky top-0 h-screen border-r border-slate-200/60 dark:border-slate-800 px-6 py-8 overflow-y-auto shrink-0 bg-white dark:bg-slate-950 transition-colors duration-200 no-scrollbar">
           <Link href="/feed" className="mb-10 pl-2 transition-transform hover:scale-105 active:scale-100">
             <Image src="/PinQuote-Logo.png" alt="PinQuo Logo" width={150} height={45} priority className="h-10 w-auto object-contain" />
           </Link>
@@ -124,15 +125,13 @@ export default async function MainLayout({ children }: { children: React.ReactNo
           {children}
         </main>
 
-        {/* RIGHT SIDEBAR (Desktop Only) */}
+        {/* RIGHT SIDEBAR (Desktop Only) - Även denna låses fast via sticky top-0 */}
         <aside className="hidden xl:flex w-[320px] flex-col sticky top-0 h-screen px-4 pt-6 shrink-0 z-40">
           
-          {/* 💥 FIX: Let the smart component handle the UI cluster entirely on its own! */}
           <div className="w-full flex justify-end mb-8 relative z-50">
             <FloatingUserPill />
           </div>
 
-          {/* DYNAMIC WIDGETS */}
           <div className="flex-1 overflow-y-auto no-scrollbar pb-10 relative z-0">
             <SidebarWidgets />
           </div>

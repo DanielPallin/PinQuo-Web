@@ -8,7 +8,6 @@ import QuoteCard, { FeedQuote, GroupedReaction, WitnessRecord } from '@/componen
 import Link from 'next/link'
 import { useQuoteInteractions } from '@/hooks/useQuoteInteractions'
 
-// --- TYPES & CONSTANTS ---
 const ITEMS_PER_PAGE = 5
 
 type RawQuoteData = {
@@ -55,7 +54,7 @@ const formatQuote = (q: RawQuoteData, userId: string | null): FeedQuote => {
   }
 }
 
-// --- COMPONENT 1: ISOLATED SEARCH BAR ---
+// Search Bar Component
 function FeedSearch({ isSearchVisible }: { isSearchVisible: boolean }) {
   const [supabase] = useState(() => createClient())
   const [searchQuery, setSearchQuery] = useState('')
@@ -143,13 +142,11 @@ function FeedSearch({ isSearchVisible }: { isSearchVisible: boolean }) {
   )
 }
 
-
-// --- COMPONENT 2: MAIN FEED DATA CONTROLLER ---
+// MAIN FEED DATA controller / FETCHFEED / SAVE TO SESSION STORAGE / REALTIME CHECK FOR NEW QUOTES
 function FeedContent() {
   const [supabase] = useState(() => createClient())
   const router = useRouter()
 
-  // 💥 NEW: Synkron inläsning från Cache på mount!
   const [quotes, setQuotes] = useState<FeedQuote[]>(() => {
     if (typeof window !== 'undefined') {
       const cached = sessionStorage.getItem('pinquo_feed_quotes')
@@ -211,7 +208,6 @@ function FeedContent() {
       else if (currentScrollY < lastScrollY.current) setIsSearchVisible(true)
       lastScrollY.current = currentScrollY
 
-      // 💥 NEW: Spara exakt scroll-position blixtsnabbt
       sessionStorage.setItem('pinquo_feed_scroll', currentScrollY.toString())
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
@@ -220,9 +216,59 @@ function FeedContent() {
 
   useEffect(() => {
     let isMounted = true
+    const checkForNewQuotes = async () => {
+
+      const cached = sessionStorage.getItem('pinquo_feed_quotes')
+      if (!cached) return
+      
+      const parsedCache = JSON.parse(cached)
+      if (parsedCache.length === 0) return
+      
+      const latestDate = parsedCache[0].created_at
+
+      const { data: { user } } = await supabase.auth.getUser()
+
+
+      const { data, error } = await supabase
+        .from('quotes')
+        .select(`
+          id, content, created_at, quoted_email, custom_author_name, live_photo_url,
+          publisher:profiles!quotes_publisher_id_fkey(id, username, avatar_url),
+          quoted_user:profiles!quotes_quoted_user_id_fkey(id, username, avatar_url),
+          template:templates(style_config, image_url),
+          reactions(reaction_type, user_id, comment_id),
+          favorites(user_id),
+          comments(count),
+          quote_witnesses(id, witness_user_id, witness_email, vote)
+        `)
+        .gt('created_at', latestDate)
+        .order('created_at', { ascending: false })
+
+      if (data && data.length > 0 && isMounted) {
+        const rawData = data as unknown as RawQuoteData[]
+        const formattedQuotes = rawData.map(q => formatQuote(q, user?.id || null))
+
+        setQuotes(prev => {
+          const newQuotes = formattedQuotes.filter(newQ => !prev.some(existing => existing.id === newQ.id))
+          return [...newQuotes, ...prev]
+        })
+      }
+    }
+
+    const timer = setTimeout(() => {
+      checkForNewQuotes()
+    }, 500)
+
+    return () => {
+      isMounted = false
+      clearTimeout(timer)
+    }
+  }, [supabase])
+
+  useEffect(() => {
+    let isMounted = true
     const fetchFeed = async () => {
       
-      // 💥 NEW: Om vi har cache och redan renderat den, hoppa över onödig nätverksladdning och tvinga scroll!
       if (page === 0 && quotes.length > 0 && !isLoading) {
         const savedScroll = sessionStorage.getItem('pinquo_feed_scroll')
         if (savedScroll) {
@@ -276,9 +322,8 @@ function FeedContent() {
 
     void fetchFeed()
     return () => { isMounted = false }
-  }, [supabase, page]) // quotes är borttagen härifrån för att inte trigga oändliga loopar
+  }, [supabase, page])
 
-  // 💥 NEW: Spara till cache varje gång state uppdateras
   useEffect(() => {
     if (quotes.length > 0) {
       sessionStorage.setItem('pinquo_feed_quotes', JSON.stringify(quotes))
@@ -337,7 +382,6 @@ function FeedContent() {
   )
 }
 
-// --- MAIN EXPORT ---
 export default function FeedPage() {
   return (
     <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>}>
