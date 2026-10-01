@@ -1,3 +1,4 @@
+import type { Metadata, Viewport } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -13,6 +14,24 @@ import FloatingUserPill from '@/components/FloatingUserPill'
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta' })
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' })
 
+export const viewport: Viewport = {
+  themeColor: '#000000',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+}
+
+export const metadata: Metadata = {
+  title: 'PinQuote',
+  description: 'PinQuote Web Application',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'PinQuote',
+  },
+}
+
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
 
@@ -20,7 +39,6 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
   let profile = null;
 
-  // Only fetch the profile and enforce setup IF they are actually logged in
   if (user) {
     const { data } = await supabase
       .from('profiles')
@@ -30,14 +48,12 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     
     profile = data;
 
-    // If they are logged in but have no username, force them to finish onboarding
     if (!profile?.username) {
       redirect('/setup')
     }
   }
 
   return (
-    // 💥 FIX: Tog bort overflow-x-hidden härifrån för att låta 'sticky' fungera på barnen
     <div className="min-h-screen w-full bg-slate-50 dark:bg-slate-950 flex justify-center font-sans transition-colors duration-200">
       
       <div className="w-full max-w-[1400px] flex flex-col lg:flex-row relative">
@@ -64,7 +80,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         </header>
         
 
-        {/* LEFT SIDEBAR (Desktop Only) - Nu låst på skärmen igen tack vare sticky top-0 */}
+        {/* LEFT SIDEBAR (Desktop Only) */}
         <aside className="hidden lg:flex w-70 xl:w-[320px] flex-col sticky top-0 h-screen border-r border-slate-200/60 dark:border-slate-800 px-6 py-8 overflow-y-auto shrink-0 bg-white dark:bg-slate-950 transition-colors duration-200 no-scrollbar">
           <Link href="/feed" className="mb-10 pl-2 transition-transform hover:scale-105 active:scale-100">
             <Image src="/PinQuote-Logo.png" alt="PinQuo Logo" width={150} height={45} priority className="h-10 w-auto object-contain" />
@@ -125,7 +141,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
           {children}
         </main>
 
-        {/* RIGHT SIDEBAR (Desktop Only) - Även denna låses fast via sticky top-0 */}
+        {/* RIGHT SIDEBAR (Desktop Only) */}
         <aside className="hidden xl:flex w-[320px] flex-col sticky top-0 h-screen px-4 pt-6 shrink-0 z-40">
           
           <div className="w-full flex justify-end mb-8 relative z-50">
