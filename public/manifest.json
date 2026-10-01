@@ -1,0 +1,23 @@
+{
+  "name": "PinQuote",
+  "short_name": "PinQuo",
+  "description": "Share your favorite quotes with PinQuote, the ultimate quote-sharing platform. Discover, save, and share inspiring quotes with friends and the world.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
