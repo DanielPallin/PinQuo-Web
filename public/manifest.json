@@ -19,5 +19,67 @@
       "sizes": "512x512",
       "type": "image/png"
     }
+  ],
+  "screenshots": [
+    {
+      "src": "/screen-mobile.png",
+      "sizes": "412x970",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screen-desktop.png",
+      "sizes": "1246x1274",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/screen2-mobile.png",
+      "sizes": "412x970",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screen2-desktop.png",
+      "sizes": "1246x1274",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/screen3-mobile.png",
+      "sizes": "412x970",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screen3-desktop.png",
+      "sizes": "1246x1274",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/screen4-mobile.png",
+      "sizes": "412x970",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screen4-desktop.png",
+      "sizes": "1246x1274",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/screen5-mobile.png",
+      "sizes": "412x970",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screen5-desktop.png",
+      "sizes": "1246x1274",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
   ]
 }
